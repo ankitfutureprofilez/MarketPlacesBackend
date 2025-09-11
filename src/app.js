@@ -31,5 +31,9 @@ app.get("/", (req, res) => {
     });
 });
 
+app.use("/api/vendor" ,  require("./route/VendorRoute"))
+
+
+
 const server = app.listen(PORT, () => console.log("Server is running at port : " + PORT));
 server.timeout = 360000; // 6 minutes
