@@ -1,0 +1,17 @@
+{
+    "version": 2,
+    "name": "Market Places Backend",
+    "builds": [
+      { 
+        "src": "/src/app.js", 
+        "use": "@vercel/node",
+        "config": {
+          "maxDuration": 30,
+          "memory": 3009
+        }
+      }
+    ],
+    "routes": [
+      { "src": "/(.*)", "dest": "/src/app.js" }
+    ]
+  }
