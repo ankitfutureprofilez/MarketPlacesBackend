@@ -156,3 +156,25 @@ exports.vendorDelete = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
+
+exports.VendorStatus = catchAsync(async (req, res) => {
+  try {
+    const { status } = req.body;
+    const vendorId = req.params.id;
+
+    const record = await Vendor.findByIdAndUpdate(
+      vendorId,
+      { status },
+      { new: true }
+    );
+
+    if (!record) {
+      return validationErrorResponse(res, "Vendor not found", 404);
+    }
+
+    return successResponse(res, "Vendor status updated successfully", record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});

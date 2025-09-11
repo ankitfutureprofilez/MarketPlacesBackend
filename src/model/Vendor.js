@@ -92,10 +92,15 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
-        users:   {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "User",
-            },
+        users: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
+        status: {
+            type: String,
+            default: "active",
+            enum: ["active", "inactive"]
+        },
     },
     { timestamps: true }
 );
