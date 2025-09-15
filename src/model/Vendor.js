@@ -101,6 +101,11 @@ const vendorSchema = new mongoose.Schema(
             default: "active",
             enum: ["active", "inactive"]
         },
+        Verify_status: {
+            type: String,
+            default: "unverify",
+            enum: ["verify", "unverify"]
+        },
     },
     { timestamps: true }
 );

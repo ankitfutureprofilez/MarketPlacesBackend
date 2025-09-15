@@ -6,8 +6,7 @@ exports.VendorAdd = catchAsync(async (req, res) => {
     try {
         const userid = req.user._id;
         const {
-            business_name,
-            city, area,
+            business_name, city, area,
             pincode, category,
             subcategory, business_register,
             pan_card, GST_no,
@@ -157,24 +156,20 @@ exports.vendorDelete = catchAsync(async (req, res) => {
     }
 });
 
-
 exports.VendorStatus = catchAsync(async (req, res) => {
-  try {
-    const { status } = req.body;
-    const vendorId = req.params.id;
-
-    const record = await Vendor.findByIdAndUpdate(
-      vendorId,
-      { status },
-      { new: true }
-    );
-
-    if (!record) {
-      return validationErrorResponse(res, "Vendor not found", 404);
+    try {
+        const { Verify_status } = req.body;
+        const vendorId = req.params.id;
+        const record = await Vendor.findByIdAndUpdate(
+            vendorId,
+            { Verify_status },
+            { new: true }
+        );
+        if (!record) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+        return successResponse(res, "Vendor status updated successfully", record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
     }
-
-    return successResponse(res, "Vendor status updated successfully", record);
-  } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
 });

@@ -1,6 +1,5 @@
 const catchAsync = require("../utils/catchAsync");
-
-const Offer =  reuire("../model/AddOffer.js");
+const Offer =  require("../model/AddOffer.js");
 
 exports.AddOffer = catchAsync(async (req, res) => {
   try {
