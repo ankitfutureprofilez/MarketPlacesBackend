@@ -66,7 +66,6 @@ exports.verifyToken = async (req, res, next) => {
     }
 };
 
-
 exports.signup = catchAsync(async (req, res) => {
     try {
         const {
@@ -195,7 +194,6 @@ exports.login = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 
 exports.UserGet = catchAsync(async (req, res) => {
     try {

@@ -1,8 +1,8 @@
-const { VendorAdd, VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorStatus } = require("../controller/VendorController");
+const {  VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorStatus, VendorRegister } = require("../controller/VendorController");
 
 const VendorRoute = require("express").Router();
 
-VendorRoute.post("/add", VendorAdd);
+VendorRoute.post("/register", VendorRegister);
 
 VendorRoute.get("/get", VendorGet);
 

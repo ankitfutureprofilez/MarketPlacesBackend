@@ -2,7 +2,6 @@ const { signup, login, SendOtp, VerifyOtp, UserGet } = require("../controller/Au
 
 const UserRoute = require("express").Router();
 
-
 UserRoute.post("/register", signup);
 UserRoute.post("/login", login);
 UserRoute.get("/get-user", UserGet);

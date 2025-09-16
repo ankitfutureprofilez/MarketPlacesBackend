@@ -16,7 +16,7 @@ const addOfferSchema = new mongoose.Schema(
             type: Number,
             required: true,
             min: 0,
-            max: 100, // 0–100%
+            max: 100, 
         },
         maxDiscountCap: {
             type: Number,

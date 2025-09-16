@@ -96,6 +96,10 @@ const vendorSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
+         sales: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
         status: {
             type: String,
             default: "active",
@@ -110,4 +114,4 @@ const vendorSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-module.exports = mongoose.model("Vendor", vendorSchema);
+module.exports = mongoose.model("vendor", vendorSchema);
