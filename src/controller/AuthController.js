@@ -3,9 +3,9 @@ const catchAsync = require("../utils/catchAsync");
 const User = require("../model/User");
 const { promisify } = require("util");
 const bcrypt = require("bcrypt");
-const nodemailer = require("nodemailer");
+// const nodemailer = require("nodemailer");
 const { validationErrorResponse, errorResponse, successResponse } = require("../utils/ErrorHandling");
-const logger = require("../utils/Logger");
+// const logger = require("../utils/Logger");
 const twilio = require("twilio");
 
 const client = twilio(
