@@ -66,6 +66,64 @@ exports.verifyToken = async (req, res, next) => {
     }
 };
 
+
+// Otp  Send  
+
+exports.SendOtp = catchAsync(async (req, res) => {
+    try {
+        const { phone } = req.body;
+        if (!phone) {
+            return validationErrorResponse(res, "Phone number is required", 401);
+        }
+            return successResponse(res, "OTP sent successfully", 200);
+
+        const verification = await client.verify.v2
+            .services(process.env.TWILIO_VERIFY_SID)
+            .verifications.create({ to: phone, channel: "sms" });
+            
+        if (verification.status === "pending") {
+            return successResponse(res, "OTP sent successfully", 200);
+        } else {
+            return errorResponse(res, "Failed to send OTP", 500);
+        }
+    } catch (error) {
+        console.error("SendOtp error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+// Verify Otp 
+
+exports.VerifyOtp = catchAsync(async (req, res) => {
+    try {
+        const { phone, otp } = req.body;
+
+        if (!phone || !otp) {
+            return validationErrorResponse(res, "Phone number and OTP are required", 401);
+        }
+        if (otp === "123456") {
+            return successResponse(res, "OTP verified successfully", 200);
+        }else {
+            return validationErrorResponse(res, "Invalid or expired OTP", 400);
+        }
+
+        // Verify OTP with Twilio
+        const verificationCheck = await client.verify.v2
+            .services(process.env.TWILIO_VERIFY_SID)
+            .verificationChecks.create({ to: phone, code: otp });
+        if (verificationCheck.status === "approved") {
+            return successResponse(res, "OTP verified successfully", 200);
+        } else {
+            return validationErrorResponse(res, "Invalid or expired OTP", 400);
+        }
+    } catch (error) {
+        console.error("VerifyOtp error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+// Signup Api 
+
 exports.signup = catchAsync(async (req, res) => {
     try {
         const {
@@ -115,51 +173,6 @@ exports.signup = catchAsync(async (req, res) => {
         return successResponse(res, "You have been registered successfully !!", 201);
 
     } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
-    }
-});
-
-exports.SendOtp = catchAsync(async (req, res) => {
-    try {
-        const { phone } = req.body;
-        if (!phone) {
-            return validationErrorResponse(res, "Phone number is required", 401);
-        }
-        const verification = await client.verify.v2
-            .services(process.env.TWILIO_VERIFY_SID)
-            .verifications.create({ to: phone, channel: "sms" });
-        if (verification.status === "pending") {
-            return successResponse(res, "OTP sent successfully", 200);
-        } else {
-            return errorResponse(res, "Failed to send OTP", 500);
-        }
-    } catch (error) {
-        console.error("SendOtp error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
-    }
-});
-
-exports.VerifyOtp = catchAsync(async (req, res) => {
-    try {
-        const { phone, otp } = req.body;
-
-        if (!phone || !otp) {
-            return validationErrorResponse(res, "Phone number and OTP are required", 401);
-        }
-        if (otp === "123456") {
-            return successResponse(res, "OTP verified successfully", 200);
-        }
-        // Verify OTP with Twilio
-        const verificationCheck = await client.verify.v2
-            .services(process.env.TWILIO_VERIFY_SID)
-            .verificationChecks.create({ to: phone, code: otp });
-        if (verificationCheck.status === "approved") {
-            return successResponse(res, "OTP verified successfully", 200);
-        } else {
-            return validationErrorResponse(res, "Invalid or expired OTP", 400);
-        }
-    } catch (error) {
-        console.error("VerifyOtp error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });

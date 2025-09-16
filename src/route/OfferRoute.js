@@ -1,4 +1,4 @@
-const { AddOffer, GetOfferId, OfferStatus, EditOffer } = require("../controller/AddOfferController");
+const { AddOffer, GetOfferId, OfferStatus, EditOffer } = require("../controller/VendorController");
 
 const OfferRoute = require("express").Router();
 

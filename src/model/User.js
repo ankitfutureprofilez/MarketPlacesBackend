@@ -5,10 +5,14 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    phone: {
+        type: Number,
+        required: true,
+        unique: true
+    },
     email: {
         type: String,
         unique: true,
-        required: true,
         trim: true,
         lowercase: true,
     },
@@ -18,15 +22,14 @@ const UserSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: true,
     },
     OTP: {
         type: String,
     },
     role: {
         type: String,
-        enum: ["admin", "user", "staff"],
-        default: "user",
+        enum: ["admin", "customer", "staff" ,"vendor"],
+        default: "customer",
     },
 }, { timestamps: true });
 

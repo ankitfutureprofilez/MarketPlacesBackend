@@ -5,36 +5,30 @@ const vendorSchema = new mongoose.Schema(
         uuid: {
             type: String,
             unique: true,
-            required: true,
         },
         business_name: {
             type: String,
-            required: true,
             trim: true,
         },
         city: {
             type: String,
-            required: true,
         },
         area: {
             type: String,
-            required: true,
         },
         pincode: {
             type: Number,
-            required: true,
         },
         category: {
-            type: String,
-            default: null,
+           type: mongoose.Schema.Types.ObjectId,
+            ref: "Category",
         },
         subcategory: {
-            type: String,
-            default: null,
+         type: mongoose.Schema.Types.ObjectId,
+            ref: "SubCategory",
         },
         business_register: {
             type: String,
-            required: true,
         },
         pan_card: {
             type: Boolean,
@@ -46,7 +40,6 @@ const vendorSchema = new mongoose.Schema(
         },
         address: {
             type: String,
-            required: true,
         },
         lat: {
             type: Number,
@@ -92,7 +85,7 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
-        users: {
+        vendor: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },

@@ -1,9 +1,8 @@
 const dotenv = require("dotenv");
-// require("./mongoconfig");
 dotenv.config();
+require("./monogconfig");
 
 const express = require("express");
-const multer = require("multer");
 const app = express();
 const cors = require("cors");
 
@@ -35,9 +34,6 @@ app.use("/api/vendor", require("./route/VendorRoute"));
 app.use("/api/offer", require("./route/OfferRoute"));
 app.use("/api/user", require("./route/UserRoute"));
 app.use("/api/", require("./route/UserRoute"));
-
-
-
 
 
 
