@@ -4,10 +4,7 @@ const catchAsync = require("../utils/catchAsync");
 const categories = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
 const Offer = require("../model/AddOffer.js");
-
 const { validationErrorResponse, successResponse, errorResponse } = require("../utils/ErrorHandling");
-
-
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
