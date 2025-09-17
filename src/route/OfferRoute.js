@@ -1,10 +1,12 @@
-const { AddOffer, GetOfferId, OfferStatus, EditOffer } = require("../controller/VendorController");
+const { AddOffer, GetOfferId, OfferStatus, EditOffer ,GetOffer } = require("../controller/VendorController");
 
 const OfferRoute = require("express").Router();
 
-OfferRoute.post("/add", AddOffer);
+OfferRoute.post("/add/:id", AddOffer);
 
-OfferRoute.get("/get/:id", GetOfferId);
+OfferRoute.get("/get_details/:id", GetOfferId);
+
+OfferRoute.get("/get/:id", GetOffer);
 
 OfferRoute.get("/status/:id", OfferStatus);
 

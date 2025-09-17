@@ -195,8 +195,8 @@ exports.VendorStatus = catchAsync(async (req, res) => {
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
     try {
-        const userId = req.user?._id;
-        const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount } = req.body;
+        const userId = req.params?.id;
+        const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, amount } = req.body;
         const newOffer = new Offer({
             title,
             description,
@@ -204,12 +204,12 @@ exports.AddOffer = catchAsync(async (req, res) => {
             discountPercentage,
             maxDiscountCap,
             minBillAmount,
-            image,
-            users: userId
+            amount,
+           offer_image :  image,
+            vendor: userId
         });
-
         const record = await newOffer.save();
-        return successResponse(res, "Offer created successfully", record);
+        return successResponse(res, "Offer created successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -218,12 +218,26 @@ exports.AddOffer = catchAsync(async (req, res) => {
 // Get Offer Id 
 exports.GetOfferId = catchAsync(async (req, res) => {
     try {
-        const userId = req.user?._id || req.params.id;
-        const record = await Offer.findById({ users: userId }).populate("users");
+        const offerId = req.params.id;
+        const record = await Offer.findById({ _id: offerId }).populate("vendor");
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
-        return successResponse(res, "Vendor details fetched successfully", record);
+        return successResponse(res, "Vendor details fetched successfully", 200, record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+// Offer Get 
+exports.GetOffer = catchAsync(async (req, res) => {
+    try {
+        const offerId = req.params.id;
+        const record = await Offer.find({ vendor: offerId });
+        if (!record) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+        return successResponse(res, "Vendor details fetched successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -251,11 +265,11 @@ exports.OfferStatus = catchAsync(async (req, res) => {
 // Edit Offer 
 exports.EditOffer = catchAsync(async (req, res) => {
     try {
-        const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, Id } = req.body;
+        const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, Id, amount } = req.body;
         const record = await Offer.findByIdAndUpdate(Id, {
             title, description, expiryDate, image,
             discountPercentage,
-            maxDiscountCap, minBillAmount
+            maxDiscountCap, minBillAmount, amount
         }, { new: true });
         return successResponse(res, "Offer created successfully", record);
     } catch (error) {
