@@ -6,7 +6,7 @@ salesroute.post("/vendor/:id" ,  VendorGetAll);
 
 salesroute.post("/vendor_status" , VendorStatus);
 
-salesroute.post("/vendor-add", VendorRegister );
+salesroute.post("/vendor_add", VendorRegister );
 
 salesroute.get("/sales_id/:id" ,  SalesGetId);
 
