@@ -5,6 +5,8 @@ const categories = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
 const Offer = require("../model/AddOffer.js");
 const { validationErrorResponse, successResponse, errorResponse } = require("../utils/ErrorHandling");
+
+
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
@@ -173,10 +175,6 @@ exports.vendorDelete = catchAsync(async (req, res) => {
     }
 });
 
-
-
-
-
 // Offer Management 
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
@@ -263,8 +261,6 @@ exports.EditOffer = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 })
-
-
 
 // Category Management
 //  Category 
