@@ -1,4 +1,4 @@
-const {  VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorStatus, VendorRegister, category, subcategory } = require("../controller/VendorController");
+const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorStatus, VendorRegister, category, subcategory } = require("../controller/VendorController");
 
 const VendorRoute = require("express").Router();
 
@@ -12,10 +12,10 @@ VendorRoute.post("/update/:id", vendorUpdate);
 
 VendorRoute.post("/delete/:id", vendorDelete);
 
-VendorRoute.post("/status/:id", VendorStatus);
+VendorRoute.post("/status", VendorStatus);
 
-VendorRoute.get("/categroy" , category);
+VendorRoute.get("/categroy", category);
 
-VendorRoute.get("/sub_categroy/:id" , subcategory);
+VendorRoute.get("/sub_categroy/:id", subcategory);
 
 module.exports = VendorRoute;

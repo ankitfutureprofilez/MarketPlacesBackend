@@ -27,13 +27,13 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         if (!business_name || !city || !category || !subcategory || !state || !pincode || !area) {
             return errorResponse(res, "All vendor details are required", 400);
         }
-        const phoneRegex = /^[0-9]{10}$/;
-        if (!phoneRegex.test(phone)) {
-            return errorResponse(res, "Phone number must be 10 digits", 400);
+
+        const Users = await User.findOne({ phone: phone });
+
+        if (Users) {
+            return errorResponse(res, "Phone number already exists", 400 , );
         }
-        if (!/^\d{6}$/.test(pincode)) {
-            return errorResponse(res, "Pincode must be 6 digits", 400);
-        }
+
 
         const userdata = new User({ name, phone, role: "vendor" });
         const savedUser = await userdata.save();
@@ -58,7 +58,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             return errorResponse(res, "Failed to create vendor", 500,);
         }
 
-        return successResponse(res, "Vendor created successfully", 201); // 201 = Created
+        return successResponse(res, "Vendor created successfully", 201, vendor); // 201 = Created
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -66,13 +66,13 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
-        console.log("req,", req.params)
-        const userId = req.params.id;
-        console.log("userId", userId)
-        const record = await Vendor.findById({ _id: userId }).populate("vendor");
+        const _id = req.params.id;
+        console.log("vendorId:", _id);
+        const record = await Vendor.findById(_id).populate("vendor");
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
+
         return successResponse(res, "Vendor details fetched successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -192,10 +192,14 @@ exports.VendorStatus = catchAsync(async (req, res) => {
     }
 });
 
+
+
+// Offer Management 
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
     try {
         const userId = req.params?.id;
+        console.log("vendor" ,userId)
         const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, amount } = req.body;
         const newOffer = new Offer({
             title,
@@ -205,7 +209,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
             maxDiscountCap,
             minBillAmount,
             amount,
-           offer_image :  image,
+            offer_image: image,
             vendor: userId
         });
         const record = await newOffer.save();
@@ -247,7 +251,7 @@ exports.GetOffer = catchAsync(async (req, res) => {
 exports.OfferStatus = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        const { status } = req.body;
+        const { status   } = req.body;
         const record = await Offer.findByIdAndUpdate(
             offerId,
             { status },
@@ -256,7 +260,7 @@ exports.OfferStatus = catchAsync(async (req, res) => {
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
-        return successResponse(res, "Offer status updated successfully", record);
+        return successResponse(res, "Offer status updated successfully",201,  record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -277,6 +281,9 @@ exports.EditOffer = catchAsync(async (req, res) => {
     }
 })
 
+
+
+// Category Management
 //  Category 
 exports.category = catchAsync(async (req, res) => {
     try {
