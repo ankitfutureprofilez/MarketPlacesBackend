@@ -20,32 +20,32 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '2000mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-const serviceAccount = require('../otpdemo-dc63b-firebase-adminsdk-fbsvc-bc859b783f.json');
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+// const serviceAccount = require('../otpdemo-dc63b-firebase-adminsdk-fbsvc-bc859b783f.json');
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount)
+// });
 
-app.post('/send-notification', async (req, res) => {
-  try {
-    const { token, title, body } = req.body;
+// app.post('/send-notification', async (req, res) => {
+//   try {
+//     const { token, title, body } = req.body;
 
-    const message = {
-      token,
-      notification: { title, body },
-      webpush: {
-        fcmOptions: {
-          link: 'http://localhost:3000'
-        }
-      }
-    };
+//     const message = {
+//       token,
+//       notification: { title, body },
+//       webpush: {
+//         fcmOptions: {
+//           link: 'http://localhost:3000'
+//         }
+//       }
+//     };
 
-    const response = await admin.messaging().send(message);
-    res.send({ success: true, response });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({ success: false, error: err.message });
-  }
-});
+//     const response = await admin.messaging().send(message);
+//     res.send({ success: true, response });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send({ success: false, error: err.message });
+//   }
+// });
 
 const PORT = process.env.REACT_APP_SERVER_DOMIN || 5000; 
 
