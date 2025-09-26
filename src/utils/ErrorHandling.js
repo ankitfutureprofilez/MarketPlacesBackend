@@ -27,11 +27,10 @@ const ApperrorResponses = (res, message = "Something went wrong", statusCode = 5
   });
 };
 
-const validationErrorResponse = (res, errors, message = "Validation Failed", statusCode = 400) => {
+const validationErrorResponse = (res, message = "Validation Failed", statusCode = 400) => {
   return res.status(statusCode).json({
     status: false,
     message,
-    errors,
   });
 };
 

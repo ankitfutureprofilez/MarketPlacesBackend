@@ -4,11 +4,7 @@ const User = require("../model/User");
 const { promisify } = require("util");
 const bcrypt = require("bcrypt");
 // const nodemailer = require("nodemailer");
-const {
-  validationErrorResponse,
-  errorResponse,
-  successResponse,
-} = require("../utils/ErrorHandling");
+const { validationErrorResponse, errorResponse, successResponse } = require("../utils/ErrorHandling");
 // const logger = require("../utils/Logger");
 const twilio = require("twilio");
 
@@ -95,23 +91,34 @@ exports.SendOtp = catchAsync(async (req, res) => {
 
 exports.Login = catchAsync(async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    const { phone, otp, role } = req.body;
 
-    if (!phone || !otp) {
+    if (!phone || !otp || !role) {
       return validationErrorResponse(
         res,
-        "Phone number and OTP are required",
+        "Phone number, OTP and role all are required",
         401
       );
     }
     if (otp !== "123456") {
         return validationErrorResponse(res, "Invalid or expired OTP", 400);
     }
-    const user = await User.findOneAndDelete({phone: phone});
+    const user = await User.findOne({phone: phone});
     if (!user) {
-       return successResponse(res, "OTP verified, please login ", 200);
+       return successResponse(res, "OTP verified, please sign up now", 200, {
+        role: role,
+       });
     }
-    return successResponse(res, "OTP verified successfully", 200, user);
+    const token = jwt.sign(
+      { id: user._id, role: user.role, email: user.email },
+      process.env.JWT_SECRET_KEY,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
+    );
+    return successResponse(res, "OTP verified successfully", 200, {
+        user:user,
+        token:token,
+        role: user?.role,
+    });
 
     // Verify OTP with Twilio
     const verificationCheck = await client.verify.v2
