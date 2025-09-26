@@ -1,11 +1,11 @@
-const {  login, SendOtp, VerifyOtp, UserGet } = require("../controller/AuthController");
+const { SendOtp, UserGet, Login } = require("../controller/AuthController");
 
-const UserRoute = require("express").Router();
+const router = require("express").Router();
 
 // UserRoute.post("/register", signup);
-UserRoute.post("/login", login);
-UserRoute.get("/get-user", UserGet);
-UserRoute.post("/send-otp",SendOtp);
-UserRoute.post("/verify-otp", VerifyOtp);
+router.get("/get-user", UserGet);
+router.post("/send-otp",SendOtp);
+// Verify otp and login if account exists
+router.post("/login", Login);
 
-module.exports =  UserRoute;
+module.exports =  router;

@@ -20,7 +20,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '2000mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-const serviceAccount = require('./otpdemo-dc63b-firebase-adminsdk-fbsvc-bc859b783f.json');
+const serviceAccount = require('../otpdemo-dc63b-firebase-adminsdk-fbsvc-bc859b783f.json');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });

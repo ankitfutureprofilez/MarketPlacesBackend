@@ -1,11 +1,13 @@
 const {  VendorGet, SalesGet, UserGet } = require("../controller/AdminController");
 
-const OfferRoute = require("express").Router();
+const router = require("express").Router();
 
-OfferRoute.post("/vendor_list", VendorGet);
+router.post("/admin/login", Adminlogin);
 
-OfferRoute.get("/sales_list", SalesGet);
+router.post("/vendor_list", VendorGet);
 
-OfferRoute.get("/user_list", UserGet);
+router.get("/sales_list", SalesGet);
 
-module.exports = OfferRoute;
+router.get("/user_list", UserGet);
+
+module.exports = router;

@@ -13,23 +13,23 @@ const successResponse = (res, message, statusCode = 200, data = null) => {
 };
 
 
-const errorResponse = (res, message = "Something went wrong", statusCode = 500, status = "error") => {
+const errorResponse = (res, message = "Something went wrong", statusCode = 500, status = false) => {
   return res.status(statusCode).json({
-    status: status,
+    status: false,
     message,
   });
 };
 
 const ApperrorResponses = (res, message = "Something went wrong", statusCode = 500, status = false) => {
   return res.status(statusCode).json({
-    status: status,
+    status: false,
     message,
   });
 };
 
 const validationErrorResponse = (res, errors, message = "Validation Failed", statusCode = 400) => {
   return res.status(statusCode).json({
-    status: "fail",
+    status: false,
     message,
     errors,
   });
