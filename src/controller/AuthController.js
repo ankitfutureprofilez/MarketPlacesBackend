@@ -179,11 +179,21 @@ exports.signup = catchAsync(async (req, res) => {
     });
 
     const result = await record.save();
-
+    
+    const token = jwt.sign(
+     { id: result._id, role: result.role, email: result.email },
+     process.env.JWT_SECRET_KEY,
+     { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
+   );
     return successResponse(
       res,
       "You have been registered successfully !!",
-      201
+      201,
+      {
+        user:result,
+        token:token,
+        role: result?.role,
+    }
     );
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
