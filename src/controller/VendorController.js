@@ -224,7 +224,7 @@ exports.GetOfferId = catchAsync(async (req, res) => {
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
-        return successResponse(res, "Vendor details fetched successfully", 200, record);
+        return successResponse(res, "Offer Delete successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -253,6 +253,25 @@ exports.OfferStatus = catchAsync(async (req, res) => {
         const record = await Offer.findByIdAndUpdate(
             offerId,
             { status },
+            { new: true }
+        );
+        if (!record) {
+            return validationErrorResponse(res, "Offer not found", 404);
+        }
+        return successResponse(res, "Offer status updated successfully", 201, record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+
+// Offer Status 
+exports.OfferDelete = catchAsync(async (req, res) => {
+    try {
+        const offerId = req.params.id;
+        console.log("orddre" ,offerId)
+        const record = await Offer.findByIdAndDelete(
+            offerId,
             { new: true }
         );
         if (!record) {
