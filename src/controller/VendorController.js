@@ -234,7 +234,7 @@ exports.GetOfferId = catchAsync(async (req, res) => {
 exports.GetOffer = catchAsync(async (req, res) => {
     try {
         const userId = req.User?.id;
-        const record = await Offer.find({ vendor: offerId });
+        const record = await Offer.find({ vendor: userId });
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
