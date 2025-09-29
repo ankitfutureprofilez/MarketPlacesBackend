@@ -3,6 +3,79 @@ const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
 
+exports.AddSalesPersons = catchAsync(async (req, res) => {
+    try {
+        console.log("req.body", req.body);
+        const { phone, otp, role, name, email, avatar } = req.body;
+
+        // Validate required fields
+        if (!phone || !otp || !name || !email) {
+            return validationErrorResponse(
+                res,
+                "Phone number, OTP, Name, and Email are required.",
+                401
+            );
+        }
+
+        // OTP validation
+        if (otp !== "123456") {
+            return validationErrorResponse(
+                res,
+                "Invalid or expired OTP. Please try again.",
+                400
+            );
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ phone });
+        if (existingUser) {
+            return errorResponse(
+                res,
+                "A Sales Person with this phone number already exists.",
+                200,
+                { role: role }
+            );
+        }
+
+        // Create new Sales Person
+        const newUser = new User({
+            name,
+            email,
+            phone,
+            role,
+            avatar
+        });
+
+        const record = await newUser.save();
+
+        // Success response
+        return successResponse(
+            res,
+            "Sales Person registered successfully.",
+            200,
+            { record }
+        );
+
+        // Optional: Verify OTP with Twilio (currently unreachable)
+        // const verificationCheck = await client.verify.v2
+        //     .services(process.env.TWILIO_VERIFY_SID)
+        //     .verificationChecks.create({ to: phone, code: otp });
+        // if (verificationCheck.status === "approved") {
+        //     return successResponse(res, "OTP verified successfully", 200);
+        // } else {
+        //     return validationErrorResponse(res, "Invalid or expired OTP", 400);
+        // }
+
+    } catch (error) {
+        console.error("AddSalesPersons error:", error);
+        return errorResponse(
+            res,
+            error.message || "Internal Server Error",
+            500
+        );
+    }
+});
+
 exports.SalesGetId = catchAsync(async (req, res) => {
     try {
         const salesId = req.params.id
@@ -13,6 +86,8 @@ exports.SalesGetId = catchAsync(async (req, res) => {
         return errorResponse(res, "Failed to create Sales", 500);
     }
 })
+
+
 
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {

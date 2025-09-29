@@ -14,7 +14,7 @@ const UserSchema = new mongoose.Schema({
         unique: true,
         validate: {
             validator: function (v) {
-                return /^[0-9]{10}$/.test(v); 
+                return /^[0-9]{10}$/.test(v);
             },
             message: "Phone number must be exactly 10 digits"
         }
@@ -27,7 +27,7 @@ const UserSchema = new mongoose.Schema({
         sparse: true,
         validate: {
             validator: function (v) {
-                if (!v) return true; 
+                if (!v) return true;
                 return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/.test(v);
             },
             message: "Invalid email format"
@@ -35,7 +35,7 @@ const UserSchema = new mongoose.Schema({
     },
     avatar: {
         type: String,
-        default: null,
+        default: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyCbJoUCRscGfzySEtqoR5HtHnEOE0ux4r-A&s",
     },
     password: {
         type: String,
@@ -44,6 +44,11 @@ const UserSchema = new mongoose.Schema({
     OTP: {
         type: String,
         maxlength: [6, "OTP must be at most 6 digits"],
+    },
+    status: {
+        type: String,
+        values: ["active", "inactive"],
+        default: "active",
     },
     role: {
         type: String,

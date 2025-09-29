@@ -1,10 +1,10 @@
-const {  VendorGet, SalesGet, UserGet } = require("../controller/AdminController");
+const {  VendorGet, SalesGet, UserGet, Adminlogin } = require("../controller/AdminController");
 
 const router = require("express").Router();
 
 router.post("/admin/login", Adminlogin);
 
-router.post("/vendor_list", VendorGet);
+router.get("/vendor_list", VendorGet);
 
 router.get("/sales_list", SalesGet);
 
