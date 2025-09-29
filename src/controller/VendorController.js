@@ -5,6 +5,7 @@ const categories = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
 const Offer = require("../model/AddOffer.js");
 const { validationErrorResponse, successResponse, errorResponse } = require("../utils/ErrorHandling");
+const jwt = require("jsonwebtoken");
 
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
@@ -64,7 +65,17 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             return errorResponse(res, "Failed to create vendor", 500,);
         }
 
-        return successResponse(res, "Vendor created successfully", 201, vendor); // 201 = Created
+            
+            const token = jwt.sign(
+             { id: savedUser._id, role: savedUser.role, email: savedUser.email },
+             process.env.JWT_SECRET_KEY,
+             { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
+           );
+        return successResponse(res, "Vendor created successfully", 201,  {
+        user:savedVendor,
+        token:token,
+        role: savedUser?.role,
+    }); // 201 = Created
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
