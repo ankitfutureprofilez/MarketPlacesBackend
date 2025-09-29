@@ -19,7 +19,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             pincode,
             area,
             name,
-            phone ,
+            phone,
             lat, long,
             address,
         } = req.body;
@@ -35,7 +35,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         const Users = await User.findOne({ phone: phone });
 
         if (Users) {
-            return errorResponse(res, "Phone number already exists", 400 , );
+            return errorResponse(res, "Phone number already exists", 400,);
         }
 
 
@@ -54,7 +54,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             pincode,
             area,
             vendor: savedUser._id,
-            address ,
+            address,
             lat,
             long
         });
@@ -64,18 +64,16 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         if (!savedVendor) {
             return errorResponse(res, "Failed to create vendor", 500,);
         }
-
-            
-            const token = jwt.sign(
-             { id: savedUser._id, role: savedUser.role, email: savedUser.email },
-             process.env.JWT_SECRET_KEY,
-             { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
-           );
-        return successResponse(res, "Vendor created successfully", 201,  {
-        user:savedVendor,
-        token:token,
-        role: savedUser?.role,
-    }); // 201 = Created
+        const token = jwt.sign(
+            { id: savedUser._id, role: savedUser.role, email: savedUser.email },
+            process.env.JWT_SECRET_KEY,
+            { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
+        );
+        return successResponse(res, "Vendor created successfully", 201, {
+            user: savedVendor,
+            token: token,
+            role: savedUser?.role,
+        }); // 201 = Created
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -194,8 +192,11 @@ exports.vendorDelete = catchAsync(async (req, res) => {
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
     try {
-        const userId = req.params?.id;
-        console.log("vendor" ,userId)
+        const userId = req.User?.id;
+        console.log("vendor", userId)
+        if(!userId){
+              return validationErrorResponse(res, "UserId Not Found ", 500);
+        }
         const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, amount } = req.body;
         const newOffer = new Offer({
             title,
@@ -232,7 +233,7 @@ exports.GetOfferId = catchAsync(async (req, res) => {
 // Offer Get 
 exports.GetOffer = catchAsync(async (req, res) => {
     try {
-        const offerId = req.params.id;
+        const userId = req.User?.id;
         const record = await Offer.find({ vendor: offerId });
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
@@ -247,7 +248,7 @@ exports.GetOffer = catchAsync(async (req, res) => {
 exports.OfferStatus = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        const { status   } = req.body;
+        const { status } = req.body;
         const record = await Offer.findByIdAndUpdate(
             offerId,
             { status },
@@ -256,7 +257,7 @@ exports.OfferStatus = catchAsync(async (req, res) => {
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
-        return successResponse(res, "Offer status updated successfully",201,  record);
+        return successResponse(res, "Offer status updated successfully", 201, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
