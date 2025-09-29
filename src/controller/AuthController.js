@@ -120,14 +120,14 @@ exports.Login = catchAsync(async (req, res) => {
     });
 
     // Verify OTP with Twilio
-    const verificationCheck = await client.verify.v2
-      .services(process.env.TWILIO_VERIFY_SID)
-      .verificationChecks.create({ to: phone, code: otp });
-    if (verificationCheck.status === "approved") {
-      return successResponse(res, "OTP verified successfully", 200);
-    } else {
-      return validationErrorResponse(res, "Invalid or expired OTP", 400);
-    }
+    // const verificationCheck = await client.verify.v2
+    //   .services(process.env.TWILIO_VERIFY_SID)
+    //   .verificationChecks.create({ to: phone, code: otp });
+    // if (verificationCheck.status === "approved") {
+    //   return successResponse(res, "OTP verified successfully", 200);
+    // } else {
+    //   return validationErrorResponse(res, "Invalid or expired OTP", 400);
+    // }
   } catch (error) {
     console.error("VerifyOtp error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
