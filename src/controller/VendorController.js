@@ -19,7 +19,9 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             pincode,
             area,
             name,
-            phone
+            phone ,
+            lat, long,
+            address,
         } = req.body;
 
         if (!name || !phone) {
@@ -52,6 +54,9 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             pincode,
             area,
             vendor: savedUser._id,
+            address ,
+            lat,
+            long
         });
 
         const savedVendor = await vendor.save();
