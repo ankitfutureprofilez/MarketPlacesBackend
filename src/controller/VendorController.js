@@ -248,7 +248,7 @@ exports.GetOffer = catchAsync(async (req, res) => {
 exports.OfferStatus = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        const { status } = req.body;
+        const  status  = req.params.status;
         const record = await Offer.findByIdAndUpdate(
             offerId,
             { status },

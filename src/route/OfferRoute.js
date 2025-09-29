@@ -9,7 +9,7 @@ OfferRoute.get("/get_details/:id", GetOfferId);
 
 OfferRoute.get("/get", verifyToken ,  GetOffer);
 
-OfferRoute.get("/status/:id",  OfferStatus);
+OfferRoute.get("/status/:id/:status",  OfferStatus);
 
 OfferRoute.post("/edit", EditOffer);
 
