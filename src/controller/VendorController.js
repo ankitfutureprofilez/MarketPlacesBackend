@@ -237,7 +237,6 @@ exports.vendorDelete = catchAsync(async (req, res) => {
 exports.AddOffer = catchAsync(async (req, res) => {
     try {
         const userId = req.User?.id;
-        console.log("vendor", userId)
         if (!userId) {
             return validationErrorResponse(res, "UserId Not Found ", 500);
         }
@@ -329,13 +328,14 @@ exports.OfferDelete = catchAsync(async (req, res) => {
 // Edit Offer 
 exports.EditOffer = catchAsync(async (req, res) => {
     try {
-        const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, Id, amount } = req.body;
+        const Id = req.params.id
+        const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, amount } = req.body;
         const record = await Offer.findByIdAndUpdate(Id, {
             title, description, expiryDate, image,
             discountPercentage,
             maxDiscountCap, minBillAmount, amount
         }, { new: true });
-        return successResponse(res, "Offer created successfully", record);
+        return successResponse(res, "Offer Updated successfully", 200 , record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -371,5 +371,4 @@ exports.subcategory = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 

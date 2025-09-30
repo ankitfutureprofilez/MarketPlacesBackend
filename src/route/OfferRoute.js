@@ -13,7 +13,8 @@ OfferRoute.get("/get", verifyToken ,  GetOffer);
 
 OfferRoute.get("/status/:id/:status",  OfferStatus);
 
-OfferRoute.post("/edit", EditOffer);
+OfferRoute.post("/update/:id", EditOffer);
+
 
 
 module.exports = OfferRoute;
