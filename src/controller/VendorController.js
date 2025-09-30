@@ -83,12 +83,57 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     try {
         const _id = req.params.id;
         console.log("vendorId:", _id);
-        const record = await Vendor.findById(_id).populate("vendor");
+
+        let record = await Vendor.findById(_id)
+            .populate("vendor")
+            .populate("sales")
+            .populate("category")
+            .populate("subcategory");
+
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
 
-        return successResponse(res, "Vendor details fetched successfully", 200, record);
+        // Response transformation
+        const transformed = {
+            _id: record._id,
+            uuid: record.uuid,
+            document: {
+                business_logo: record.business_logo,
+                adhar_front: record.adhar_front,
+                adhar_back: record.adhar_back,
+                pan_card_image: record.pan_card_image,
+                gst_certificate: record.gst_certificate,
+                shop_license: record.shop_license,
+            },
+            business_details: {
+                business_name: record.business_name,
+                category: record.category,
+                subcategory: record.subcategory,
+                business_register: record.business_register,
+                pan_card: record.pan_card,
+                GST_no: record.GST_no,
+                address: record.address,
+                city: record.city,
+                area: record.area,
+                pincode: record.pincode,
+                lat: record.lat,
+                long: record.long,
+                landmark: record.landmark,
+            },
+            timing: {
+                opening_hours: record.opening_hours,
+                weekly_off_day: record.weekly_off_day,
+            },
+            vendor: record.vendor,
+            sales: record.sales,
+            status: record.status,
+            Verify_status: record.Verify_status,
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt,
+        };
+
+        return successResponse(res, "Vendor details fetched successfully", 200, transformed);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -108,8 +153,7 @@ exports.VendorGet = catchAsync(async (req, res) => {
 
 exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
-        const vendorId = req.user?._id || req.params.id;
-
+        const vendorId = req.User?._id || req.params.id;
         const {
             business_name,
             city,
@@ -194,8 +238,8 @@ exports.AddOffer = catchAsync(async (req, res) => {
     try {
         const userId = req.User?.id;
         console.log("vendor", userId)
-        if(!userId){
-              return validationErrorResponse(res, "UserId Not Found ", 500);
+        if (!userId) {
+            return validationErrorResponse(res, "UserId Not Found ", 500);
         }
         const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, amount } = req.body;
         const newOffer = new Offer({
@@ -249,7 +293,7 @@ exports.OfferStatus = catchAsync(async (req, res) => {
     try {
         console.log(req.params)
         const offerId = req.params.id;
-        const  status  = req.params.status;
+        const status = req.params.status;
         const record = await Offer.findByIdAndUpdate(
             offerId,
             { status },
@@ -264,12 +308,11 @@ exports.OfferStatus = catchAsync(async (req, res) => {
     }
 });
 
-
 // Offer Status 
 exports.OfferDelete = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        console.log("orddre" ,offerId)
+        console.log("orddre", offerId)
         const record = await Offer.findByIdAndDelete(
             offerId,
             { new: true }
@@ -328,3 +371,5 @@ exports.subcategory = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
+

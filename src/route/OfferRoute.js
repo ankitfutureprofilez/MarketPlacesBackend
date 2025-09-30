@@ -9,7 +9,6 @@ OfferRoute.get("/get_details/:id", GetOfferId);
 
 OfferRoute.post("/offer_delete/:id", OfferDelete);
 
-
 OfferRoute.get("/get", verifyToken ,  GetOffer);
 
 OfferRoute.get("/status/:id/:status",  OfferStatus);

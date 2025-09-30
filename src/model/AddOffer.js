@@ -16,7 +16,7 @@ const addOfferSchema = new mongoose.Schema(
             type: Number,
             required: true,
             min: 0,
-            max: 100, 
+            max: 100,
         },
         maxDiscountCap: {
             type: Number,
@@ -33,19 +33,24 @@ const addOfferSchema = new mongoose.Schema(
         offer_image: {
             type: String,
         },
-        status :{
+        status: {
             type: String,
-            default  : "active",
-            enum :["active" ,  "inactive"]
+            default: "active",
+            enum: ["active", "inactive"]
         },
         vendor: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
-        amount :{
-            type: Number, 
-            default :0 
+        amount: {
+            type: Number,
+            default: 0
         },
+        IsExpire: {
+            type: Boolean,
+            default: false,
+            enum: [true, false]
+        }
     },
     { timestamps: true }
 );

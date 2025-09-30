@@ -20,11 +20,11 @@ const vendorSchema = new mongoose.Schema(
             type: Number,
         },
         category: {
-           type: mongoose.Schema.Types.ObjectId,
+            type: mongoose.Schema.Types.ObjectId,
             ref: "Category",
         },
         subcategory: {
-         type: mongoose.Schema.Types.ObjectId,
+            type: mongoose.Schema.Types.ObjectId,
             ref: "SubCategory",
         },
         business_register: {
@@ -78,9 +78,43 @@ const vendorSchema = new mongoose.Schema(
             default: null,
         },
         opening_hours: {
-            type: String,
-            default: null,
+            Mon: {
+                open: { type: String, },
+                close: { type: String, },
+                active: { type: Boolean, default: true },
+            },
+            Tue: {
+                open: { type: String, },
+                close: { type: String, },
+                active: { type: Boolean, default: true },
+            },
+            Wed: {
+                open: { type: String, },
+                close: { type: String, },
+                active: { type: Boolean, default: true },
+            },
+            Thu: {
+                open: { type: String, },
+                close: { type: String, },
+                active: { type: Boolean, default: true },
+            },
+            Fri: {
+                open: { type: String, },
+                close: { type: String, },
+                active: { type: Boolean, default: true },
+            },
+            Sat: {
+                open: { type: String, },
+                close: { type: String, },
+                active: { type: Boolean, default: true },
+            },
+            Sun: {
+                open: { type: String, },
+                close: { type: String, },
+                active: { type: Boolean, default: false },
+            },
         },
+
         weekly_off_day: {
             type: String,
             default: null,
@@ -89,7 +123,7 @@ const vendorSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
-         sales: {
+        sales: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
