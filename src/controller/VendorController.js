@@ -268,7 +268,7 @@ exports.GetOfferId = catchAsync(async (req, res) => {
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
-        return successResponse(res, "Offer Delete successfully", 200, record);
+        return successResponse(res, "Offer Get successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -308,7 +308,7 @@ exports.OfferStatus = catchAsync(async (req, res) => {
     }
 });
 
-// Offer Status 
+// Offer Delete  
 exports.OfferDelete = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
@@ -341,8 +341,9 @@ exports.EditOffer = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 })
+
+
 // Category Management
-//  Category 
 exports.category = catchAsync(async (req, res) => {
     try {
         const record = await categories.find({});
