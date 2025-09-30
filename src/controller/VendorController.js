@@ -268,7 +268,12 @@ exports.GetOfferId = catchAsync(async (req, res) => {
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
-        return successResponse(res, "Offer Get successfully", 200, record);
+        return successResponse(res, "Offer Get successfully", 200, {
+            record :  record ,
+            redeem :35,
+            purchase : 15,
+            pending :20
+        });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
