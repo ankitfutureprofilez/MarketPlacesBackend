@@ -320,7 +320,7 @@ exports.OfferDelete = catchAsync(async (req, res) => {
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
-        return successResponse(res, "Offer status updated successfully", 201, record);
+        return successResponse(res, "Offer Delete successfully", 201, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
