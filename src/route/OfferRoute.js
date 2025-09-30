@@ -1,20 +1,20 @@
 const { verifyToken } = require("../controller/AuthController");
 const { AddOffer, GetOfferId, OfferStatus, EditOffer ,GetOffer, OfferDelete } = require("../controller/VendorController");
 
-const OfferRoute = require("express").Router();
+const router = require("express").Router();
 
-OfferRoute.post("/add", verifyToken ,  AddOffer);
+router.post("/add", verifyToken ,  AddOffer);
 
-OfferRoute.get("/get_details/:id", GetOfferId);
+router.get("/get_details/:id", GetOfferId);
 
-OfferRoute.post("/offer_delete/:id", OfferDelete);
+router.post("/offer_delete/:id", OfferDelete);
 
-OfferRoute.get("/get", verifyToken ,  GetOffer);
+router.get("/get", verifyToken ,  GetOffer);
 
-OfferRoute.get("/status/:id/:status",  OfferStatus);
+router.get("/status/:id/:status",  OfferStatus);
 
-OfferRoute.post("/update/:id", EditOffer);
+router.post("/update/:id", EditOffer);
 
 
 
-module.exports = OfferRoute;
+module.exports = router;

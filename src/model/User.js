@@ -48,12 +48,14 @@ const UserSchema = new mongoose.Schema({
     status: {
         type: String,
         values: ["active", "inactive"],
+        enums: ["active", "inactive"],
         default: "active",
     },
     role: {
         type: String,
         enum: {
             values: ["admin", "customer", "sales", "vendor"],
+            enums: ["admin", "customer", "sales", "vendor"],
             message: "Role must be admin, customer, saless, or vendor"
         },
         default: "customer",

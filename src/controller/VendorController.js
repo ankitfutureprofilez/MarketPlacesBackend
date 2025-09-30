@@ -7,6 +7,7 @@ const Offer = require("../model/AddOffer.js");
 const { validationErrorResponse, successResponse, errorResponse } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
 
+
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
@@ -335,12 +336,11 @@ exports.EditOffer = catchAsync(async (req, res) => {
             discountPercentage,
             maxDiscountCap, minBillAmount, amount
         }, { new: true });
-        return successResponse(res, "Offer Updated successfully", 200 , record);
+        return successResponse(res, "Offer Updated successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 })
-
 // Category Management
 //  Category 
 exports.category = catchAsync(async (req, res) => {
@@ -372,3 +372,27 @@ exports.subcategory = catchAsync(async (req, res) => {
     }
 });
 
+
+exports.VendorStatus = catchAsync(async (req, res) => {
+    try {
+        console.log(req.params)
+        const offerId = req.params.id;
+        const status = req.params.status;
+        const records = await Vendor.findByIdAndUpdate(
+            offerId,
+            { Verify_status: status },
+            { new: true }
+        );
+        const record = await User.findByIdAndUpdate(
+            records?.vendor,
+            { status: status === "unverify" ? "active" : "inactive" },
+            { new: true }
+        );
+        if (!records) {
+            return validationErrorResponse(res, "Status not found", 404);
+        }
+        return successResponse(res, "vendor status updated successfully", 201, record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});

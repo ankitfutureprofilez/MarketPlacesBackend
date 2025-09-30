@@ -135,7 +135,7 @@ const vendorSchema = new mongoose.Schema(
         Verify_status: {
             type: String,
             default: "unverify",
-            enum: ["verify", "unverify"]
+            enum: ["verify", "unverify" ]
         },
     },
     { timestamps: true }

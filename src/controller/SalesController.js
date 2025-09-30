@@ -7,7 +7,6 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
     try {
         console.log("req.body", req.body);
         const { phone, otp, role, name, email, avatar } = req.body;
-
         // Validate required fields
         if (!phone || !otp || !name || !email) {
             return validationErrorResponse(
@@ -16,7 +15,6 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
                 401
             );
         }
-
         // OTP validation
         if (otp !== "123456") {
             return validationErrorResponse(
@@ -25,7 +23,6 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
                 400
             );
         }
-
         // Check if user already exists
         const existingUser = await User.findOne({ phone });
         if (existingUser) {
@@ -178,3 +175,22 @@ exports.VendorGetAll = catchAsync(async (req, res) => {
     }
 })
 
+
+exports.SalesPersonStatus = catchAsync(async (req, res) => {
+    try {
+        console.log(req.params)
+        const offerId = req.params.id;
+        const status = req.params.status;
+        const record = await User.findByIdAndUpdate(
+            offerId,
+            { status },
+            { new: true }
+        );
+        if (!record) {
+            return validationErrorResponse(res, "Offer not found", 404);
+        }
+        return successResponse(res, "Offer status updated successfully", 201, record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
