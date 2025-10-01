@@ -11,6 +11,7 @@ const jwt = require("jsonwebtoken");
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
+        console.log("req." ,req.body)
         const {
             business_name,
             city,
@@ -23,29 +24,37 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             phone,
             lat, long,
             address,
+            adhar_front,
+            adhar_back,
+            pan_card_image,
+            gst_certificate,
+            gst_number,
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+            business_register,
+            business_image
+
         } = req.body;
 
-        if (!name || !phone) {
-            return errorResponse(res, "Name and phone are required", 400);
-        }
+        // if (!name || !phone) {
+        //     return errorResponse(res, "Name and phone are required", 400);
+        // }
 
-        if (!business_name || !city || !category || !subcategory || !state || !pincode || !area) {
-            return errorResponse(res, "All vendor details are required", 400);
-        }
+        // if (!business_name || !city || !category || !subcategory || !state || !pincode || !area) {
+        //     return errorResponse(res, "All vendor details are required", 400);
+        // }
 
         const Users = await User.findOne({ phone: phone });
 
         if (Users) {
             return errorResponse(res, "Phone number already exists", 400,);
         }
-
-
         const userdata = new User({ name, phone, role: "vendor" });
         const savedUser = await userdata.save();
         if (!savedUser) {
             return errorResponse(res, "Failed to create user", 500);
         }
-
         const vendor = new Vendor({
             business_name,
             city,
@@ -57,7 +66,17 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             vendor: savedUser._id,
             address,
             lat,
-            long
+            long,
+            adhar_front,
+            adhar_back,
+            pan_card_image,
+            gst_certificate,
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+            gst_number,
+            business_register,
+            business_image
         });
 
         const savedVendor = await vendor.save();
@@ -233,6 +252,30 @@ exports.vendorDelete = catchAsync(async (req, res) => {
     }
 });
 
+
+exports.VendorStatus = catchAsync(async (req, res) => {
+    try {
+        console.log(req.params)
+        const offerId = req.params.id;
+        const status = req.params.status;
+        const records = await Vendor.findByIdAndUpdate(
+            offerId,
+            { Verify_status: status },
+            { new: true }
+        );
+        const record = await User.findByIdAndUpdate(
+            records?.vendor,
+            { status: status === "unverify" ? "active" : "inactive" },
+            { new: true }
+        );
+        if (!records) {
+            return validationErrorResponse(res, "Status not found", 404);
+        }
+        return successResponse(res, "vendor status updated successfully", 201, record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
 // Offer Management 
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
@@ -269,10 +312,10 @@ exports.GetOfferId = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Offer not found", 404);
         }
         return successResponse(res, "Offer Get Details successfully", 200, {
-            record :  record ,
-            redeem :35,
-            purchase : 15,
-            pending :20
+            record: record,
+            redeem: 35,
+            purchase: 15,
+            pending: 20
         });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -379,26 +422,4 @@ exports.subcategory = catchAsync(async (req, res) => {
 });
 
 
-exports.VendorStatus = catchAsync(async (req, res) => {
-    try {
-        console.log(req.params)
-        const offerId = req.params.id;
-        const status = req.params.status;
-        const records = await Vendor.findByIdAndUpdate(
-            offerId,
-            { Verify_status: status },
-            { new: true }
-        );
-        const record = await User.findByIdAndUpdate(
-            records?.vendor,
-            { status: status === "unverify" ? "active" : "inactive" },
-            { new: true }
-        );
-        if (!records) {
-            return validationErrorResponse(res, "Status not found", 404);
-        }
-        return successResponse(res, "vendor status updated successfully", 201, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
-    }
-});
+

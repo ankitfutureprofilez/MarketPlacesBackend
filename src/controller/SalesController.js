@@ -84,10 +84,9 @@ exports.SalesGetId = catchAsync(async (req, res) => {
     }
 })
 
-
-
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
+        const SalesId = req.User.id;
         const {
             business_name,
             city,
@@ -98,7 +97,17 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             area,
             name,
             phone,
-            sales
+            lat, long,
+            address,
+            adhar_front,
+            adhar_back,
+            pan_card_image,
+            gst_certificate,
+            shop_license,
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+
         } = req.body;
 
         if (!name || !phone) {
@@ -131,7 +140,18 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             pincode,
             area,
             vendor: savedUser._id,
-            sales: sales
+            address,
+            lat,
+            long,
+            adhar_front,
+            adhar_back,
+            pan_card_image,
+            gst_certificate,
+            shop_license,
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+            sales: SalesId
         });
 
         const savedVendor = await vendor.save();
@@ -139,7 +159,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         if (!savedVendor) {
             return errorResponse(res, "Failed to create vendor", 500,);
         }
-        return successResponse(res, "Vendor created successfully", 201, vendor);
+
+        return successResponse(res, "vendor details have been updated", 201, savedVendor); // 201 = Created
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }

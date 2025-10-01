@@ -69,10 +69,14 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
-        shop_license: {
+        gst_number: {
             type: String,
             default: null,
         },
+       business_image: {
+        type: [Object], // array of objects
+        default: [],
+    },
         business_logo: {
             type: String,
             default: null,
@@ -127,6 +131,10 @@ const vendorSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
+        admin: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
         status: {
             type: String,
             default: "active",
@@ -135,7 +143,7 @@ const vendorSchema = new mongoose.Schema(
         Verify_status: {
             type: String,
             default: "unverify",
-            enum: ["verify", "unverify" ]
+            enum: ["verify", "unverify"]
         },
     },
     { timestamps: true }

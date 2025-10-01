@@ -1,7 +1,8 @@
 const User = require("../model/User");
 const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
-const { errorResponse } = require("../utils/ErrorHandling");
+const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
+const jwt = require("jsonwebtoken");
 
 exports.Adminlogin = catchAsync(async (req, res) => {
     try {
@@ -15,19 +16,15 @@ exports.Adminlogin = catchAsync(async (req, res) => {
         if (!user) {
             return errorResponse(res, "User not found", 404);
         }
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return errorResponse(res, "Invalid credentials", 401);
-        }
         const token = jwt.sign(
             { id: user.id, name: user.name, email: user.email },
             process.env.JWT_SECRET_KEY,
             { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
         );
-        return successResponse(res, "Login successful", 200, {
-            email: user.email,
+       return successResponse(res, "Admin Login SuccesFully", 201, {
+            user: user,
             token: token,
-        });
+        });;
     } catch (error) {
         console.log("Login error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -116,3 +113,102 @@ exports.SalesGet = catchAsync(async (req, res, next) => {
 });
 
 
+
+
+exports.VendorRegister = catchAsync(async (req, res) => {
+    try {
+        const adminid =  req.User.id
+        console.log("req." ,req.body)
+        const {
+            business_name,
+            city,
+            category,
+            subcategory,
+            state,
+            pincode,
+            area,
+            name,
+            phone,
+            lat, long,
+            address,
+            adhar_front,
+            adhar_back,
+            pan_card_image,
+            gst_certificate,
+            shop_license,
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+
+        } = req.body;
+
+        if (!name || !phone) {
+            return errorResponse(res, "Name and phone are required", 400);
+        }
+
+        if (!business_name || !city || !category || !subcategory || !state || !pincode || !area) {
+            return errorResponse(res, "All vendor details are required", 400);
+        }
+
+        const Users = await User.findOne({ phone: phone });
+
+        if (Users) {
+            return errorResponse(res, "Phone number already exists", 400,);
+        }
+
+
+        const userdata = new User({ name, phone, role: "vendor" });
+        const savedUser = await userdata.save();
+        if (!savedUser) {
+            return errorResponse(res, "Failed to create user", 500);
+        }
+
+        const vendor = new Vendor({
+            business_name,
+            city,
+            category,
+            subcategory,
+            state,
+            pincode,
+            area,
+            vendor: savedUser._id,
+            address,
+            lat,
+            long,
+            adhar_front,
+            adhar_back,
+            pan_card_image,
+            gst_certificate,
+            shop_license,
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+            admin : adminid
+        });
+
+        const savedVendor = await vendor.save();
+
+        if (!savedVendor) {
+            return errorResponse(res, "Failed to create vendor", 500,);
+        }
+      
+        return successResponse(res, "Vendor created successfully", 201,savedVendor ); // 201 = Created
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+
+
+exports.adminGet = catchAsync(async (req, res) => {
+    try {
+        const AdminId=  req.User.id
+        const record = await User.find({ role: "admin"  , _id : AdminId});
+        if (!record || record.length === 0) {
+            return validationErrorResponse(res, "No Users found", 404);
+        }
+        return successResponse(res, "Users fetched successfully", record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
