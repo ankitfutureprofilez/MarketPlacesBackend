@@ -123,9 +123,6 @@ exports.SalesGet = catchAsync(async (req, res, next) => {
     }
 });
 
-
-
-
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
         const adminid = req.User.id
@@ -146,10 +143,13 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             adhar_back,
             pan_card_image,
             gst_certificate,
-            shop_license,
+            gst_number,
             business_logo,
             opening_hours,
             weekly_off_day,
+            business_register,
+            business_image,
+            email
 
         } = req.body;
 
@@ -175,6 +175,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         }
 
         const vendor = new Vendor({
+            vendor: savedUser._id,
             business_name,
             city,
             category,
@@ -182,18 +183,21 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             state,
             pincode,
             area,
-            vendor: savedUser._id,
+            name,
+            phone,
+            lat, long,
             address,
-            lat,
-            long,
             adhar_front,
             adhar_back,
             pan_card_image,
             gst_certificate,
-            shop_license,
+            gst_number,
             business_logo,
             opening_hours,
             weekly_off_day,
+            business_register,
+            business_image,
+            email,
             admin: adminid
         });
 

@@ -30,10 +30,6 @@ const vendorSchema = new mongoose.Schema(
         business_register: {
             type: String,
         },
-        pan_card: {
-            type: Boolean,
-            default: false,
-        },
         GST_no: {
             type: String,
             default: null,

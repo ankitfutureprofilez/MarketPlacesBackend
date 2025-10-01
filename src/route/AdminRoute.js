@@ -1,4 +1,4 @@
-const { VendorGet, SalesGet, UserGet, Login, adminGet } = require("../controller/AdminController");
+const { VendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister } = require("../controller/AdminController");
 const { SalesPersonStatus, AddSalesPersons } = require("../controller/SalesController");
 const { VendorStatus } = require("../controller/VendorController");
 const { verifyToken } = require("../controller/AuthController");
@@ -21,6 +21,9 @@ router.get("/sales_status/:id/:status", SalesPersonStatus);
 router.post("/sales_add", AddSalesPersons);
 
 router.get("/profile-token", verifyToken, adminGet);
+
+
+router.post("/vendor-add", verifyToken, VendorRegister);
 
 
 module.exports = router;
