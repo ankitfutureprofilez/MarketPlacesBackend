@@ -31,6 +31,7 @@ exports.verifyToken = async (req, res, next) => {
         message: "Token is missing",
       });
     }
+    console.log("token" ,token)
 
     // Verify the token
     const decode = await promisify(jwt.verify)(
@@ -44,7 +45,7 @@ exports.verifyToken = async (req, res, next) => {
         message: "Unauthorized or invalid token",
       });
     }
-
+console.log("decode" ,decode)
     // Check the user in the database
     const user = await User.findById(decode.id);
     if (!user) {
@@ -113,6 +114,7 @@ exports.Login = catchAsync(async (req, res) => {
       process.env.JWT_SECRET_KEY,
       { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
     );
+    console.log("token" ,token)
     return successResponse(res, "OTP verified successfully", 200, {
         user:user,
         token:token,

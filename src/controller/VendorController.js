@@ -33,7 +33,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             opening_hours,
             weekly_off_day,
             business_register,
-            business_image
+            business_image,
+            email 
 
         } = req.body;
 
@@ -62,6 +63,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             subcategory,
             state,
             pincode,
+            email,
             area,
             vendor: savedUser._id,
             address,

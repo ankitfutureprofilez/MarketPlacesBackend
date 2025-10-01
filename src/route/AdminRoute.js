@@ -1,10 +1,11 @@
-const {  VendorGet, SalesGet, UserGet, Adminlogin, adminGet } = require("../controller/AdminController");
+const { VendorGet, SalesGet, UserGet, Login, adminGet } = require("../controller/AdminController");
 const { SalesPersonStatus, AddSalesPersons } = require("../controller/SalesController");
 const { VendorStatus } = require("../controller/VendorController");
+const { verifyToken } = require("../controller/AuthController");
 
 const router = require("express").Router();
 
-router.post("/login", Adminlogin);
+router.post("/login", Login);
 
 router.get("/vendor_list", VendorGet);
 
@@ -12,15 +13,14 @@ router.get("/sales_list", SalesGet);
 
 router.get("/user_list", UserGet);
 
-router.get("/vendor_status/:id/:status" ,  VendorStatus);
+router.get("/vendor_status/:id/:status", VendorStatus);
 
 
-router.get("/sales_status/:id/:status" ,  SalesPersonStatus);
+router.get("/sales_status/:id/:status", SalesPersonStatus);
 
-router.post("/sales_add" ,  AddSalesPersons);
+router.post("/sales_add", AddSalesPersons);
 
-router.post("/profile-token" ,  adminGet);
-
+router.get("/profile-token", verifyToken, adminGet);
 
 
 module.exports = router;

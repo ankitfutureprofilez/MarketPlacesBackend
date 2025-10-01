@@ -4,29 +4,40 @@ const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
 
-exports.Adminlogin = catchAsync(async (req, res) => {
+exports.Login = catchAsync(async (req, res) => {
     try {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            return errorResponse(res, "All fields are required", 400);
+        const { email, password, role } = req.body;
+        if (!email || !password || !role) {
+            return validationErrorResponse(
+                res,
+                "email , password and role all are required",
+                401
+            );
         }
-        const user = await User.find({
-            email
-        });
-        if (!user) {
-            return errorResponse(res, "User not found", 404);
-        }
+        const user = await User.findOne({ email: email });
         const token = jwt.sign(
-            { id: user.id, name: user.name, email: user.email },
+            { id: user._id, role: user.role, email: user.email },
             process.env.JWT_SECRET_KEY,
             { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
         );
-       return successResponse(res, "Admin Login SuccesFully", 201, {
+        console.log("token", token)
+        return successResponse(res, "Admin Login successfully", 200, {
             user: user,
             token: token,
-        });;
+            role: user?.role,
+        });
+
+        // Verify OTP with Twilio
+        // const verificationCheck = await client.verify.v2
+        //   .services(process.env.TWILIO_VERIFY_SID)
+        //   .verificationChecks.create({ to: phone, code: otp });
+        // if (verificationCheck.status === "approved") {
+        //   return successResponse(res, "OTP verified successfully", 200);
+        // } else {
+        //   return validationErrorResponse(res, "Invalid or expired OTP", 400);
+        // }
     } catch (error) {
-        console.log("Login error:", error);
+        console.error("VerifyOtp error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
@@ -117,8 +128,8 @@ exports.SalesGet = catchAsync(async (req, res, next) => {
 
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
-        const adminid =  req.User.id
-        console.log("req." ,req.body)
+        const adminid = req.User.id
+        console.log("req.", req.body)
         const {
             business_name,
             city,
@@ -183,7 +194,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             business_logo,
             opening_hours,
             weekly_off_day,
-            admin : adminid
+            admin: adminid
         });
 
         const savedVendor = await vendor.save();
@@ -191,8 +202,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         if (!savedVendor) {
             return errorResponse(res, "Failed to create vendor", 500,);
         }
-      
-        return successResponse(res, "Vendor created successfully", 201,savedVendor ); // 201 = Created
+
+        return successResponse(res, "Vendor created successfully", 201, savedVendor); // 201 = Created
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -202,12 +213,15 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 
 exports.adminGet = catchAsync(async (req, res) => {
     try {
-        const AdminId=  req.User.id
-        const record = await User.find({ role: "admin"  , _id : AdminId});
-        if (!record || record.length === 0) {
-            return validationErrorResponse(res, "No Users found", 404);
+        const adminId = req.User?.id || null;
+        console.log("adminId", adminId)
+        const admins = await User.findOne({ role: "admin" }).select("-password");
+
+        if (!admins || admins.length === 0) {
+            return validationErrorResponse(res, "No admin users found", 404);
         }
-        return successResponse(res, "Users fetched successfully", record);
+
+        return successResponse(res, "Admin users fetched successfully", 200, admins);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
