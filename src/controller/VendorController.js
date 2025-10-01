@@ -11,7 +11,7 @@ const jwt = require("jsonwebtoken");
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
-        console.log("req." ,req.body)
+        console.log("req.", req.body)
         const {
             business_name,
             city,
@@ -34,7 +34,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             weekly_off_day,
             business_register,
             business_image,
-            email 
+            email
 
         } = req.body;
 

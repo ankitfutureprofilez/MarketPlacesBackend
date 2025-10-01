@@ -30,10 +30,6 @@ const vendorSchema = new mongoose.Schema(
         business_register: {
             type: String,
         },
-        GST_no: {
-            type: String,
-            default: null,
-        },
         address: {
             type: String,
         },
@@ -43,10 +39,6 @@ const vendorSchema = new mongoose.Schema(
         },
         long: {
             type: Number,
-            default: null,
-        },
-        landmark: {
-            type: String,
             default: null,
         },
         adhar_front: {
@@ -115,10 +107,10 @@ const vendorSchema = new mongoose.Schema(
             },
         },
 
-        weekly_off_day: {
-            type: String,
-            default: null,
-        },
+      weekly_off_day: {
+    type: Date,
+    default: () => new Date(), // stores current date in UTC
+  },
         vendor: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
