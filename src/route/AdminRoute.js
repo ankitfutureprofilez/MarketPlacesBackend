@@ -1,6 +1,6 @@
 const { VendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister } = require("../controller/AdminController");
 const { SalesPersonStatus, AddSalesPersons } = require("../controller/SalesController");
-const { VendorStatus } = require("../controller/VendorController");
+const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
 const { verifyToken } = require("../controller/AuthController");
 
 const router = require("express").Router();
@@ -24,6 +24,10 @@ router.get("/profile-token", verifyToken, adminGet);
 
 
 router.post("/vendor-add", verifyToken, VendorRegister);
+
+
+router.get("/subcatgroy/:id", AdminSubcaterites);
+
 
 
 module.exports = router;

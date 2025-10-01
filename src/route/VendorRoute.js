@@ -8,7 +8,7 @@ router.get("/get", VendorGet);
 
 router.get("/get_details/:id", VendorGetId);
 
-router.post("/update/:id", vendorUpdate);
+router.post("/update", vendorUpdate);
 
 router.post("/delete/:id", vendorDelete);
 

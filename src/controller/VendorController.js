@@ -177,53 +177,55 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
         const vendorId = req.User?._id || req.params.id;
         const {
-            business_name,
+              business_name,
             city,
-            area,
-            pincode,
+            state,
             category,
             subcategory,
-            business_register,
-            pan_card,
-            GST_no,
+            pincode,
+            area,
+            name,
+            phone,
+            lat, long,
             address,
-            lat,
-            long,
-            landmark,
             adhar_front,
             adhar_back,
             pan_card_image,
             gst_certificate,
-            shop_license,
+            gst_number,
             business_logo,
             opening_hours,
             weekly_off_day,
+            business_register,
+            business_image,
+            email
         } = req.body;
 
         const vendordata = await Vendor.findByIdAndUpdate(
             vendorId,
             {
-                business_name,
-                city,
-                area,
-                pincode,
-                category,
-                subcategory,
-                business_register,
-                pan_card,
-                GST_no,
-                address,
-                lat,
-                long,
-                landmark,
-                adhar_front,
-                adhar_back,
-                pan_card_image,
-                gst_certificate,
-                shop_license,
-                business_logo,
-                opening_hours,
-                weekly_off_day,
+                 business_name,
+            city,
+            category,
+            subcategory,
+            state,
+            pincode,
+            area,
+            name,
+            phone,
+            lat, long,
+            address,
+            adhar_front,
+            adhar_back,
+            pan_card_image,
+            gst_certificate,
+            gst_number,
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+            business_register,
+            business_image,
+            email
             },
             { new: true }
         );
@@ -407,7 +409,6 @@ exports.category = catchAsync(async (req, res) => {
 
     }
 });
-
 // Sub Category 
 exports.subcategory = catchAsync(async (req, res) => {
     try {
@@ -423,5 +424,24 @@ exports.subcategory = catchAsync(async (req, res) => {
     }
 });
 
+
+
+exports.AdminSubcaterites = catchAsync(async (req, res) => {
+    try {
+        const category_id = req.params.id
+        console.log(category_id)
+        const records = await categories.findOne({ _id: category_id });
+        console.log("records" ,records)
+        const Id = records.id
+        const record = await SubCategory.find({ category_id: Id });
+        if (!record) {
+            return validationErrorResponse(res, "SubCategory not found", 404);
+        }
+        return successResponse(res, "SubCategory fetched successfully", 200, record);
+    } catch (error) {
+        console.log("error", error)
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
 
 

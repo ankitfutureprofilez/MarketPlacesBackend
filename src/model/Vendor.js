@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
     {
+        state :{
+            type: String ,
+            default :"rajasthan"
+        },
         uuid: {
             type: String,
             unique: true,
