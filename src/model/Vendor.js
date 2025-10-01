@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
     {
-        state :{
-            type: String ,
-            default :"rajasthan"
+        state: {
+            type: String,
+            default: "rajasthan"
         },
         uuid: {
             type: String,
@@ -65,10 +65,10 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
-       business_image: {
-        type: [Object], // array of objects
-        default: [],
-    },
+        business_image: {
+            type: [Object], // array of objects
+            default: [],
+        },
         business_logo: {
             type: String,
             default: null,
@@ -111,10 +111,10 @@ const vendorSchema = new mongoose.Schema(
             },
         },
 
-      weekly_off_day: {
-    type: Date,
-    default: () => new Date(), // stores current date in UTC
-  },
+        weekly_off_day: {
+            type: Date,
+        },
+
         vendor: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
