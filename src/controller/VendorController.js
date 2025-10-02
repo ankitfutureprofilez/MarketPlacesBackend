@@ -116,50 +116,93 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
 
-        // Response transformation
+        // Helper function to calculate percentage filled
+        const calcPercentage = (obj) => {
+            const keys = Object.keys(obj);
+            const total = keys.length;
+            let filled = 0;
+
+            keys.forEach((k) => {
+                if (obj[k] !== null && obj[k] !== undefined && obj[k] !== "") {
+                    filled++;
+                }
+            });
+
+            return total > 0 ? Math.round((filled / total) * 100) : 0;
+        };
+
+        // Objects
+        const documentObj = {
+            business_logo: record.business_logo,
+            adhar_front: record.adhar_front,
+            adhar_back: record.adhar_back,
+            pan_card_image: record.pan_card_image,
+            gst_certificate: record.gst_certificate,
+            shop_license: record.shop_license,
+            adhar_verify: record.adhar_verify,
+            pan_card_verify: record.pan_card_verify,
+            gst_certificate_verify: record.gst_certificate_verify,
+        };
+
+        const businessObj = {
+            business_name: record.business_name,
+            category: record.category,
+            subcategory: record.subcategory,
+            business_register: record.business_register,
+            pan_card: record.pan_card,
+            GST_no: record.GST_no,
+            address: record.address,
+            city: record.city,
+            area: record.area,
+            pincode: record.pincode,
+            lat: record.lat,
+            long: record.long,
+            landmark: record.landmark,
+            business_image: record.business_image,
+            state: record.state,
+        };
+
+        const timingObj = {
+            opening_hours: record.opening_hours,
+            weekly_off_day: record.weekly_off_day,
+        };
+
+        const vendorObj = {
+            vendor: record.vendor,
+            sales: record.sales,
+        };
+
+        // Percentages
+        const percentages = {
+            document: calcPercentage(documentObj),
+            business_details: calcPercentage(businessObj),
+            timing: calcPercentage(timingObj),
+            vendor_sales: calcPercentage(vendorObj),
+        };
+
+        // Final Response
         const transformed = {
             _id: record._id,
             uuid: record.uuid,
-            document: {
-                business_logo: record.business_logo,
-                adhar_front: record.adhar_front,
-                adhar_back: record.adhar_back,
-                pan_card_image: record.pan_card_image,
-                gst_certificate: record.gst_certificate,
-                shop_license: record.shop_license,
-            },
-            business_details: {
-                business_name: record.business_name,
-                category: record.category,
-                subcategory: record.subcategory,
-                business_register: record.business_register,
-                pan_card: record.pan_card,
-                GST_no: record.GST_no,
-                address: record.address,
-                city: record.city,
-                area: record.area,
-                pincode: record.pincode,
-                lat: record.lat,
-                long: record.long,
-                landmark: record.landmark,
-            },
-            timing: {
-                opening_hours: record.opening_hours,
-                weekly_off_day: record.weekly_off_day,
-            },
+            document: documentObj,
+            business_details: businessObj,
+            timing: timingObj,
             vendor: record.vendor,
             sales: record.sales,
             status: record.status,
             Verify_status: record.Verify_status,
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
+            percentages // 👈 added here
         };
 
         return successResponse(res, "Vendor details fetched successfully", 200, transformed);
+
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
 
 exports.VendorGet = catchAsync(async (req, res) => {
     try {
@@ -177,7 +220,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
         const vendorId = req.User?._id || req.params.id;
         const {
-              business_name,
+            business_name,
             city,
             state,
             category,
@@ -204,28 +247,28 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
         const vendordata = await Vendor.findByIdAndUpdate(
             vendorId,
             {
-                 business_name,
-            city,
-            category,
-            subcategory,
-            state,
-            pincode,
-            area,
-            name,
-            phone,
-            lat, long,
-            address,
-            adhar_front,
-            adhar_back,
-            pan_card_image,
-            gst_certificate,
-            gst_number,
-            business_logo,
-            opening_hours,
-            weekly_off_day,
-            business_register,
-            business_image,
-            email
+                business_name,
+                city,
+                category,
+                subcategory,
+                state,
+                pincode,
+                area,
+                name,
+                phone,
+                lat, long,
+                address,
+                adhar_front,
+                adhar_back,
+                pan_card_image,
+                gst_certificate,
+                gst_number,
+                business_logo,
+                opening_hours,
+                weekly_off_day,
+                business_register,
+                business_image,
+                email
             },
             { new: true }
         );
@@ -431,7 +474,7 @@ exports.AdminSubcaterites = catchAsync(async (req, res) => {
         const category_id = req.params.id
         console.log(category_id)
         const records = await categories.findOne({ _id: category_id });
-        console.log("records" ,records)
+        console.log("records", records)
         const Id = records.id
         const record = await SubCategory.find({ category_id: Id });
         if (!record) {

@@ -53,13 +53,25 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        adhar_verify: {
+            type: Boolean,
+            default: true
+        },
         pan_card_image: {
             type: String,
             default: null,
         },
+        pan_card_verify: {
+            type: Boolean,
+            default: true
+        },
         gst_certificate: {
             type: String,
             default: null,
+        },
+        gst_certificate_verify: {
+            type: Boolean,
+            default: true
         },
         gst_number: {
             type: String,
@@ -110,11 +122,9 @@ const vendorSchema = new mongoose.Schema(
                 active: { type: Boolean, default: false },
             },
         },
-
         weekly_off_day: {
             type: Date,
         },
-
         vendor: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
