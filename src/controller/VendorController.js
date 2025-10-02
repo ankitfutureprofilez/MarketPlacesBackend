@@ -3,9 +3,11 @@ const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
 const categories = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
-const Offer = require("../model/AddOffer.js");
+const Offer = require("../model/Offer.js");
 const { validationErrorResponse, successResponse, errorResponse } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
+const FlatOffer = require("../model/FlatOffer.js");
+const PercentageOffer = require("../model/PercentageOffer.js");
 
 
 // Vendor Register
@@ -150,7 +152,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             subcategory: record.subcategory,
             business_register: record.business_register,
             pan_card: record.pan_card,
-            GST_no: record.GST_no,
+            gst_number: record.gst_number,
             address: record.address,
             city: record.city,
             area: record.area,
@@ -160,6 +162,8 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             landmark: record.landmark,
             business_image: record.business_image,
             state: record.state,
+            Email: record?.email,
+
         };
 
         const timingObj = {
@@ -335,26 +339,66 @@ exports.AddOffer = catchAsync(async (req, res) => {
     try {
         const userId = req.User?.id;
         if (!userId) {
-            return validationErrorResponse(res, "UserId Not Found ", 500);
+            return validationErrorResponse(res, "UserId Not Found", 500);
         }
-        const { title, description, expiryDate, image, discountPercentage, maxDiscountCap, minBillAmount, amount } = req.body;
-        const newOffer = new Offer({
+
+        const {
             title,
             description,
             expiryDate,
+            image,
             discountPercentage,
             maxDiscountCap,
             minBillAmount,
             amount,
-            offer_image: image,
-            vendor: userId
+            type
+        } = req.body;
+
+        let offerRecord;
+
+        if (type === "flat") {
+            const newOffer = new FlatOffer({
+                title,
+                description,
+                expiryDate,
+                amount, // flat amount
+                minBillAmount,
+                offer_image: image,
+                status: "active",
+                maxDiscountCap,discountPercentage
+            });
+            offerRecord = await newOffer.save();
+        } else if (type === "percentage") {
+            const newOffer = new PercentageOffer({
+                title,
+                description,
+                expiryDate,
+                discountPercentage,
+                maxDiscountCap,
+                minBillAmount,
+                offer_image: image,
+                status: "active"
+            });
+            offerRecord = await newOffer.save();
+        } else {
+            return validationErrorResponse(res, "Invalid offer type", 400);
+        }
+
+        const combinedOffer = new Offer({
+            flat: type === "flat" ? offerRecord._id : null,
+            percentage: type === "percentage" ? offerRecord._id : null,
+            vendor: userId,
+            type : type
         });
-        const record = await newOffer.save();
-        return successResponse(res, "Offer created successfully", 200, record);
+
+        const data = await combinedOffer.save();
+
+        return successResponse(res, "Offer created successfully", 200, data);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
 
 // Get Offer Id 
 exports.GetOfferId = catchAsync(async (req, res) => {

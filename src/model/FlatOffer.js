@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const addOfferSchema = new mongoose.Schema(
+const flatoffer = new mongoose.Schema(
     {
         title: {
             type: String,
@@ -14,9 +14,9 @@ const addOfferSchema = new mongoose.Schema(
         },
         discountPercentage: {
             type: Number,
-            required: true,
-            min: 0,
-            max: 100,
+            required: [true, "Discount percentage is required"],
+            min: [0, "Discount cannot be less than 0%"],
+            max: [100, "Discount cannot be more than 100%"],
         },
         maxDiscountCap: {
             type: Number,
@@ -38,15 +38,11 @@ const addOfferSchema = new mongoose.Schema(
             default: "active",
             enum: ["active", "inactive"]
         },
-        vendor: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-        },
         amount: {
             type: Number,
             default: 0
         },
-        IsExpire: {
+        isExpired: {
             type: Boolean,
             default: false,
             enum: [true, false]
@@ -55,4 +51,4 @@ const addOfferSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-module.exports = mongoose.model("Offer", addOfferSchema);
+module.exports = mongoose.model("flat", flatoffer);
