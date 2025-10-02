@@ -9,7 +9,6 @@ const jwt = require("jsonwebtoken");
 const FlatOffer = require("../model/FlatOffer.js");
 const PercentageOffer = require("../model/PercentageOffer.js");
 
-
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
@@ -102,7 +101,6 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
         const _id = req.params.id;
@@ -118,7 +116,6 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
 
-        // Helper function to calculate percentage filled
         const calcPercentage = (obj) => {
             const keys = Object.keys(obj);
             const total = keys.length;
@@ -132,8 +129,6 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 
             return total > 0 ? Math.round((filled / total) * 100) : 0;
         };
-
-        // Objects
         const documentObj = {
             business_logo: record.business_logo,
             adhar_front: record.adhar_front,
@@ -175,8 +170,6 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             vendor: record.vendor,
             sales: record.sales,
         };
-
-        // Percentages
         const percentages = {
             document: calcPercentage(documentObj),
             business_details: calcPercentage(businessObj),
@@ -184,7 +177,6 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             vendor_sales: calcPercentage(vendorObj),
         };
 
-        // Final Response
         const transformed = {
             _id: record._id,
             uuid: record.uuid,
@@ -197,7 +189,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             Verify_status: record.Verify_status,
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
-            percentages // 👈 added here
+            percentages
         };
 
         return successResponse(res, "Vendor details fetched successfully", 200, transformed);
@@ -206,7 +198,6 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 
 exports.VendorGet = catchAsync(async (req, res) => {
     try {
@@ -292,7 +283,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     }
 });
 
-
 exports.vendorDelete = catchAsync(async (req, res) => {
     try {
         const vendorId = req.user?._id || req.params.id;
@@ -308,7 +298,6 @@ exports.vendorDelete = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 
 exports.VendorStatus = catchAsync(async (req, res) => {
     try {
@@ -333,6 +322,7 @@ exports.VendorStatus = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
 // Offer Management 
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
@@ -365,7 +355,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
                 minBillAmount,
                 offer_image: image,
                 status: "active",
-                maxDiscountCap,discountPercentage
+                maxDiscountCap, discountPercentage
             });
             offerRecord = await newOffer.save();
         } else if (type === "percentage") {
@@ -388,7 +378,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
             flat: type === "flat" ? offerRecord._id : null,
             percentage: type === "percentage" ? offerRecord._id : null,
             vendor: userId,
-            type : type
+            type: type
         });
 
         const data = await combinedOffer.save();
@@ -399,12 +389,11 @@ exports.AddOffer = catchAsync(async (req, res) => {
     }
 });
 
-
 // Get Offer Id 
 exports.GetOfferId = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        const record = await Offer.findById({ _id: offerId }).populate("vendor");
+        const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
@@ -423,7 +412,7 @@ exports.GetOfferId = catchAsync(async (req, res) => {
 exports.GetOffer = catchAsync(async (req, res) => {
     try {
         const userId = req.User?.id;
-        const record = await Offer.find({ vendor: userId });
+        const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage");
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
@@ -487,7 +476,6 @@ exports.EditOffer = catchAsync(async (req, res) => {
     }
 })
 
-
 // Category Management
 exports.category = catchAsync(async (req, res) => {
     try {
@@ -502,6 +490,7 @@ exports.category = catchAsync(async (req, res) => {
 
     }
 });
+
 // Sub Category 
 exports.subcategory = catchAsync(async (req, res) => {
     try {
@@ -516,8 +505,6 @@ exports.subcategory = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
-
 
 exports.AdminSubcaterites = catchAsync(async (req, res) => {
     try {
@@ -536,5 +523,3 @@ exports.AdminSubcaterites = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
-

@@ -9,11 +9,11 @@ const OfferSchema = new mongoose.Schema(
         },
         flat: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Flat",
+            ref: "flat",
         },
         percentage: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "Percentage",
+            ref: "PercentageOffer",
         },
         type: {
             type: String,
