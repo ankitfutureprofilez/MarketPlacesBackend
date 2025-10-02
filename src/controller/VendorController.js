@@ -446,19 +446,36 @@ exports.OfferStatus = catchAsync(async (req, res) => {
 exports.OfferDelete = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        console.log("orddre", offerId)
-        const record = await Offer.findByIdAndDelete(
-            offerId,
-            { new: true }
-        );
-        if (!record) {
+        console.log("Offer ID:", offerId);
+
+        // Find the offer first
+        const offer = await Offer.findById(offerId);
+        console.log("Offer found:", offer);
+
+        if (!offer) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
-        return successResponse(res, "Offer Delete successfully", 201, record);
+
+        if (offer.type === "flat") {
+            if (offer.flat) {
+                await FlatOffer.findByIdAndDelete(offer.flat);
+            }
+        } else if (offer.type === "percentage") {
+            if (offer.percentage) {
+                await PercentageOffer.findByIdAndDelete(offer.percentage);
+            }
+        }
+
+        // Delete the offer itself
+        const deletedOffer = await Offer.findByIdAndDelete(offerId);
+
+        return successResponse(res, "Offer deleted successfully", 200, deletedOffer);
     } catch (error) {
+        console.error(error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
 
 // Edit Offer 
 exports.EditOffer = catchAsync(async (req, res) => {

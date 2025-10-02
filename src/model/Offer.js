@@ -17,8 +17,14 @@ const OfferSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum:["percentage" , "flat"]
-        }
+            enum: ["percentage", "flat"]
+        },
+        status: {
+            type: String,
+            enum: ["active", "inactive"],
+            default: "active",
+        },
+
     },
     { timestamps: true }
 );

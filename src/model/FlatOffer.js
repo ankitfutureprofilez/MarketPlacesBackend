@@ -33,11 +33,6 @@ const flatoffer = new mongoose.Schema(
         offer_image: {
             type: String,
         },
-        status: {
-            type: String,
-            default: "active",
-            enum: ["active", "inactive"]
-        },
         amount: {
             type: Number,
             default: 0

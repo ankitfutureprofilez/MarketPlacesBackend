@@ -1,3 +1,4 @@
+const Offer = require("../model/Offer");
 const User = require("../model/User");
 const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
@@ -213,8 +214,6 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     }
 });
 
-
-
 exports.adminGet = catchAsync(async (req, res) => {
     try {
         const adminId = req.User?.id || null;
@@ -226,6 +225,31 @@ exports.adminGet = catchAsync(async (req, res) => {
         }
 
         return successResponse(res, "Admin users fetched successfully", 200, admins);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+
+exports.VendorGetId = catchAsync(async (req, res) => {
+    try {
+        const _id = req.params.id;
+        console.log("vendorId:", _id);
+        let record = await Vendor.findById(_id)
+            .populate("vendor")
+            .populate("sales")
+            .populate("category")
+            .populate("subcategory");
+
+        if (!record) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+const  vendorid=  record.vendor._id ;
+console.log("vendorid"  ,vendorid)
+        const offer = await Offer.find({ vendor: vendorid }).populate("flat").populate("percentage");
+
+        return successResponse(res, "Vendor details fetched successfully", 200, { record, offer });
+
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
