@@ -218,7 +218,9 @@ exports.VendorGet = catchAsync(async (req, res) => {
 
 exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
-        const vendorId = req.User?._id || req.params.id;
+        const vendor = req.User?.id || req.params.id;
+        console.log("vendorId:", vendor);
+
         const {
             business_name,
             city,
@@ -229,7 +231,8 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
             area,
             name,
             phone,
-            lat, long,
+            lat,
+            long,
             address,
             adhar_front,
             adhar_back,
@@ -244,19 +247,20 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
             email
         } = req.body;
 
-        const vendordata = await Vendor.findByIdAndUpdate(
-            vendorId,
+        const vendordata = await Vendor.findOneAndUpdate(
+            { vendor: vendor },
             {
                 business_name,
                 city,
+                state,
                 category,
                 subcategory,
-                state,
                 pincode,
                 area,
                 name,
                 phone,
-                lat, long,
+                lat,
+                long,
                 address,
                 adhar_front,
                 adhar_back,
@@ -270,18 +274,20 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
                 business_image,
                 email
             },
-            { new: true }
-        );
+            { new: true, runValidators: true }
+        ).populate("vendor"); // ✅ user details bhi aa jaayenge
 
+        console.log("vendordata", vendordata)
         if (!vendordata) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
 
-        return successResponse(res, "Vendor updated successfully", vendordata);
+        return successResponse(res, "Vendor updated successfully", 200, vendordata);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
 
 exports.vendorDelete = catchAsync(async (req, res) => {
     try {

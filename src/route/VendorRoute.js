@@ -1,3 +1,4 @@
+const { verifyToken } = require("../controller/AuthController");
 const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorRegister, category, subcategory } = require("../controller/VendorController");
 
 const router = require("express").Router();
@@ -8,7 +9,7 @@ router.get("/get", VendorGet);
 
 router.get("/get_details/:id", VendorGetId);
 
-router.post("/update", vendorUpdate);
+router.post("/update", verifyToken,vendorUpdate);
 
 router.post("/delete/:id", vendorDelete);
 
