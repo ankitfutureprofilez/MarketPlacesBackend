@@ -33,6 +33,7 @@ app.use("/api", require("./route/OfferRoute"));
 app.use("/api", require("./route/UserRoute"));
 app.use("/api", require("./route/salesRoute"));
 app.use("/api", require("./route/AdminRoute"));
+// app.use("/api", require("./route/AdminRoute"));
 
 
 const server = app.listen(PORT, () =>
