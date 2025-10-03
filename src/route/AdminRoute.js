@@ -1,7 +1,7 @@
 const { VendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId } = require("../controller/AdminController");
 const { SalesPersonStatus, AddSalesPersons } = require("../controller/SalesController");
 const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
-const { verifyToken } = require("../controller/AuthController");
+const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
 

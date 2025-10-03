@@ -523,6 +523,29 @@ exports.subcategory = catchAsync(async (req, res) => {
     }
 });
 
+exports.Dashboard = catchAsync(async (req, res) => {
+    try {
+        const userId = req.user.id;
+        if (!userId) {
+            return validationErrorResponse(res, "Please provide id", 404);
+        }
+        console.log("userId", userId);
+         const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage").limit(6);        
+        return successResponse(res, "dashboard data fetched successfully", 200, {
+            stats: {
+                total_sales: 1500,
+                redeemed_offeres: 10,
+                pending_offers: 5,
+                total_customers: 200,                
+            },
+            offers:record
+        });
+    } catch (error) {
+        console.log("error", error)
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
 exports.AdminSubcaterites = catchAsync(async (req, res) => {
     try {
         const category_id = req.params.id

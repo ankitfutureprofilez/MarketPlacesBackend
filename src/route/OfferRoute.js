@@ -1,5 +1,5 @@
-const { verifyToken } = require("../controller/AuthController");
 const { AddOffer, GetOfferId, OfferStatus, EditOffer ,GetOffer, OfferDelete } = require("../controller/VendorController");
+const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
 

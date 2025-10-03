@@ -13,60 +13,6 @@ const client = twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-exports.verifyToken = async (req, res, next) => {
-  try {
-    let authHeader = req.headers.authorization || req.headers.Authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer")) {
-      return res.status(400).json({
-        status: false,
-        message: "Token is missing or malformed",
-      });
-    }
-
-    // Extract the token
-    let token = authHeader.split(" ")[1];
-    if (!token) {
-      return res.status(400).json({
-        status: false,
-        message: "Token is missing",
-      });
-    }
-    console.log("token" ,token)
-
-    // Verify the token
-    const decode = await promisify(jwt.verify)(
-      token,
-      process.env.JWT_SECRET_KEY
-    );
-
-    if (!decode) {
-      return res.status(401).json({
-        status: false,
-        message: "Unauthorized or invalid token",
-      });
-    }
-console.log("decode" ,decode)
-    // Check the user in the database
-    const user = await User.findById(decode.id);
-    if (!user) {
-      return res.status(404).json({
-        status: false,
-        message: "User not found",
-      });
-    }
-
-    // Attach user to request object and proceed
-    req.User = user;
-    next();
-  } catch (err) {
-    return res.status(401).json({
-      status: false,
-      message: "Invalid or expired token",
-      error: err.message,
-    });
-  }
-};
-
 exports.SendOtp = catchAsync(async (req, res) => {
   try {
     const { phone } = req.body;

@@ -1,5 +1,5 @@
-const { verifyToken } = require("../controller/AuthController");
-const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorRegister, category, subcategory } = require("../controller/VendorController");
+const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorRegister, category, subcategory, Dashboard } = require("../controller/VendorController");
+const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
 
@@ -16,5 +16,7 @@ router.post("/delete/:id", vendorDelete);
 router.get("/categroy", category);
 
 router.get("/sub_categroy/:id", subcategory);
+
+router.get("/dashboard", verifyToken, Dashboard);
 
 module.exports = router;
