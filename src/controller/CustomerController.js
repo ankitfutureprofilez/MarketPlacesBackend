@@ -1,4 +1,5 @@
 const User = require("../model/User");
+const Vendor = require("../model/Vendor");
 
 exports.CustomerRegister = catchAsync(async (req, res) => {
     try {
@@ -44,6 +45,18 @@ exports.CustomerGet = catchAsync(async (req, res) => {
             return errorResponse(res, "No customers found", 404);
         }
         return successResponse(res, "Customers retrieved successfully", 200, customers);        
+    }catch(error){
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.VendorGet = catchAsync(async (req, res) => {
+    try{
+        const vendors = await Vendor.find({}).populate("vendor");
+        if (!vendors) {
+            return errorResponse(res, "No vendors found", 404);
+        }
+        return successResponse(res, "Vendor retrieved successfully", 200, customers);        
     }catch(error){
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
