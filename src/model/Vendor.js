@@ -45,33 +45,33 @@ const vendorSchema = new mongoose.Schema(
             type: Number,
             default: null,
         },
-        adhar_front: {
+        aadhaar_front: {
             type: String,
             default: null,
         },
-        adhar_back: {
+        aadhaar_back: {
             type: String,
             default: null,
         },
-        adhar_verify: {
-            type: Boolean,
-            default: true
+        aadhaar_verify: {
+            type: String,
+            default: "pending"
         },
         pan_card_image: {
             type: String,
             default: null,
         },
         pan_card_verify: {
-            type: Boolean,
-            default: true
+            type: String,
+            default: "pending"
         },
         gst_certificate: {
             type: String,
             default: null,
         },
         gst_certificate_verify: {
-            type: Boolean,
-            default: true
+              type: String,
+            default: "pending"
         },
         gst_number: {
             type: String,
@@ -147,6 +147,10 @@ const vendorSchema = new mongoose.Schema(
             default: "unverify",
             enum: ["verify", "unverify"]
         },
+        country :{
+            type:String ,
+            default : "India"
+        }
     },
     { timestamps: true }
 );

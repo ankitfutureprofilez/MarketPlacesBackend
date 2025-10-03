@@ -140,8 +140,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             phone,
             lat, long,
             address,
-            adhar_front,
-            adhar_back,
+            aadhaar_front,
+            aadhaar_back,
             pan_card_image,
             gst_certificate,
             gst_number,
@@ -188,8 +188,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             phone,
             lat, long,
             address,
-            adhar_front,
-            adhar_back,
+            aadhaar_front,
+            aadhaar_back,
             pan_card_image,
             gst_certificate,
             gst_number,
@@ -240,7 +240,6 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             .populate("sales")
             .populate("category")
             .populate("subcategory");
-
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
@@ -248,7 +247,7 @@ const  vendorid=  record.vendor._id ;
 console.log("vendorid"  ,vendorid)
         const offer = await Offer.find({ vendor: vendorid }).populate("flat").populate("percentage");
 
-        return successResponse(res, "Vendor details fetched successfully", 200, { record, offer });
+        return successResponse(res, "Vendor details fetched successfully", 200, { record, offer , coupon: 25 , redeem : 23 , purchased :25 ,  pending :55});
 
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
