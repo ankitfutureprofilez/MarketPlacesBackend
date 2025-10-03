@@ -213,7 +213,7 @@ exports.VendorGet = catchAsync(async (req, res) => {
 
 exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
-        const vendor = req.User?.id || req.params.id;
+        const vendor = req.user?.id || req.params.id;
         console.log("vendorId:", vendor);
 
         const {
@@ -239,8 +239,11 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
             weekly_off_day,
             business_register,
             business_image,
-            email
+            email  ,  avatar
         } = req.body;
+
+const userData = await User.findByIdAndUpdate({ _id: vendor },{email ,  name ,avatar})
+console.log("userData"  ,userData)
 
         const vendordata = await Vendor.findOneAndUpdate(
             { vendor: vendor },
@@ -270,14 +273,14 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
                 email
             },
             { new: true, runValidators: true }
-        ).populate("vendor"); // ✅ user details bhi aa jaayenge
+        ).populate("vendor"); 
 
         console.log("vendordata", vendordata)
         if (!vendordata) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
 
-        return successResponse(res, "Vendor updated successfully", 200, vendordata);
+        return successResponse(res, "Vendor updated successfully", 200, {vendordata});
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -327,7 +330,7 @@ exports.VendorStatus = catchAsync(async (req, res) => {
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
     try {
-        const userId = req.User?.id;
+        const userId = req.user?.id;
         if (!userId) {
             return validationErrorResponse(res, "UserId Not Found", 500);
         }
@@ -411,7 +414,7 @@ exports.GetOfferId = catchAsync(async (req, res) => {
 // Offer Get 
 exports.GetOffer = catchAsync(async (req, res) => {
     try {
-        const userId = req.User?.id;
+        const userId = req.user?.id;
         const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage");
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
