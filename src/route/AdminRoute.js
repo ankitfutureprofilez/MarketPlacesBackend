@@ -5,30 +5,30 @@ const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
 
-router.post("/login", Login);
+router.post("/admin/login", Login);
 
-router.get("/vendor_list", VendorGet);
+router.get("/admin/vendor_list", VendorGet);
 
-router.get("/sales_list", SalesGet);
+router.get("/admin/sales_list", SalesGet);
 
-router.get("/user_list", UserGet);
+router.get("/admin/user_list", UserGet);
 
-router.get("/vendor_status/:id/:status", VendorStatus);
-
-
-router.get("/sales_status/:id/:status", SalesPersonStatus);
-
-router.post("/sales_add", AddSalesPersons);
-
-router.get("/profile-token", verifyToken, adminGet);
+router.get("/admin/vendor_status/:id/:status", VendorStatus);
 
 
-router.post("/vendor-add", verifyToken, VendorRegister);
+router.get("/admin/sales_status/:id/:status", SalesPersonStatus);
+
+router.post("/admin/sales_add", AddSalesPersons);
+
+router.get("/admin/profile-token", verifyToken, adminGet);
 
 
-router.get("/subcatgroy/:id", AdminSubcaterites);
+router.post("/admin/vendor-add", verifyToken, VendorRegister);
 
-router.get("/vendor_details/:id", VendorGetId);
+
+router.get("/admin/subcatgroy/:id", AdminSubcaterites);
+
+router.get("/admin/vendor_details/:id", VendorGetId);
 
 
 

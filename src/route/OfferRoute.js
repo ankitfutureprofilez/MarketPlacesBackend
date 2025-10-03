@@ -3,17 +3,17 @@ const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
 
-router.post("/add", verifyToken ,  AddOffer);
+router.post("/offer/add", verifyToken ,  AddOffer);
 
-router.get("/get_details/:id", GetOfferId);
+router.get("/offer/get_details/:id", GetOfferId);
 
-router.post("/offer_delete/:id", OfferDelete);
+router.post("/offer/offer_delete/:id", OfferDelete);
 
-router.get("/get", verifyToken ,  GetOffer);
+router.get("/offer/get", verifyToken ,  GetOffer);
 
-router.get("/status/:id/:status",  OfferStatus);
+router.get("/offer/status/:id/:status",  OfferStatus);
 
-router.post("/update/:id", EditOffer);
+router.post("/offer/update/:id", EditOffer);
 
 
 

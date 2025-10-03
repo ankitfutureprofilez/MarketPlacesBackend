@@ -28,11 +28,11 @@ app.get("/", (req, res) => {
   });
 });
 
-app.use("/api/vendor", require("./route/VendorRoute"));
-app.use("/api/offer", require("./route/OfferRoute"));
+app.use("/api", require("./route/VendorRoute"));
+app.use("/api", require("./route/OfferRoute"));
 app.use("/api", require("./route/UserRoute"));
-app.use("/api/sales", require("./route/salesRoute"));
-app.use("/api/admin", require("./route/AdminRoute"));
+app.use("/api", require("./route/salesRoute"));
+app.use("/api", require("./route/AdminRoute"));
 
 
 const server = app.listen(PORT, () =>
