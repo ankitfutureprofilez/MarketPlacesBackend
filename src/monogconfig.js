@@ -1,4 +1,4 @@
-require('dotenv').config(); 
+require('dotenv').config();
 const mongoose = require("mongoose");
 
 mongoose.connect(process.env.DB_URL, {
@@ -7,7 +7,8 @@ mongoose.connect(process.env.DB_URL, {
    autoIndex: false,
    maxPoolSize: 10,
    socketTimeoutMS: 45000,
-   family: 4
+   family: 4,
+   useUnifiedTopology: true,
 
 })
    .then(() => {

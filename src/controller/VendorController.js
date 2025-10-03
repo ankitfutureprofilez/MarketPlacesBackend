@@ -25,8 +25,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             phone,
             lat, long,
             address,
-            adhar_front,
-            adhar_back,
+            aadhaar_front,
+            aadhaar_back,
             pan_card_image,
             gst_certificate,
             gst_number,
@@ -36,9 +36,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             business_register,
             business_image,
             email
-
         } = req.body;
-
+console.log("req.body" , req.body)
         // if (!name || !phone) {
         //     return errorResponse(res, "Name and phone are required", 400);
         // }
@@ -47,12 +46,13 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         //     return errorResponse(res, "All vendor details are required", 400);
         // }
 
+
         const Users = await User.findOne({ phone: phone });
 
         if (Users) {
             return errorResponse(res, "Phone number already exists", 400,);
         }
-        const userdata = new User({ name, phone, role: "vendor" });
+        const userdata = new User({ name, phone, role: "vendor", email });
         const savedUser = await userdata.save();
         if (!savedUser) {
             return errorResponse(res, "Failed to create user", 500);
@@ -70,8 +70,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             address,
             lat,
             long,
-            adhar_front,
-            adhar_back,
+            aadhaar_front,
+            aadhaar_back,
             pan_card_image,
             gst_certificate,
             business_logo,
@@ -131,12 +131,12 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         };
         const documentObj = {
             business_logo: record.business_logo,
-            adhar_front: record.adhar_front,
-            adhar_back: record.adhar_back,
+            aadhaar_front: record.aadhaar_front,
+            aadhaar_back: record.aadhaar_back,
             pan_card_image: record.pan_card_image,
             gst_certificate: record.gst_certificate,
             shop_license: record.shop_license,
-            adhar_verify: record.adhar_verify,
+            aadhaar_verify: record.aadhaar_verify,
             pan_card_verify: record.pan_card_verify,
             gst_certificate_verify: record.gst_certificate_verify,
         };
@@ -157,8 +157,8 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             landmark: record.landmark,
             business_image: record.business_image,
             state: record.state,
-            Email: record?.email,
-
+            Email: record?.vendor?.email,
+            country :  record?.country
         };
 
         const timingObj = {
@@ -229,8 +229,8 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
             lat,
             long,
             address,
-            adhar_front,
-            adhar_back,
+            aadhaar_front,
+            aadhaar_back,
             pan_card_image,
             gst_certificate,
             gst_number,
@@ -257,8 +257,8 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
                 lat,
                 long,
                 address,
-                adhar_front,
-                adhar_back,
+                aadhaar_front,
+                aadhaar_back,
                 pan_card_image,
                 gst_certificate,
                 gst_number,
@@ -475,7 +475,6 @@ exports.OfferDelete = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 
 // Edit Offer 
 exports.EditOffer = catchAsync(async (req, res) => {
