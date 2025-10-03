@@ -216,7 +216,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 
 exports.adminGet = catchAsync(async (req, res) => {
     try {
-        const adminId = req.User?.id || null;
+        const adminId = req.user?.id || null;
         console.log("adminId", adminId)
         const admins = await User.findOne({ role: "admin" }).select("-password");
 
