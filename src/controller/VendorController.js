@@ -37,7 +37,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             business_image,
             email
         } = req.body;
-console.log("req.body" , req.body)
+        console.log("req.body", req.body)
         // if (!name || !phone) {
         //     return errorResponse(res, "Name and phone are required", 400);
         // }
@@ -158,7 +158,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             business_image: record.business_image,
             state: record.state,
             email: record?.vendor?.email,
-            country :  record?.country
+            country: record?.country
         };
 
         const timingObj = {
@@ -239,12 +239,9 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
             weekly_off_day,
             business_register,
             business_image,
-            email  ,  avatar
+            email, avatar
         } = req.body;
-
-const userData = await User.findByIdAndUpdate({ _id: vendor },{email ,  name ,avatar})
-console.log("userData"  ,userData)
-
+        const userData = await User.findByIdAndUpdate({ _id: vendor }, { email, name, avatar })
         const vendordata = await Vendor.findOneAndUpdate(
             { vendor: vendor },
             {
@@ -273,14 +270,14 @@ console.log("userData"  ,userData)
                 email
             },
             { new: true, runValidators: true }
-        ).populate("vendor"); 
+        ).populate("vendor");
 
         console.log("vendordata", vendordata)
         if (!vendordata) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
 
-        return successResponse(res, "Vendor updated successfully", 200, {vendordata});
+        return successResponse(res, "Vendor updated successfully", 200, { vendordata });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -532,15 +529,15 @@ exports.Dashboard = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Please provide id", 404);
         }
         console.log("userId", userId);
-         const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage").limit(6);        
+        const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage").limit(6);
         return successResponse(res, "dashboard data fetched successfully", 200, {
             stats: {
                 total_sales: 1500,
                 redeemed_offeres: 10,
                 pending_offers: 5,
-                total_customers: 200,                
+                total_customers: 200,
             },
-            offers:record
+            offers: record
         });
     } catch (error) {
         console.log("error", error)
