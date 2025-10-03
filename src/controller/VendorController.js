@@ -157,7 +157,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             landmark: record.landmark,
             business_image: record.business_image,
             state: record.state,
-            Email: record?.vendor?.email,
+            email: record?.vendor?.email,
             country :  record?.country
         };
 
