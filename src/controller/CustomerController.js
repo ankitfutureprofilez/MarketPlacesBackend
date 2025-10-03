@@ -1,5 +1,6 @@
 const User = require("../model/User");
 const Vendor = require("../model/Vendor");
+const catchAsync = require("../utils/catchAsync");
 
 exports.CustomerRegister = catchAsync(async (req, res) => {
     try {
