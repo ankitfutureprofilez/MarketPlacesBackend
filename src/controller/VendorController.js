@@ -36,9 +36,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             business_register,
             business_image,
             email
-
         } = req.body;
-
+console.log("req.body" , req.body)
         // if (!name || !phone) {
         //     return errorResponse(res, "Name and phone are required", 400);
         // }
@@ -46,6 +45,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         // if (!business_name || !city || !category || !subcategory || !state || !pincode || !area) {
         //     return errorResponse(res, "All vendor details are required", 400);
         // }
+
 
         const Users = await User.findOne({ phone: phone });
 
