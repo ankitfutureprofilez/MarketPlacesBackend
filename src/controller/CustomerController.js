@@ -1,6 +1,9 @@
+const jwt = require("jsonwebtoken");
 const User = require("../model/User");
 const Vendor = require("../model/Vendor");
+const Offer = require("../model/Offer.js");
 const catchAsync = require("../utils/catchAsync");
+const { successResponse, errorResponse, validationErrorResponse } = require("../utils/ErrorHandling.js");
 
 exports.CustomerRegister = catchAsync(async (req, res) => {
     try {
@@ -45,7 +48,7 @@ exports.CustomerGet = catchAsync(async (req, res) => {
         if (!customer) {
             return errorResponse(res, "No customers found", 404);
         }
-        return successResponse(res, "Customers retrieved successfully", 200, customers);        
+        return successResponse(res, "Customers retrieved successfully", 200, customer);        
     }catch(error){
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -57,8 +60,22 @@ exports.VendorGet = catchAsync(async (req, res) => {
         if (!vendors) {
             return errorResponse(res, "No vendors found", 404);
         }
-        return successResponse(res, "Vendor retrieved successfully", 200, customers);        
+        return successResponse(res, "Vendor retrieved successfully", 200, vendors);        
     }catch(error){
+        console.log("error", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.OfferGet = catchAsync(async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage");
+        if (!record) {
+            return validationErrorResponse(res, "Offer not found", 404);
+        }
+        return successResponse(res, "Offer details fetched successfully", 200, record);
+    } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
