@@ -67,7 +67,7 @@ exports.VendorGet = catchAsync(async (req, res) => {
     }
 });
 
-exports.OfferGet = catchAsync(async (req, res) => {
+exports.VendorOfferGet = catchAsync(async (req, res) => {
     try {
         const userId = req.user?.id;
         const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage");
@@ -75,6 +75,24 @@ exports.OfferGet = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Offer not found", 404);
         }
         return successResponse(res, "Offer details fetched successfully", 200, record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.GetOfferById = catchAsync(async (req, res) => {
+    try {
+        const offerId = req.params.id;
+        const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
+        if (!record) {
+            return validationErrorResponse(res, "Offer not found", 404);
+        }
+        return successResponse(res, "Offer Get Details successfully", 200, {
+            record: record,
+            redeem: 35,
+            purchase: 15,
+            pending: 20
+        });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
