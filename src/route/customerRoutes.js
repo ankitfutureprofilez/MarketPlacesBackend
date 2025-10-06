@@ -1,7 +1,7 @@
+const router = require("express").Router();
 const { CustomerRegister, VendorGet, CustomerGet, VendorOfferGet, GetOfferById} = require("../controller/CustomerController");
 const { verifyToken } = require("../utils/tokenVerify");
 
-const router = require("express").Router();
 
 router.post("/customer/register",  CustomerRegister);
 router.get("/customer/get_details", verifyToken, CustomerGet);

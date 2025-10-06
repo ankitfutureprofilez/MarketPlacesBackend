@@ -11,21 +11,22 @@ const OfferBuySchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "offer",
         },
-       payment_id : {
-        type: String 
-       },
-       amount : {
-        type: number,
-        default : 0 
-       },
-       payment_status : {
-        type:Boolean,
-        enum :["success" , 'failed'],
-       },
-
-        
-       
-
+        payment_id: {
+            type: String,
+            default: null
+        },
+        offer_amount: {
+            type: number,
+            default: 0
+        },
+        total_amount: {
+            type: number,
+            default: 0
+        },
+        payment_status: {
+            type: Boolean,
+            enum: ["success", 'failed'],
+        },
     },
     { timestamps: true }
 );

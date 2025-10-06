@@ -4,7 +4,6 @@ const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
-
 exports.Login = catchAsync(async (req, res) => {
     try {
         const { email, password, role } = req.body;
@@ -71,7 +70,6 @@ exports.VendorGet = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 
 exports.SalesGet = catchAsync(async (req, res, next) => {
     try {
@@ -230,7 +228,6 @@ exports.adminGet = catchAsync(async (req, res) => {
     }
 });
 
-
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
         const _id = req.params.id;
@@ -243,12 +240,29 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
-const  vendorid=  record.vendor._id ;
-console.log("vendorid"  ,vendorid)
+        const vendorid = record.vendor._id;
+        console.log("vendorid", vendorid)
         const offer = await Offer.find({ vendor: vendorid }).populate("flat").populate("percentage");
 
-        return successResponse(res, "Vendor details fetched successfully", 200, { record, offer , coupon: 25 , redeem : 23 , purchased :25 ,  pending :55});
+        return successResponse(res, "Vendor details fetched successfully", 200, { record, offer, coupon: 25, redeem: 23, purchased: 25, pending: 55 });
 
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.AdminDashboard = catchAsync(async (req, res) => {
+    try {
+        const veondor = await  Vendor.find({}).limit(5).sort({"createdAt":-1})
+        return successResponse(res, "Admin users fetched successfully", 200, {
+            veondor , 
+              stats: {
+                total_vendors: 1500,
+                redeemed_offeres: 10,
+                coupons: 5,
+                total_sales: 200,
+            },
+        });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
