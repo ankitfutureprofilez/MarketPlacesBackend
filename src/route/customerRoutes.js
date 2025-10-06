@@ -3,7 +3,7 @@ const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
 
-router.post("/customer/add",  CustomerRegister);
+router.post("/customer/register",  CustomerRegister);
 router.get("/customer/get_details", verifyToken, CustomerGet);
 router.get("/customer/getVendor", verifyToken, VendorGet);
 router.get("/customer/getVendorOffers/:id", verifyToken, VendorOfferGet);
