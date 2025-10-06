@@ -15,82 +15,82 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-const Razorpay = require("razorpay");
-const crypto = require("crypto");
+// const Razorpay = require("razorpay");
+// const crypto = require("crypto");
 
 
-// Razorpay instance
-const razorpay = new Razorpay({
-  key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
-  key_secret: "RcwuasbTHAdmm1mrZTiigw2x",   // aapka Secret Key
-});
+// // Razorpay instance
+// const razorpay = new Razorpay({
+//   key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
+//   key_secret: "RcwuasbTHAdmm1mrZTiigw2x",   // aapka Secret Key
+// });
 
-app.post("/create-order", async (req, res) => {
-  const options = {
-    amount: 50000, // ₹500 in paise
-    currency: "INR",
-    receipt: "receipt#1",
-  };
+// app.post("/create-order", async (req, res) => {
+//   const options = {
+//     amount: 50000, // ₹500 in paise
+//     currency: "INR",
+//     receipt: "receipt#1",
+//   };
 
-  try {
-    const order = await razorpay.orders.create(options);
-    console.log("order", order)
-    res.json(order);
-  } catch (err) {
-    console.log(err)
-    res.status(500).send(err);
-  }
-});
+//   try {
+//     const order = await razorpay.orders.create(options);
+//     console.log("order", order)
+//     res.json(order);
+//   } catch (err) {
+//     console.log(err)
+//     res.status(500).send(err);
+//   }
+// });
 
 
-//Payment Webhook
-// Only for Razorpay webhook route, use raw body
-app.post(
-  "/api/webhook/razorpay",
-  express.raw({ type: "application/json" }),
-  (req, res) => {
-    const secret = RAZORPAY_WEBHOOK_SECRET;
-    const webhookBody = req.body.toString("utf-8"); 
-    const signature = req.headers["x-razorpay-signature"];
-    const expectedSignature = crypto
-      .createHmac("sha256", secret)
-      .update(webhookBody)
-      .digest("hex");
-    if (expectedSignature === signature) {
-      console.log("✅ Webhook verified successfully!");
-      try {
-        const payload = JSON.parse(webhookBody);
-        const event = payload.event;
-        switch (event) {
-          case "payment.captured":
-            console.log("💰 Payment captured:", payload.payload.payment.entity.id);
-            break;
-          case "payment.failed":
-            console.log("❌ Payment failed:", payload.payload.payment.entity.id);
-            break;
-          case "order.paid":
-            console.log("📦 Order Paid:", payload.payload.order.entity.id);
-            break;
-          default:
-            console.log("⚠️ Unhandled event:", event);
-        }
+// //Payment Webhook
+// // Only for Razorpay webhook route, use raw body
+// app.post(
+//   "/api/webhook/razorpay",
+//   express.raw({ type: "application/json" }),
+//   (req, res) => {
+//     const secret = "my_super_secret_key_123";
+//     const webhookBody = req.body.toString("utf-8"); 
+//     const signature = req.headers["x-razorpay-signature"];
+//     const expectedSignature = crypto
+//       .createHmac("sha256", secret)
+//       .update(webhookBody)
+//       .digest("hex");
+//     if (expectedSignature === signature) {
+//       console.log("✅ Webhook verified successfully!");
+//       try {
+//         const payload = JSON.parse(webhookBody);
+//         const event = payload.event;
+//         switch (event) {
+//           case "payment.captured":
+//             console.log("💰 Payment captured:", payload.payload.payment.entity.id);
+//             break;
+//           case "payment.failed":
+//             console.log("❌ Payment failed:", payload.payload.payment.entity.id);
+//             break;
+//           case "order.paid":
+//             console.log("📦 Order Paid:", payload.payload.order.entity.id);
+//             break;
+//           default:
+//             console.log("⚠️ Unhandled event:", event);
+//         }
 
-        res.status(200).json({ status: "ok" });
+//         res.status(200).json({ status: "ok" });
         
-      } catch (error) {
-        console.error("Error processing webhook payload:", error.message);
-        res.status(500).send("Internal Server Error");
-      }
+//       } catch (error) {
+//         console.error("Error processing webhook payload:", error.message);
+//         res.status(500).send("Internal Server Error");
+//       }
 
-    } else {
-      console.log("❌ Invalid signature. Possible tampering!");
-      res.status(400).send("Invalid signature");
-    }
-  }
-);
+//     } else {
+//       console.log("❌ Invalid signature. Possible tampering!");
+//       res.status(400).send("Invalid signature");
+//     }
+//   }
+// );
 
 
-// app.use(express.json({ limit: "2000mb" }));
+app.use(express.json({ limit: "2000mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 5000;
