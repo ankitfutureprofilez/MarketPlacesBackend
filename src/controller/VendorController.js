@@ -103,10 +103,11 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 });
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
-        const _id = req.params.id;
+        const _id = req.user.id;
+        console.log
         console.log("vendorId:", _id);
-
-        let record = await Vendor.findById(_id)
+console.log("_id" ,_id)
+        let record = await Vendor.findOne({vendor : _id})
             .populate("vendor")
             .populate("sales")
             .populate("category")
