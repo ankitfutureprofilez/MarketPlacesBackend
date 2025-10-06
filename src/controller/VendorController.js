@@ -579,6 +579,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Please provide id", 404);
         }
         console.log("userId", userId);
+        const Vendors =  await Vendor.findOne({vendor :  userId})
         const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage").limit(6);
         return successResponse(res, "dashboard data fetched successfully", 200, {
             stats: {
@@ -587,7 +588,8 @@ exports.Dashboard = catchAsync(async (req, res) => {
                 pending_offers: 5,
                 total_customers: 200,
             },
-            offers: record
+            offers: record,
+            vendors: Vendors
         });
     } catch (error) {
         console.log("error", error)
