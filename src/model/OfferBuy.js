@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const OfferBuySchema = new mongoose.Schema(
     {
-
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -27,6 +26,8 @@ const OfferBuySchema = new mongoose.Schema(
             type: Boolean,
             enum: ["success", 'failed'],
         },
+         
+
     },
     { timestamps: true }
 );

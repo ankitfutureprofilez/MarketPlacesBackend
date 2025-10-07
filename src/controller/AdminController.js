@@ -4,6 +4,7 @@ const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
+
 exports.Login = catchAsync(async (req, res) => {
     try {
         const { email, password, role } = req.body;
