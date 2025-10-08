@@ -4,6 +4,7 @@ const catchAsync = require("../utils/catchAsync");
 const categories = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
 const Offer = require("../model/Offer.js");
+const OfferBuy = require("../model/OfferBuy.js");
 const { validationErrorResponse, successResponse, errorResponse } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
 const FlatOffer = require("../model/FlatOffer.js");
@@ -611,6 +612,23 @@ exports.AdminSubcaterites = catchAsync(async (req, res) => {
         return successResponse(res, "SubCategory fetched successfully", 200, record);
     } catch (error) {
         console.log("error", error)
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
+    try {
+        const offerId = req.params.id;
+        const record = await OfferBuy.findByIdAndUpdate(
+            offerId,
+            { status: "redeemed" },
+            { new: true }
+        );
+        if (!record) {
+            return validationErrorResponse(res, "Offer not found", 404);
+        }
+        return successResponse(res, "Offer status updated successfully", 201, record);
+    } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
