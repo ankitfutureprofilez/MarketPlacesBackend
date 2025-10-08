@@ -10,7 +10,7 @@ exports.CustomerRegister = catchAsync(async (req, res) => {
         const {
             name,
             phone,
-            email
+            email,
         } = req.body;
         
         if (!name || !phone) {

@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { VendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard } = require("../controller/AdminController");
+const { VendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet } = require("../controller/AdminController");
 const { SalesPersonStatus, AddSalesPersons } = require("../controller/SalesController");
 const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
@@ -16,5 +16,7 @@ router.post("/admin/vendor-add", verifyToken, VendorRegister);
 router.get("/admin/subcatgroy/:id", AdminSubcaterites);
 router.get("/admin/vendor_details/:id", VendorGetId);
 router.get("/admin/dashboard", AdminDashboard);
+router.get("/admin/payment_get", PaymentGet);
+
 
 module.exports = router;
