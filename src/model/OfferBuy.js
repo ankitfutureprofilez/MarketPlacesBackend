@@ -22,10 +22,6 @@ const OfferBuySchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
-        payment_status: {
-            type: Boolean,
-            enum: ["success", 'failed'],
-        },
         status:{
             type: String,
             default: "active",
