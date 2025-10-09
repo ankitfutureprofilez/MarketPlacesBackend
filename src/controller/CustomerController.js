@@ -4,6 +4,7 @@ const Vendor = require("../model/Vendor");
 const Offer = require("../model/Offer.js");
 const catchAsync = require("../utils/catchAsync");
 const { successResponse, errorResponse, validationErrorResponse } = require("../utils/ErrorHandling.js");
+const categories = require("../model/categories.js");
 
 exports.CustomerRegister = catchAsync(async (req, res) => {
     try {
@@ -12,7 +13,7 @@ exports.CustomerRegister = catchAsync(async (req, res) => {
             phone,
             email,
         } = req.body;
-        
+
         if (!name || !phone) {
             return errorResponse(res, "Name and phone are required", 400);
         }
@@ -42,26 +43,26 @@ exports.CustomerRegister = catchAsync(async (req, res) => {
 });
 
 exports.CustomerGet = catchAsync(async (req, res) => {
-    try{
+    try {
         const userId = req.user.id;
         const customer = await User.findById(userId);
         if (!customer) {
             return errorResponse(res, "No customers found", 404);
         }
-        return successResponse(res, "Customers retrieved successfully", 200, customer);        
-    }catch(error){
+        return successResponse(res, "Customers retrieved successfully", 200, customer);
+    } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
 
 exports.VendorGet = catchAsync(async (req, res) => {
-    try{
+    try {
         const vendors = await Vendor.find({}).populate("vendor");
         if (!vendors) {
             return errorResponse(res, "No vendors found", 404);
         }
-        return successResponse(res, "Vendor retrieved successfully", 200, vendors);        
-    }catch(error){
+        return successResponse(res, "Vendor retrieved successfully", 200, vendors);
+    } catch (error) {
         console.log("error", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
@@ -92,6 +93,49 @@ exports.GetOfferById = catchAsync(async (req, res) => {
             redeem: 35,
             purchase: 15,
             pending: 20
+        });
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+
+const getVendorsWithFirstOffer = async (vendors) => {
+    return await Promise.all(
+        vendors.map(async (vendor) => {
+            const firstOffer = await Offer.findOne({ vendor: vendor.vendor })
+                .sort({ createdAt: 1 })
+                .populate("flat")
+                .populate("percentage");
+
+            return {
+                vendor,
+                firstOffer,
+            };
+        })
+    );
+};
+
+exports.CustomerDashboard = catchAsync(async (req, res) => {
+    try {
+        const popular = await Vendor.find({})
+            .select("business_name address business_logo vendor")
+            .populate("category");
+        const popularvendor = await getVendorsWithFirstOffer(popular);
+        const nearby = await Vendor.find({})
+            .select("business_name address business_logo vendor")
+            .populate("category");
+        const nearbyvendor = await getVendorsWithFirstOffer(nearby);
+        const categoriesdata = await Vendor.find({})
+            .select("business_name address business_logo vendor")
+            .populate("category");
+        const categoriesdatavendor = await getVendorsWithFirstOffer(categoriesdata);
+        const category = await categories.find({});
+        return successResponse(res, "Dashboard successfully", 200, {
+            popularvendor,
+            nearbyvendor,
+            category,
+            categoriesdatavendor,
         });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
