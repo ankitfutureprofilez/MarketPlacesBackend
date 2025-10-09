@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../model/User");
 const Vendor = require("../model/Vendor");
 const Offer = require("../model/Offer.js");
+const OfferBuy = require("../model/OfferBuy.js");
 const catchAsync = require("../utils/catchAsync");
 const { successResponse, errorResponse, validationErrorResponse } = require("../utils/ErrorHandling.js");
 const categories = require("../model/categories.js");
@@ -137,6 +138,19 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
             category,
             categoriesdatavendor,
         });
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.OfferBrought = catchAsync(async (req, res) => {
+    try {
+        const id = req.params.id;
+        const record = await OfferBuy.findById({ user: id }).populate("user").populate("offer").populate("percentage");
+        if (!record) {
+            return validationErrorResponse(res, "Offers not found", 404);
+        }
+        return successResponse(res, "Offer Get Details successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
