@@ -15,19 +15,18 @@ const OfferBuySchema = new mongoose.Schema(
             default: null
         },
         offer_amount: {
-            type: number,
+            type: Number,
             default: 0
         },
         total_amount: {
-            type: number,
+            type: Number,
             default: 0
         },
-        payment_status: {
-            type: Boolean,
-            enum: ["success", 'failed'],
-        },
-         
-
+        status:{
+            type: String,
+            default: "active",
+            enum:["active", "expired", "redeemed", "under-dispute"]
+        }
     },
     { timestamps: true }
 );
