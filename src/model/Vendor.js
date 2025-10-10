@@ -125,17 +125,14 @@ const vendorSchema = new mongoose.Schema(
         weekly_off_day: {
             type: Date,
         },
-        vendor: {
+        user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
-        sales: {
+        added_by: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-        },
-        admin: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+            default: null,
         },
         status: {
             type: String,
