@@ -57,16 +57,42 @@ exports.CustomerGet = catchAsync(async (req, res) => {
 });
 
 exports.VendorGet = catchAsync(async (req, res) => {
-    try {
-        const vendors = await Vendor.find({}).populate("vendor");
-        if (!vendors) {
-            return errorResponse(res, "No vendors found", 404);
-        }
-        return successResponse(res, "Vendor retrieved successfully", 200, vendors);
-    } catch (error) {
-        console.log("error", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const { category, name } = req.query;
+
+    let vendors = await Vendor.find({})
+      .populate("user")
+      .populate("category")
+      .populate("subcategory");
+
+    // console.log("vendors", vendors);
+
+    if (name || category) {
+      const nameRegex = name ? new RegExp(name.trim(), "i") : null;
+      const categoryRegex = category ? new RegExp(category.trim(), "i") : null;
+
+      vendors = vendors.filter((item) => {
+        const businessName = item.business_name || "";
+        const catName = item?.category?.name || "";
+
+        // only apply filters that exist
+        const matchesName = nameRegex ? nameRegex.test(businessName) : true;
+        const matchesCategory = categoryRegex ? categoryRegex.test(catName) : true;
+
+        // return true only if all filters match
+        return matchesName && matchesCategory;
+      });
     }
+
+    if (!vendors || vendors.length === 0) {
+      return errorResponse(res, "No vendors found", 404);
+    }
+
+    return successResponse(res, "Vendor retrieved successfully", 200, vendors);
+  } catch (error) {
+    console.log("error", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.VendorOfferGet = catchAsync(async (req, res) => {
