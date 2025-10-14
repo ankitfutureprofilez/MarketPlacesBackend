@@ -96,21 +96,30 @@ exports.VendorGet = catchAsync(async (req, res) => {
 });
 
 exports.VendorOfferGet = catchAsync(async (req, res) => {
-    try {
-        const userId = req.user?.id;
-        const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage");
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-        return successResponse(res, "Offer details fetched successfully", 200, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    // Correct way to get :id from route
+    const userId = req.params.id;
+    console.log("userId:", userId);
+
+    const record = await Offer.find({ vendor: userId })
+      .populate("flat")
+      .populate("percentage");
+
+    if (!record || record.length === 0) {
+      return validationErrorResponse(res, "Offer not found", 404);
     }
+
+    return successResponse(res, "Offer details fetched successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
+
 
 exports.GetOfferById = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
+        console.log("offerId" ,offerId)
         const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
