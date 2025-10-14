@@ -171,8 +171,8 @@ console.log("_id" ,_id)
         };
 
         const vendorObj = {
-            vendor: record.vendor,
-            sales: record.sales,
+            vendor: record.user,
+            sales: record.added_by,
         };
         const percentages = {
             document: calcPercentage(documentObj),
@@ -181,6 +181,7 @@ console.log("_id" ,_id)
             vendor_sales: calcPercentage(vendorObj),
         };
 
+        console.log("vendorObj" ,vendorObj)
         const transformed = {
             _id: record._id,
             uuid: record.uuid,
