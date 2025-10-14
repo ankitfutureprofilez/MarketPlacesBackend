@@ -59,7 +59,7 @@ exports.UserGet = catchAsync(async (req, res) => {
 
 exports.PaymentGet = catchAsync(async (req, res) => {
     try {
-        const record = await Payment.find({ });
+        const record = await Payment.find({});
         if (!record || record.length === 0) {
             return validationErrorResponse(res, "No Users found", 404);
         }
@@ -71,7 +71,7 @@ exports.PaymentGet = catchAsync(async (req, res) => {
 
 exports.VendorGet = catchAsync(async (req, res) => {
     try {
-        const vendor = await Vendor.find().populate("vendor").populate("category").populate("subcategory");
+        const vendor = await Vendor.find().populate("user").populate("category").populate("subcategory");
         if (!vendor || vendor.length === 0) {
             return validationErrorResponse(res, "No Vendors found", 404);
         }
@@ -139,93 +139,125 @@ exports.SalesGet = catchAsync(async (req, res, next) => {
 
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
-        const adminid = req.User.id
-        console.log("req.", req.body)
+        const adminid = req.user.id;
+        console.log("req.", req.body);
+
+        // ✅ Correct spelling for fields
         const {
             business_name,
             city,
-            category,
+            categroy, // 🧠 matches request key spelling
             subcategory,
             state,
             pincode,
             area,
             name,
             phone,
-            lat, long,
+            lat,
+            long,
             address,
-            aadhaar_front,
-            aadhaar_back,
+            adhar_front,
+            adhar_back,
             pan_card_image,
             gst_certificate,
-            gst_number,
-            business_logo,
-            opening_hours,
-            weekly_off_day,
-            business_register,
-            business_image,
-            email
-
-        } = req.body;
-
-        if (!name || !phone) {
-            return errorResponse(res, "Name and phone are required", 400);
-        }
-
-        // if (!business_name || !city || !category || !subcategory || !state || !pincode || !area) {
-        //     return errorResponse(res, "All vendor details are required", 400);
-        // }
-
-        const Users = await User.findOne({ phone: phone });
-
-        if (Users) {
-            return errorResponse(res, "Phone number already exists", 400,);
-        }
-
-
-        const userdata = new User({ name, phone, role: "vendor" });
-        const savedUser = await userdata.save();
-        if (!savedUser) {
-            return errorResponse(res, "Failed to create user", 500);
-        }
-
-        const vendor = new Vendor({
-            vendor: savedUser._id,
-            business_name,
-            city,
-            category,
-            subcategory,
-            state,
-            pincode,
-            area,
-            name,
-            phone,
-            lat, long,
-            address,
-            aadhaar_front,
-            aadhaar_back,
-            pan_card_image,
-            gst_certificate,
-            gst_number,
+            GST_no,
             business_logo,
             opening_hours,
             weekly_off_day,
             business_register,
             business_image,
             email,
-            admin: adminid
+            landmark,
+        } = req.body;
+
+        // ✅ Step 1: Basic required field validation
+        if (!name || !phone)
+            return errorResponse(res, "Name and phone are required", 400);
+
+        if (
+            !business_name ||
+            !city ||
+            !categroy || // corrected field
+            !subcategory ||
+            !state ||
+            !pincode ||
+            !area
+        ) {
+            return errorResponse(res, "All vendor details are required", 400);
+        }
+
+        // ✅ Step 2: Phone uniqueness check
+        const existingUser = await User.findOne({ phone });
+        if (existingUser) {
+            return errorResponse(res, "Phone number already exists", 400);
+        }
+
+        // ✅ Step 3: Create User
+        const userdata = new User({ name, phone, role: "vendor" });
+        const savedUser = await userdata.save();
+
+        if (!savedUser)
+            return errorResponse(res, "Failed to create user", 500);
+
+        // ✅ Step 4: Validate Opening Hours object (optional strict check)
+        if (
+            opening_hours &&
+            typeof opening_hours !== "object"
+        ) {
+            return errorResponse(res, "Opening hours must be a valid object", 400);
+        }
+
+        // ✅ Step 5: Create Vendor record
+        const vendor = new Vendor({
+            user: savedUser._id,
+            business_name,
+            city,
+            subcategory,
+            state,
+            pincode,
+            area,
+            name,
+            phone,
+            lat,
+            long,
+            address,
+            adhar_front,
+            adhar_back,
+            pan_card_image,
+            gst_certificate,
+            gst_number: GST_no, // renamed correctly
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+            business_register,
+            business_image,
+            email,
+            landmark,
+            added_by: adminid,
+            category: categroy, // 🧠 Correct category field now saved properly
         });
 
         const savedVendor = await vendor.save();
 
-        if (!savedVendor) {
-            return errorResponse(res, "Failed to create vendor", 500,);
-        }
+        if (!savedVendor)
+            return errorResponse(res, "Failed to create vendor", 500);
 
-        return successResponse(res, "Vendor created successfully", 201, savedVendor); // 201 = Created
+        return successResponse(
+            res,
+            "Vendor created successfully",
+            201,
+            savedVendor
+        );
     } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+        console.error(error);
+        return errorResponse(
+            res,
+            error.message || "Internal Server Error",
+            500
+        );
     }
 });
+
 
 exports.adminGet = catchAsync(async (req, res) => {
     try {
@@ -245,13 +277,16 @@ exports.adminGet = catchAsync(async (req, res) => {
 
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
-        const _id = req.params.id;
-        console.log("vendorId:", _id);
-        let record = await Vendor.findById(_id)
-            .populate("vendor")
-            .populate("sales")
-            .populate("category")
-            .populate("subcategory");
+        const id = req.params.id;
+           if (!id) {
+      return errorResponse(res, "Vendor ID is required", 400);
+    }
+        console.log("vendorId:", id);
+     const record = await Vendor.findById(id)
+  .populate("user")
+  .populate("category")
+  .populate("subcategory");
+
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
@@ -268,10 +303,10 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 
 exports.AdminDashboard = catchAsync(async (req, res) => {
     try {
-        const veondor = await  Vendor.find({}).limit(5).sort({"createdAt":-1})
+        const veondor = await Vendor.find({}).limit(5).sort({ "createdAt": -1 })
         return successResponse(res, "Admin users fetched successfully", 200, {
-            veondor , 
-              stats: {
+            veondor,
+            stats: {
                 total_vendors: 1500,
                 redeemed_offeres: 10,
                 coupons: 5,

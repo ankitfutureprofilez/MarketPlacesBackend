@@ -16,7 +16,7 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
             );
         }
         // OTP validation
-        if (otp !== "123456") {
+        if (otp !== "111111") {
             return validationErrorResponse(
                 res,
                 "Invalid or expired OTP. Please try again.",
