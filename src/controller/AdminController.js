@@ -282,20 +282,21 @@ exports.VendorGetId = catchAsync(async (req, res) => {
       return errorResponse(res, "Vendor ID is required", 400);
     }
         console.log("vendorId:", id);
-     const record = await Vendor.findById(id)
+     const record = await Vendor.findById(
+        {
+            _id:  id
+        }
+     )
   .populate("user")
   .populate("category")
   .populate("subcategory");
-
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
-        const vendorid = record.vendor._id;
+        const vendorid = record.user._id;
         console.log("vendorid", vendorid)
         const offer = await Offer.find({ vendor: vendorid }).populate("flat").populate("percentage");
-
         return successResponse(res, "Vendor details fetched successfully", 200, { record, offer, coupon: 25, redeem: 23, purchased: 25, pending: 55 });
-
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
