@@ -110,7 +110,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         console.log
         console.log("vendorId:", _id);
 console.log("_id" ,_id)
-        let record = await Vendor.findOne({vendor : _id})
+        let record = await Vendor.findOne({user : _id})
             .populate("user")
             .populate("added_by")
             .populate("category")
@@ -397,7 +397,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
 exports.GetOfferId = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
+        const record = await Offer.findById({ _id: offerId }).populate("user").populate("flat").populate("percentage");
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
@@ -582,7 +582,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Please provide id", 404);
         }
         console.log("userId", userId);
-        const Vendors =  await Vendor.findOne({vendor :  userId})
+        const Vendors =  await Vendor.findOne({user :  userId})
         const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage").limit(6);
         return successResponse(res, "dashboard data fetched successfully", 200, {
             stats: {
