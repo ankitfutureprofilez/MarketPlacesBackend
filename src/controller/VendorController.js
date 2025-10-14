@@ -13,7 +13,7 @@ const PercentageOffer = require("../model/PercentageOffer.js");
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
-        console.log("req.", req.body)
+        // console.log("req.", req.body)
         const {
             business_name,
             city,
@@ -38,7 +38,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             business_image,
             email
         } = req.body;
-        console.log("req.body", req.body)
+        // console.log("req.body", req.body)
         // if (!name || !phone) {
         //     return errorResponse(res, "Name and phone are required", 400);
         // }
@@ -67,7 +67,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             pincode,
             email,
             area,
-            vendor: savedUser._id,
+            user: savedUser._id,
+            added_by: null,
             address,
             lat,
             long,
@@ -102,6 +103,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
         const _id = req.user.id;
@@ -109,8 +111,8 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         console.log("vendorId:", _id);
 console.log("_id" ,_id)
         let record = await Vendor.findOne({vendor : _id})
-            .populate("vendor")
-            .populate("sales")
+            .populate("user")
+            .populate("added_by")
             .populate("category")
             .populate("subcategory");
 
@@ -203,7 +205,7 @@ console.log("_id" ,_id)
 
 exports.VendorGet = catchAsync(async (req, res) => {
     try {
-        const vendors = await Vendor.find({}).populate("users");
+        const vendors = await Vendor.find({}).populate("user");
         if (!vendors || vendors.length === 0) {
             return validationErrorResponse(res, "No vendors found", 404);
         }
@@ -216,7 +218,7 @@ exports.VendorGet = catchAsync(async (req, res) => {
 exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
         const vendor = req.user?.id || req.params.id;
-        console.log("vendorId:", vendor);
+        // console.log("vendorId:", vendor);
 
         const {
             business_name,
@@ -272,7 +274,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
                 email
             },
             { new: true, runValidators: true }
-        ).populate("vendor");
+        ).populate("user");
 
         console.log("vendordata", vendordata)
         if (!vendordata) {
