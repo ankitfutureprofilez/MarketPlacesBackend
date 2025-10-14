@@ -109,8 +109,8 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         const _id = req.user.id;
         console.log
         console.log("vendorId:", _id);
-console.log("_id" ,_id)
-        let record = await Vendor.findOne({user : _id})
+        console.log("_id", _id)
+        let record = await Vendor.findOne({ user: _id })
             .populate("user")
             .populate("added_by")
             .populate("category")
@@ -181,7 +181,7 @@ console.log("_id" ,_id)
             vendor_sales: calcPercentage(vendorObj),
         };
 
-        console.log("vendorObj" ,vendorObj)
+        console.log("vendorObj", vendorObj)
         const transformed = {
             _id: record._id,
             uuid: record.uuid,
@@ -290,13 +290,10 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 exports.vendorDelete = catchAsync(async (req, res) => {
     try {
         const vendorId = req.user?._id || req.params.id;
-
         const vendordata = await Vendor.findByIdAndDelete(vendorId);
-
         if (!vendordata) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
-
         return successResponse(res, "Vendor deleted successfully", vendordata);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -482,67 +479,67 @@ exports.OfferDelete = catchAsync(async (req, res) => {
 
 // Edit Offer 
 exports.EditOffer = catchAsync(async (req, res) => {
-  try {
-    const Id = req.params.id;
-    console.log("Id", Id);
+    try {
+        const Id = req.params.id;
+        console.log("Id", Id);
 
-    const {
-      title,
-      description,
-      expiryDate,
-      image,
-      discountPercentage,
-      maxDiscountCap,
-      minBillAmount,
-      amount,
-    } = req.body;
+        const {
+            title,
+            description,
+            expiryDate,
+            image,
+            discountPercentage,
+            maxDiscountCap,
+            minBillAmount,
+            amount,
+        } = req.body;
 
-    const record = await Offer.findById(Id);
-    console.log("record", record);
+        const record = await Offer.findById(Id);
+        console.log("record", record);
 
-    if (!record) {
-      return errorResponse(res, "Offer not found", 404);
+        if (!record) {
+            return errorResponse(res, "Offer not found", 404);
+        }
+
+        let offers;
+
+        if (record.type === "flat") {
+            offers = await FlatOffer.findByIdAndUpdate(
+                record.flat,
+                {
+                    title,
+                    description,
+                    expiryDate,
+                    image,
+                    discountPercentage,
+                    maxDiscountCap,
+                    minBillAmount,
+                    amount,
+                },
+                { new: true } // ✅ important: returns updated doc
+            );
+        } else {
+            offers = await PercentageOffer.findByIdAndUpdate(
+                record.percentage,
+                {
+                    title,
+                    description,
+                    expiryDate,
+                    image,
+                    discountPercentage,
+                    maxDiscountCap,
+                    minBillAmount,
+                    amount,
+                },
+                { new: true } // ✅ important: returns updated doc
+            );
+        }
+
+        console.log("updated offer", offers);
+        return successResponse(res, "Offer updated successfully", 200, offers);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
     }
-
-    let offers;
-
-    if (record.type === "flat") {
-      offers = await FlatOffer.findByIdAndUpdate(
-        record.flat,
-        {
-          title,
-          description,
-          expiryDate,
-          image,
-          discountPercentage,
-          maxDiscountCap,
-          minBillAmount,
-          amount,
-        },
-        { new: true } // ✅ important: returns updated doc
-      );
-    } else {
-      offers = await PercentageOffer.findByIdAndUpdate(
-        record.percentage,
-        {
-          title,
-          description,
-          expiryDate,
-          image,
-          discountPercentage,
-          maxDiscountCap,
-          minBillAmount,
-          amount,
-        },
-        { new: true } // ✅ important: returns updated doc
-      );
-    }
-
-    console.log("updated offer", offers);
-    return successResponse(res, "Offer updated successfully", 200, offers);
-  } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
 });
 
 // Category Management
@@ -582,7 +579,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Please provide id", 404);
         }
         console.log("userId", userId);
-        const Vendors =  await Vendor.findOne({user :  userId})
+        const Vendors = await Vendor.findOne({ user: userId })
         const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage").limit(6);
         return successResponse(res, "dashboard data fetched successfully", 200, {
             stats: {
