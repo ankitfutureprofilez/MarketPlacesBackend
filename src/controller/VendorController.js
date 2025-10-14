@@ -397,7 +397,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
 exports.GetOfferId = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        const record = await Offer.findById({ _id: offerId }).populate("user").populate("flat").populate("percentage");
+        const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
