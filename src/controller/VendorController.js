@@ -220,7 +220,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
         const vendor = req.user?.id || req.params.id;
         // console.log("vendorId:", vendor);
-
         const {
             business_name,
             city,
@@ -248,7 +247,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
         } = req.body;
         const userData = await User.findByIdAndUpdate({ _id: vendor }, { email, name, avatar })
         const vendordata = await Vendor.findOneAndUpdate(
-            { vendor: vendor },
+            { user: vendor },
             {
                 business_name,
                 city,
