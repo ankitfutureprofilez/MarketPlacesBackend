@@ -56,7 +56,6 @@ exports.UserGet = catchAsync(async (req, res) => {
     }
 });
 
-
 exports.PaymentGet = catchAsync(async (req, res) => {
     try {
         const record = await Payment.find({});
@@ -258,7 +257,6 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     }
 });
 
-
 exports.adminGet = catchAsync(async (req, res) => {
     try {
         const adminId = req.user?.id || null;
@@ -278,18 +276,18 @@ exports.adminGet = catchAsync(async (req, res) => {
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
         const id = req.params.id;
-           if (!id) {
-      return errorResponse(res, "Vendor ID is required", 400);
-    }
-        console.log("vendorId:", id);
-     const record = await Vendor.findById(
-        {
-            _id:  id
+        if (!id) {
+            return errorResponse(res, "Vendor ID is required", 400);
         }
-     )
-  .populate("user")
-  .populate("category")
-  .populate("subcategory");
+        console.log("vendorId:", id);
+        const record = await Vendor.findById(
+            {
+                _id: id
+            }
+        )
+            .populate("user")
+            .populate("category")
+            .populate("subcategory");
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
