@@ -199,17 +199,17 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
             .populate("category").populate("user").populate("category").populate("subcategory");
         const nearbyvendor = await getVendorsWithMaxOffer(nearby);
 
-        const categoriesdata = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
-            .select("business_name address business_logo vendor category user subcategory")
-            .populate("category").populate("user").populate("category").populate("subcategory");
-        const categoriesdatavendor = await getVendorsWithMaxOffer(categoriesdata);
+        // const categoriesdata = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
+        //     .select("business_name address business_logo vendor category user subcategory")
+        //     .populate("category").populate("user").populate("category").populate("subcategory");
+        // const categoriesdatavendor = await getVendorsWithMaxOffer(categoriesdata);
 
         const category = await categories.find({});
         return successResponse(res, "Dashboard successfully", 200, {
             popularvendor,
             nearbyvendor,
             category,
-            categoriesdatavendor,
+            // categoriesdatavendor,
         });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
