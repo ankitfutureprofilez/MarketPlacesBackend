@@ -135,18 +135,47 @@ exports.GetOfferById = catchAsync(async (req, res) => {
     }
 });
 
-
-const getVendorsWithFirstOffer = async (vendors) => {
+const getVendorsWithMaxOffer = async (vendors) => {
     return await Promise.all(
         vendors.map(async (vendor) => {
-            const firstOffer = await Offer.findOne({ vendor: vendor.vendor })
-                .sort({ createdAt: 1 })
+            // Fetch all active offers for the vendor
+            const offers = await Offer.find({ vendor: vendor.user, status: "active" })
                 .populate("flat")
                 .populate("percentage");
 
-            return {
-                vendor,
-                firstOffer,
+            const activeOffersCount = offers.length;
+
+            if (activeOffersCount === 0) {
+                return { vendor, maxOffer: null, activeOffersCount: 0 };
+            }
+
+            // Calculate effective discount for each offer
+            let maxOffer = null;
+            let maxDiscountValue = -1;
+            let maxOfferType = null;
+
+            offers.forEach((offer) => {
+                let discountValue = 0;
+
+                if (offer.type === "flat" && offer.flat) {
+                    discountValue = offer.flat.amount || 0;
+                } else if (offer.type === "percentage" && offer.percentage) {
+                    const percentage = offer.percentage.discountPercentage || 0;
+                    const cap = offer.percentage.maxDiscountCap || 0;
+                    // For simplicity, assume minBillAmount is met
+                    discountValue = cap > 0 ? Math.min(cap, percentage) : percentage;
+                }
+
+                if (discountValue > maxDiscountValue) {
+                    maxDiscountValue = discountValue;
+                    maxOfferType = offer.type;
+                }
+            });
+
+            return { 
+                vendor, 
+                maxOffer: maxDiscountValue > 0 ? { amount: maxDiscountValue, type: maxOfferType } : null, 
+                activeOffersCount 
             };
         })
     );
@@ -154,18 +183,27 @@ const getVendorsWithFirstOffer = async (vendors) => {
 
 exports.CustomerDashboard = catchAsync(async (req, res) => {
     try {
-        const popular = await Vendor.find({})
-            .select("business_name address business_logo vendor")
-            .populate("category");
-        const popularvendor = await getVendorsWithFirstOffer(popular);
-        const nearby = await Vendor.find({})
-            .select("business_name address business_logo vendor")
-            .populate("category");
-        const nearbyvendor = await getVendorsWithFirstOffer(nearby);
-        const categoriesdata = await Vendor.find({})
-            .select("business_name address business_logo vendor")
-            .populate("category");
-        const categoriesdatavendor = await getVendorsWithFirstOffer(categoriesdata);
+        const vendorsWithActiveOffers = await Offer.distinct("vendor", { status: "active" });
+        // console.log("vendorsWithActiveOffers", vendorsWithActiveOffers);
+
+        const popular = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
+        .select("business_name address business_logo vendor category user subcategory")
+        .populate("category")
+        .populate("user")
+        .populate("subcategory");
+        console.log("popular", popular);
+        const popularvendor = await getVendorsWithMaxOffer(popular);
+
+        const nearby = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
+            .select("business_name address business_logo vendor category user subcategory")
+            .populate("category").populate("user").populate("category").populate("subcategory");
+        const nearbyvendor = await getVendorsWithMaxOffer(nearby);
+
+        const categoriesdata = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
+            .select("business_name address business_logo vendor category user subcategory")
+            .populate("category").populate("user").populate("category").populate("subcategory");
+        const categoriesdatavendor = await getVendorsWithMaxOffer(categoriesdata);
+
         const category = await categories.find({});
         return successResponse(res, "Dashboard successfully", 200, {
             popularvendor,
