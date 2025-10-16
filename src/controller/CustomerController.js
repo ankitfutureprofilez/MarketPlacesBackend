@@ -320,6 +320,8 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
+
 exports.OfferBrought = catchAsync(async (req, res) => {
     try {
         const id = req.params.id;
@@ -367,6 +369,7 @@ exports.AddPayment = catchAsync(async (req, res) => {
             payment_status: "PENDING",
         });
         const datat = await record.save();
+        console.log("datat")
         res.json(order);
     } catch (err) {
         console.error(err);

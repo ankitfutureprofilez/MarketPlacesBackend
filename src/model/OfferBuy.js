@@ -11,8 +11,8 @@ const OfferBuySchema = new mongoose.Schema(
             ref: "offer",
         },
         payment_id: {
-            type: String,
-            default: null
+           type: mongoose.Schema.Types.ObjectId,
+           ref: "Payment",
         },
         offer_amount: {
             type: Number,

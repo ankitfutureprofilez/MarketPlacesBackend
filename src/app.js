@@ -20,6 +20,8 @@ app.use(cors(corsOptions));
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const Payment = require("./model/Payment");
+const OfferBuy = require("./model/OfferBuy");
+
 
 const razorpay = new Razorpay({
   key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
@@ -38,7 +40,6 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
       const paymentEntity = payload.payload.payment?.entity;
       if (!paymentEntity) return res.status(200).json({ status: "ignored" });
       if (payload.event === "payment.captured" || payload.event === "order.paid") {
-        console.log("paymentEntity" ,paymentEntity)
         await Payment.findOneAndUpdate(
           { order_id: paymentEntity.order_id },
           {
@@ -49,6 +50,15 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
             payment_method: paymentEntity.method,
           }
         );
+        const record  =  new OfferBuy({
+          user :  user ,
+          offer:  paymentEntity.offer ,
+          payment_id : paymentEntity.id , 
+          offer_amount: paymentEntity.amount ,
+          total_amount :  paymentEntity.amount ,
+          status : "active"
+        })
+        record.save();
       } else if (payload.event === "payment.failed") {
         await Payment.findOneAndUpdate(
           { order_id: paymentEntity.order_id },
