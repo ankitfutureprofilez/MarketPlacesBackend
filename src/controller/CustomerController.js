@@ -159,46 +159,46 @@ const getVendorsWithMaxOffer = async (vendors) => {
 };
 
 exports.VendorGet = catchAsync(async (req, res) => {
-  try {
-    const { category, name, type } = req.query;
+    try {
+        const { category, name, type } = req.query;
 
-    let vendors = await Vendor.find({})
-      .populate("user")
-      .populate("category")
-      .populate("subcategory");
+        let vendors = await Vendor.find({})
+            .populate("user")
+            .populate("category")
+            .populate("subcategory");
 
-    // console.log("vendors", vendors);
+        // console.log("vendors", vendors);
 
-    if (name || category) {
-      const nameRegex = name ? new RegExp(name.trim(), "i") : null;
-      const categoryRegex = category ? new RegExp(category.trim(), "i") : null;
+        if (name || category) {
+            const nameRegex = name ? new RegExp(name.trim(), "i") : null;
+            const categoryRegex = category ? new RegExp(category.trim(), "i") : null;
 
-      vendors = vendors.filter((item) => {
-        const businessName = item.business_name || "";
-        const catName = item?.category?.name || "";
+            vendors = vendors.filter((item) => {
+                const businessName = item.business_name || "";
+                const catName = item?.category?.name || "";
 
-        // only apply filters that exist
-        const matchesName = nameRegex ? nameRegex.test(businessName) : true;
-        const matchesCategory = categoryRegex
-          ? categoryRegex.test(catName)
-          : true;
+                // only apply filters that exist
+                const matchesName = nameRegex ? nameRegex.test(businessName) : true;
+                const matchesCategory = categoryRegex
+                    ? categoryRegex.test(catName)
+                    : true;
 
-        // return true only if all filters match
-        return matchesName && matchesCategory;
-      });
+                // return true only if all filters match
+                return matchesName && matchesCategory;
+            });
+        }
+
+        if (!vendors || vendors.length === 0) {
+            return errorResponse(res, "No vendors found", 404);
+        }
+
+        const vendorsWithOffers = await getVendorsWithMaxOffer(vendors);
+
+        return successResponse(res, "Vendor retrieved successfully", 200, vendorsWithOffers);
+    } catch (error) {
+        console.log("error", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
     }
-
-    if (!vendors || vendors.length === 0) {
-      return errorResponse(res, "No vendors found", 404);
-    }
-
-    const vendorsWithOffers = await getVendorsWithMaxOffer(vendors);
-
-    return successResponse(res, "Vendor retrieved successfully", 200, vendorsWithOffers);
-  } catch (error) {
-    console.log("error", error);
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
 });
 
 exports.CustomerDashboard = catchAsync(async (req, res) => {
@@ -365,7 +365,6 @@ exports.AddPayment = catchAsync(async (req, res) => {
             payment_status: "PENDING",
         });
         const datat = await record.save();
-        console.log("datat", datat)
         res.json(order);
     } catch (err) {
         console.error(err);
