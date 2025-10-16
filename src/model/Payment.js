@@ -22,14 +22,24 @@ const paymentSchema = new mongoose.Schema({
     payment_method: {
         type: String
     },
+
     Offer_id: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Offer",
     },
     event: String,
 
     payment_date: {
         type: Date,
         default: Date.now,
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+    },
+     vendor_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "vendor",
     },
 });
 

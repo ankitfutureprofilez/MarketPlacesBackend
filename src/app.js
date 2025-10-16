@@ -26,33 +26,6 @@ const razorpay = new Razorpay({
   key_secret: "RcwuasbTHAdmm1mrZTiigw2x",   // aapka Secret Key
 });
 
-app.post("/create-order", async (req, res) => {
-  try {
-    console.log("req.body", req.body);
-
-    // const { amount, currency, receipt, offer_id, auth_id } = req.body;
-    const options = { amount: 50000, currency: "INR", receipt: "receipt#1" };
-    // const payload = { amount, currency, receipt };
-    const order = await razorpay.orders.create(options);
-
-    // Save initial record with PENDING status and extra info
-    const record = new Payment({
-      order_id: order.id,       // Razorpay order ID
-      amount: 50000,
-      currency: "INR",
-      offer_id: "68de3e977568e0bdf1b0249a",                 // custom field
-      auth_id: "68de3f1a8b07ba1cbfea736e",                  // custom field
-      payment_status: "PENDING",
-    });
-    const datat = await record.save();
-    console.log("datat", datat)
-    res.json(order);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send(err);
-  }
-});
-
 //Payment Webhook
 app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), async (req, res) => {
   const secret = "my_super_secret_key_123";
