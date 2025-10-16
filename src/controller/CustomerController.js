@@ -1,19 +1,20 @@
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const User = require("../model/User");
 const Vendor = require("../model/Vendor");
 const Offer = require("../model/Offer.js");
 const OfferBuy = require("../model/OfferBuy.js");
 const catchAsync = require("../utils/catchAsync");
-const { successResponse, errorResponse, validationErrorResponse } = require("../utils/ErrorHandling.js");
+const {
+    successResponse,
+    errorResponse,
+    validationErrorResponse,
+} = require("../utils/ErrorHandling.js");
 const categories = require("../model/categories.js");
 
 exports.CustomerRegister = catchAsync(async (req, res) => {
     try {
-        const {
-            name,
-            phone,
-            email,
-        } = req.body;
+        const { name, phone, email } = req.body;
 
         if (!name || !phone) {
             return errorResponse(res, "Name and phone are required", 400);
@@ -21,7 +22,7 @@ exports.CustomerRegister = catchAsync(async (req, res) => {
 
         const Users = await User.findOne({ phone: phone });
         if (Users) {
-            return errorResponse(res, "Phone number already exists", 400,);
+            return errorResponse(res, "Phone number already exists", 400);
         }
         const userdata = new User({ name, phone, role: "customer", email });
         const savedUser = await userdata.save();
@@ -50,77 +51,91 @@ exports.CustomerGet = catchAsync(async (req, res) => {
         if (!customer) {
             return errorResponse(res, "No customers found", 404);
         }
-        return successResponse(res, "Customers retrieved successfully", 200, customer);
+        return successResponse(
+            res,
+            "Customers retrieved successfully",
+            200,
+            customer
+        );
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
 
 exports.VendorGet = catchAsync(async (req, res) => {
-  try {
-    const { category, name } = req.query;
+    try {
+        const { category, name, type } = req.query;
 
-    let vendors = await Vendor.find({})
-      .populate("user")
-      .populate("category")
-      .populate("subcategory");
+        let vendors = await Vendor.find({})
+            .populate("user")
+            .populate("category")
+            .populate("subcategory");
 
-    // console.log("vendors", vendors);
+        // console.log("vendors", vendors);
 
-    if (name || category) {
-      const nameRegex = name ? new RegExp(name.trim(), "i") : null;
-      const categoryRegex = category ? new RegExp(category.trim(), "i") : null;
+        if (name || category) {
+            const nameRegex = name ? new RegExp(name.trim(), "i") : null;
+            const categoryRegex = category ? new RegExp(category.trim(), "i") : null;
 
-      vendors = vendors.filter((item) => {
-        const businessName = item.business_name || "";
-        const catName = item?.category?.name || "";
+            vendors = vendors.filter((item) => {
+                const businessName = item.business_name || "";
+                const catName = item?.category?.name || "";
 
-        // only apply filters that exist
-        const matchesName = nameRegex ? nameRegex.test(businessName) : true;
-        const matchesCategory = categoryRegex ? categoryRegex.test(catName) : true;
+                // only apply filters that exist
+                const matchesName = nameRegex ? nameRegex.test(businessName) : true;
+                const matchesCategory = categoryRegex
+                    ? categoryRegex.test(catName)
+                    : true;
 
-        // return true only if all filters match
-        return matchesName && matchesCategory;
-      });
+                // return true only if all filters match
+                return matchesName && matchesCategory;
+            });
+        }
+
+        if (!vendors || vendors.length === 0) {
+            return errorResponse(res, "No vendors found", 404);
+        }
+
+        return successResponse(res, "Vendor retrieved successfully", 200, vendors);
+    } catch (error) {
+        console.log("error", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
     }
-
-    if (!vendors || vendors.length === 0) {
-      return errorResponse(res, "No vendors found", 404);
-    }
-
-    return successResponse(res, "Vendor retrieved successfully", 200, vendors);
-  } catch (error) {
-    console.log("error", error);
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
 });
 
 exports.VendorOfferGet = catchAsync(async (req, res) => {
-  try {
-    // Correct way to get :id from route
-    const userId = req.params.id;
-    console.log("userId:", userId);
+    try {
+        // Correct way to get :id from route
+        const userId = req.params.id;
+        console.log("userId:", userId);
 
-    const record = await Offer.find({ vendor: userId })
-      .populate("flat")
-      .populate("percentage");
+        const record = await Offer.find({ vendor: userId })
+            .populate("flat")
+            .populate("percentage");
 
-    if (!record || record.length === 0) {
-      return validationErrorResponse(res, "Offer not found", 404);
+        if (!record || record.length === 0) {
+            return validationErrorResponse(res, "Offer not found", 404);
+        }
+
+        return successResponse(
+            res,
+            "Offer details fetched successfully",
+            200,
+            record
+        );
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
     }
-
-    return successResponse(res, "Offer details fetched successfully", 200, record);
-  } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
 });
-
 
 exports.GetOfferById = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        console.log("offerId" ,offerId)
-        const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
+        console.log("offerId", offerId);
+        const record = await Offer.findById({ _id: offerId })
+            .populate("vendor")
+            .populate("flat")
+            .populate("percentage");
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
@@ -128,7 +143,7 @@ exports.GetOfferById = catchAsync(async (req, res) => {
             record: record,
             redeem: 35,
             purchase: 15,
-            pending: 20
+            pending: 20,
         });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -172,10 +187,13 @@ const getVendorsWithMaxOffer = async (vendors) => {
                 }
             });
 
-            return { 
-                vendor, 
-                maxOffer: maxDiscountValue > 0 ? { amount: maxDiscountValue, type: maxOfferType } : null, 
-                activeOffersCount 
+            return {
+                vendor,
+                maxOffer:
+                    maxDiscountValue > 0
+                        ? { amount: maxDiscountValue, type: maxOfferType }
+                        : null,
+                activeOffersCount,
             };
         })
     );
@@ -183,21 +201,104 @@ const getVendorsWithMaxOffer = async (vendors) => {
 
 exports.CustomerDashboard = catchAsync(async (req, res) => {
     try {
-        const vendorsWithActiveOffers = await Offer.distinct("vendor", { status: "active" });
-        // console.log("vendorsWithActiveOffers", vendorsWithActiveOffers);
+        const lat = req.params.lat ? parseFloat(req.params.lat) : 26.93018694624354;
+        const long = req.params.long
+            ? parseFloat(req.params.long)
+            : 75.78562232566131;
 
-        const popular = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
-        .select("business_name address business_logo vendor category user subcategory")
-        .populate("category")
-        .populate("user")
-        .populate("subcategory");
-        console.log("popular", popular);
+        const vendorsWithActiveOffers = await Offer.distinct("vendor", {
+            status: "active",
+        });
+        const popular = await Vendor.find({
+            user: { $in: vendorsWithActiveOffers },
+        })
+            .select(
+                "business_name address business_logo vendor category user subcategory"
+            )
+            .populate("category")
+            .populate("user")
+            .populate("subcategory");
+        // console.log("popular", popular);
         const popularvendor = await getVendorsWithMaxOffer(popular);
 
-        const nearby = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
-            .select("business_name address business_logo vendor category user subcategory")
-            .populate("category").populate("user").populate("category").populate("subcategory");
-        const nearbyvendor = await getVendorsWithMaxOffer(nearby);
+        const nearby = await Vendor.aggregate([
+            {
+                $match: {
+                    user: {
+                        $in: vendorsWithActiveOffers.map(
+                            (id) => new mongoose.Types.ObjectId(id)
+                        ),
+                    },
+                    lat: { $ne: null },
+                    long: { $ne: null },
+                },
+            },
+            {
+                $addFields: {
+                    distance: {
+                        $round: [
+                            {
+                                $multiply: [
+                                    6371, // Earth radius in km
+                                    {
+                                        $acos: {
+                                            $add: [
+                                                {
+                                                    $multiply: [
+                                                        { $sin: { $degreesToRadians: lat } },
+                                                        { $sin: { $degreesToRadians: "$lat" } },
+                                                    ],
+                                                },
+                                                {
+                                                    $multiply: [
+                                                        { $cos: { $degreesToRadians: lat } },
+                                                        { $cos: { $degreesToRadians: "$lat" } },
+                                                        {
+                                                            $cos: {
+                                                                $subtract: [
+                                                                    { $degreesToRadians: "$long" },
+                                                                    { $degreesToRadians: long },
+                                                                ],
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    },
+                                ],
+                            },
+                            2, // Round to 2 decimal places
+                        ],
+                    },
+                },
+            },
+            { $sort: { distance: 1 } },
+            { $limit: 20 },
+            {
+                $project: {
+                    _id: 1,
+                    business_name: 1,
+                    address: 1,
+                    business_logo: 1,
+                    category: 1,
+                    subcategory: 1,
+                    user: 1,
+                    lat: 1,
+                    long: 1,
+                    distance: 1,
+                },
+            },
+        ]);
+
+        // Populate only necessary fields
+        const nearbyVendorsPopulated = await Vendor.populate(nearby, [
+            { path: "category", select: "_id name id" },
+            { path: "subcategory", select: "_id subcategory_id name category_id" },
+            { path: "user", select: "_id name phone email avatar" },
+        ]);
+
+        const nearbyvendor = await getVendorsWithMaxOffer(nearbyVendorsPopulated);
 
         // const categoriesdata = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
         //     .select("business_name address business_logo vendor category user subcategory")
@@ -215,26 +316,27 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 exports.OfferBrought = catchAsync(async (req, res) => {
     try {
         const id = req.params.id;
-        const record = await OfferBuy.findById({ user: id }).populate("user").populate("offer").populate("percentage");
+        const record = await OfferBuy.findById({ user: id })
+            .populate("user")
+            .populate("offer")
+            .populate("percentage");
         if (!record) {
             return validationErrorResponse(res, "Offers not found", 404);
         }
-        return successResponse(res, "Offer Get Details successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
-    }
-});
 
+    }
+})
 
 exports.PaymentGetByUser = catchAsync(async (req, res) => {
     try {
-        const userId =  req.user.id;
-        console.log("userId" ,userId    )
-        const record = await Payment.find({user : userId});
+        const userId = req.user.id;
+        console.log("userId", userId)
+        const record = await Payment.find({ user: userId });
         if (!record || record.length === 0) {
             return validationErrorResponse(res, "No Users found", 404);
         }
@@ -244,26 +346,27 @@ exports.PaymentGetByUser = catchAsync(async (req, res) => {
     }
 });
 
-exports.AddPayment  = catchAsync( async (req, res) => {
-  try {
-    console.log("req.body", req.body);
-    // const { amount, currency, receipt, offer_id, auth_id } = req.body;
-    const options = { amount: 50000, currency: "INR", receipt: "receipt#1" };
-    // const payload = { amount, currency, receipt };
-    const order = await razorpay.orders.create(options);
-    // Save initial record with PENDING status and extra info
-    const record = new Payment({
-      order_id: order.id,       // Razorpay order ID
-      amount: 50000,
-      currency: "INR",
-      offer_id: "68de3e977568e0bdf1b0249a",                 // custom field
-      user: "68de3f1a8b07ba1cbfea736e",                  // custom field
-      payment_status: "PENDING",
-    });
-    const datat = await record.save();
-    console.log("datat", datat)
-    res.json(order);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send(err);
-  }})
+exports.AddPayment = catchAsync(async (req, res) => {
+    try {
+        console.log("req.body", req.body);
+        // const { amount, currency, receipt, offer_id, auth_id } = req.body;
+        const options = { amount: 50000, currency: "INR", receipt: "receipt#1" };
+        // const payload = { amount, currency, receipt };
+        const order = await razorpay.orders.create(options);
+        // Save initial record with PENDING status and extra info
+        const record = new Payment({
+            order_id: order.id,       // Razorpay order ID
+            amount: 50000,
+            currency: "INR",
+            offer_id: "68de3e977568e0bdf1b0249a",                 // custom field
+            user: "68de3f1a8b07ba1cbfea736e",                  // custom field
+            payment_status: "PENDING",
+        });
+        const datat = await record.save();
+        console.log("datat", datat)
+        res.json(order);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send(err);
+    }
+})
