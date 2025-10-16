@@ -110,12 +110,14 @@ exports.GetOfferById = catchAsync(async (req, res) => {
 });
 
 const getVendorsWithMaxOffer = async (vendors) => {
-    return await Promise.all(
-        vendors.map(async (vendor) => {
-            // Fetch all active offers for the vendor
-            const offers = await Offer.find({ vendor: vendor.user, status: "active" })
-                .populate("flat")
-                .populate("percentage");
+  return await Promise.all(
+    vendors.map(async (vendor) => {
+      const vendorId = new mongoose.Types.ObjectId(vendor.user._id);
+      // console.log("vendor",vendorId);
+      // Fetch all active offers for the vendor
+      const offers = await Offer.find({ vendor: vendorId, status: "active" })
+        .populate("flat")
+        .populate("percentage");
 
             const activeOffersCount = offers.length;
 
