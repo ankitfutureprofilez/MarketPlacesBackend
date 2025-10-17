@@ -187,8 +187,6 @@ exports.VendorGet = catchAsync(async (req, res) => {
                 const matchesCategory = categoryRegex
                     ? categoryRegex.test(catName)
                     : true;
-
-                // return true only if all filters match
                 return matchesName && matchesCategory;
             });
         }
@@ -196,7 +194,6 @@ exports.VendorGet = catchAsync(async (req, res) => {
         if (!vendors || vendors.length === 0) {
             return errorResponse(res, "No vendors found", 404);
         }
-
         const vendorsWithOffers = await getVendorsWithMaxOffer(vendors);
 
         return successResponse(res, "Vendor retrieved successfully", 200, vendorsWithOffers);
@@ -355,9 +352,6 @@ exports.PaymentGetByUser = catchAsync(async (req, res) => {
     }
 });
 
-
-
-
 exports.AddPayment = catchAsync(async (req, res) => {
     try {
         // const userid = req.user.id
@@ -379,12 +373,10 @@ exports.AddPayment = catchAsync(async (req, res) => {
                 userid  :"68edfb9be37a34d7bc1e2412"
             },
         };
-
         const order = await razorpay.orders.create(options);
         return successResponse(res, "payment  successfully", 200, order);
     } catch (err) {
         console.error(err);
         return errorResponse(res, err.message || "Internal Server Error", 500);
-
     }
 })
