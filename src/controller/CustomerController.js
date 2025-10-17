@@ -11,6 +11,9 @@ const {
     validationErrorResponse,
 } = require("../utils/ErrorHandling.js");
 const categories = require("../model/categories.js");
+const Razorpay = require("razorpay");
+const Payment = require("../model/Payment.js");
+
 
 exports.CustomerRegister = catchAsync(async (req, res) => {
     try {
@@ -110,14 +113,14 @@ exports.GetOfferById = catchAsync(async (req, res) => {
 });
 
 const getVendorsWithMaxOffer = async (vendors) => {
-  return await Promise.all(
-    vendors.map(async (vendor) => {
-      const vendorId = new mongoose.Types.ObjectId(vendor.user._id);
-      // console.log("vendor",vendorId);
-      // Fetch all active offers for the vendor
-      const offers = await Offer.find({ vendor: vendorId, status: "active" })
-        .populate("flat")
-        .populate("percentage");
+    return await Promise.all(
+        vendors.map(async (vendor) => {
+            const vendorId = new mongoose.Types.ObjectId(vendor.user._id);
+            // console.log("vendor",vendorId);
+            // Fetch all active offers for the vendor
+            const offers = await Offer.find({ vendor: vendorId, status: "active" })
+                .populate("flat")
+                .populate("percentage");
 
             const activeOffersCount = offers.length;
 
@@ -352,27 +355,29 @@ exports.PaymentGetByUser = catchAsync(async (req, res) => {
     }
 });
 
+
+const razorpay = new Razorpay({
+    key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
+    key_secret: "RcwuasbTHAdmm1mrZTiigw2x",   // aapka Secret Key
+});
+
 exports.AddPayment = catchAsync(async (req, res) => {
     try {
+        const userid = req.user.id
         console.log("req.body", req.body);
-        // const { amount, currency, receipt, offer_id, auth_id } = req.body;
-        const options = { amount: 50000, currency: "INR", receipt: "receipt#1" };
-        // const payload = { amount, currency, receipt };
+        console.log("userid", userid)
+        const { amount, currency, receipt, offer_id, vendor_id } = req.body
+        if (!amount || !currency || !receipt || !offer_id || !vendor_id) {
+            return validationErrorResponse(res, "All filed Required", 404);
+
+        }
+        const options = { amount: amount, currency: currency, receipt: receipt };
         const order = await razorpay.orders.create(options);
-        // Save initial record with PENDING status and extra info
-        const record = new Payment({
-            order_id: order.id,       // Razorpay order ID
-            amount: 50000,
-            currency: "INR",
-            offer_id: "68de3e977568e0bdf1b0249a",                 // custom field
-            user: "68de3f1a8b07ba1cbfea736e",                  // custom field
-            payment_status: "PENDING",
-        });
-        const datat = await record.save();
-        console.log("datat")
-        res.json(order);
+       
+        return successResponse(res, "payment  successfully", 200, order);
     } catch (err) {
         console.error(err);
-        res.status(500).send(err);
+        return errorResponse(res, err.message || "Internal Server Error", 500);
+
     }
 })

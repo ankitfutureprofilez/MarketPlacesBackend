@@ -17,19 +17,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // // Razorpay instance
-const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const Payment = require("./model/Payment");
 const OfferBuy = require("./model/OfferBuy");
-
-
-const razorpay = new Razorpay({
-  key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
-  key_secret: "RcwuasbTHAdmm1mrZTiigw2x",   // aapka Secret Key
-});
-
 //Payment Webhook
 app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), async (req, res) => {
+  console.log("hello Web")
   const secret = "my_super_secret_key_123";
   const body = req.body.toString("utf-8");
   const signature = req.headers["x-razorpay-signature"];
@@ -37,33 +30,51 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
   if (signature === expectedSignature) {
     try {
       const payload = JSON.parse(body);
+      console.log("payload", payload);
       const paymentEntity = payload.payload.payment?.entity;
       if (!paymentEntity) return res.status(200).json({ status: "ignored" });
       if (payload.event === "payment.captured" || payload.event === "order.paid") {
-        await Payment.findOneAndUpdate(
-          { order_id: paymentEntity.order_id },
-          {
-            status: paymentEntity.status,
+         const records = new Payment({
+            order_id: paymentEntity.order.id,
+            amount: paymentEntity.amount,
+            currency: paymentEntity.currency,
+            offer_id: paymentEntity.offer_id,
+            user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
+            vendor_id: paymentEntity.vendor_id,
+            payment_status: paymentEntity.status,
             payment_id: paymentEntity.id,
             email: paymentEntity.email,
             contact: paymentEntity.contact,
             payment_method: paymentEntity.method,
-          }
-        );
-        const record  =  new OfferBuy({
-          user :  user ,
-          offer:  paymentEntity.offer ,
-          payment_id : paymentEntity.id , 
-          offer_amount: paymentEntity.amount ,
-          total_amount :  paymentEntity.amount ,
-          status : "active"
+        });
+        const data = await records.save();
+        console.log("datat", data)
+        const record = new OfferBuy({
+          user: user,
+          offer: paymentEntity.offer,
+          payment_id: paymentEntity.id,
+          discount: paymentEntity.amount,
+          total_amount: paymentEntity.amount + 1500,
+          status: "active",
+          final_amount: 1500
         })
         record.save();
       } else if (payload.event === "payment.failed") {
-        await Payment.findOneAndUpdate(
-          { order_id: paymentEntity.order_id },
-          { status: paymentEntity.status, payment_id: paymentEntity.id, payment_method: paymentEntity.method, }
-        );
+        const records = new Payment({
+            order_id: paymentEntity.order.id,
+            amount: paymentEntity.amount,
+            currency: paymentEntity.currency,
+            offer_id: paymentEntity.offer_id,
+            user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
+            vendor_id: paymentEntity.vendor_id,
+            payment_status: paymentEntity.status,
+            payment_id: paymentEntity.id,
+            email: paymentEntity.email,
+            contact: paymentEntity.contact,
+            payment_method: paymentEntity.method,
+        });
+        const data = await records.save();
+        console.log("datat", data)
       }
 
       res.status(200).json({ status: "ok" });

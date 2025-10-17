@@ -2,11 +2,11 @@ const mongoose = require("mongoose");
 
 const OfferBuySchema = new mongoose.Schema(
     {
-        user: {
+        user:{
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
         },
-        offer: {
+        offer:{
             type: mongoose.Schema.Types.ObjectId,
             ref: "offer",
         },
@@ -14,11 +14,15 @@ const OfferBuySchema = new mongoose.Schema(
            type: mongoose.Schema.Types.ObjectId,
            ref: "Payment",
         },
-        offer_amount: {
+        discount: {
             type: Number,
             default: 0
         },
         total_amount: {
+            type: Number,
+            default: 0
+        },
+        final_amount: {
             type: Number,
             default: 0
         },
