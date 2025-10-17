@@ -44,6 +44,12 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
       const paymentEntity = payload.payload.payment?.entity;
       console.log("Payment entity extracted:", paymentEntity);
 
+      const orderId = paymentEntity.order_id;
+      console.log("Order ID:", orderId || "Standalone payment");
+
+      const notes = paymentEntity.notes && paymentEntity.notes.length === 0 ? {} : paymentEntity.notes;
+      console.log("notes", notes)
+
       if (!paymentEntity) {
         console.log("⚠️ No payment entity found, ignoring webhook");
         return res.status(200).json({ status: "ignored" });
@@ -66,8 +72,12 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
           payment_method: paymentEntity.method,
         });
 
+
+        console.log("payment record", records)
+
         const data = await records.save();
         console.log("✅ Payment saved:", data);
+
 
         const record = new OfferBuy({
           user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
@@ -78,31 +88,30 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
           status: "active",
           final_amount: 1500
         });
-
+        console.log("record offer", record)
         const offerData = await record.save();
+
         console.log("✅ OfferBuy saved:", offerData);
 
       } else if (payload.event === "payment.failed") {
         console.log("❌ Payment failed event");
-
-        const records = new Payment({
-          order_id: paymentEntity.order.id,
+        const newPayment = new Payment({
+          order_id: orderId || "standalone",
           amount: paymentEntity.amount,
           currency: paymentEntity.currency,
-          offer_id: paymentEntity.offer_id,
-          user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
-          vendor_id: paymentEntity.vendor_id,
           payment_status: paymentEntity.status,
           payment_id: paymentEntity.id,
           email: paymentEntity.email,
           contact: paymentEntity.contact,
           payment_method: paymentEntity.method,
+          // notes may be empty array if standalone
+          offer_id: paymentEntity.notes.offer_id || null,
+          user: paymentEntity.notes.userid || null,
+          vendor_id: paymentEntity.notes.vendor_id || null
         });
-
-        const data = await records.save();
+        const data = await newPayment.save();
         console.log("✅ Payment (failed) saved:", data);
       }
-
       console.log("🎉 Webhook processing complete");
       res.status(200).json({ status: "ok" });
     } catch (error) {

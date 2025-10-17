@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const paymentSchema = new mongoose.Schema({
+const paymentSchema = mongoose.Schema({
     order_id: {
         type: String,
         required: true,
@@ -37,7 +37,7 @@ const paymentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
     },
-     vendor_id: {
+    vendor_id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "vendor",
     },
