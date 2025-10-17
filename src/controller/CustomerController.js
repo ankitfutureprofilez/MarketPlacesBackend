@@ -356,24 +356,27 @@ exports.PaymentGetByUser = catchAsync(async (req, res) => {
 });
 
 
-const razorpay = new Razorpay({
-    key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
-    key_secret: "RcwuasbTHAdmm1mrZTiigw2x",   // aapka Secret Key
-});
-
 exports.AddPayment = catchAsync(async (req, res) => {
     try {
-        const userid = req.user.id
-        console.log("req.body", req.body);
-        console.log("userid", userid)
-        const { amount, currency, receipt, offer_id, vendor_id } = req.body
-        if (!amount || !currency || !receipt || !offer_id || !vendor_id) {
-            return validationErrorResponse(res, "All filed Required", 404);
+        const userId =  req.user.id
+         const { amount, currency, receipt, offer_id, vendor_id } = req.body;
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+    const options = {
+      amount: amount, // in paise
+      currency: currency || "INR",
+      receipt: receipt || "rcpt_" + Math.random().toString(36).substring(7),
+      notes: {
+        offer_id,
+        vendor_id,
+        userId,
 
-        }
-        const options = { amount: amount, currency: currency, receipt: receipt };
-        const order = await razorpay.orders.create(options);
-       
+      },
+    };
+
+    const order = await razorpay.orders.create(options);
         return successResponse(res, "payment  successfully", 200, order);
     } catch (err) {
         console.error(err);
