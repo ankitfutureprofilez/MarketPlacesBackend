@@ -370,7 +370,8 @@ exports.AddPayment = catchAsync(async (req, res) => {
             notes:[ {
                 offer_id,
                 vendor_id,
-                userid  :"68edfb9be37a34d7bc1e2412"
+                userid  :"68edfb9be37a34d7bc1e2412",
+                order 
             }],
         };
         const order = await razorpay.orders.create(options);
