@@ -360,7 +360,7 @@ exports.PaymentGetByUser = catchAsync(async (req, res) => {
 
 exports.AddPayment = catchAsync(async (req, res) => {
     try {
-        const userid = req.user.id
+        // const userid = req.user.id
         const { amount, currency, receipt, offer_id, vendor_id } = req.body;
 
         console.log("req.body" ,req.body)
@@ -376,7 +376,7 @@ exports.AddPayment = catchAsync(async (req, res) => {
             notes: {
                 offer_id,
                 vendor_id,
-                userid
+                userid  :"68edfb9be37a34d7bc1e2412"
             },
         };
 
