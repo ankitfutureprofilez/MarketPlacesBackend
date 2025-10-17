@@ -23,15 +23,14 @@ const OfferBuy = require("./model/OfferBuy");
 //Payment Webhook
 console.log("Webhook Payment")
 
-const signature = crypto.createHmac("sha256", secret).update(body).digest("hex");
-
-console.log(signature); // use this as x-razorpay-signature in Postman
 app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), async (req, res) => {
   console.log("hello Web")
   const secret = "my_super_secret_key_123";
   const body = req.body.toString("utf-8");
   const signature = req.headers["x-razorpay-signature"];
+  console.log(signature); 
   const expectedSignature = crypto.createHmac("sha256", secret).update(body).digest("hex");
+  console.log("expectedSignature" ,expectedSignature)
   if (signature === expectedSignature) {
     try {
       const payload = JSON.parse(body);
