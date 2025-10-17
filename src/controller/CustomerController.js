@@ -357,7 +357,7 @@ exports.AddPayment = catchAsync(async (req, res) => {
         // const userid = req.user.id
         const { amount, currency, receipt, offer_id, vendor_id } = req.body;
 
-        console.log("req.body a" ,req.body)
+        console.log("req.body " ,req.body)
 
         const razorpay = new Razorpay({
             key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
@@ -367,11 +367,11 @@ exports.AddPayment = catchAsync(async (req, res) => {
             amount: amount, // in paise
             currency: currency || "INR",
             receipt: receipt || "rcpt_" + Math.random().toString(36).substring(7),
-            notes: {
+            notes:[ {
                 offer_id,
                 vendor_id,
                 userid  :"68edfb9be37a34d7bc1e2412"
-            },
+            }],
         };
         const order = await razorpay.orders.create(options);
         return successResponse(res, "payment  successfully", 200, order);
