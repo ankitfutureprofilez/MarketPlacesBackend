@@ -59,7 +59,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
         console.log("💰 Payment captured or order paid event");
 
         const records = new Payment({
-          order_id: paymentEntity.order.id,
+          order_id: paymentEntity.orderId,
           amount: paymentEntity.amount,
           currency: paymentEntity.currency,
           offer_id: paymentEntity.offer_id || "68edff002c5753929286bfac",
