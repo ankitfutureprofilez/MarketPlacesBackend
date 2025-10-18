@@ -8,7 +8,7 @@ const OfferBuySchema = new mongoose.Schema(
         },
         offer:{
             type: mongoose.Schema.Types.ObjectId,
-            ref: "offer",
+            ref: "Offer",
         },
         vendor:{
             type: mongoose.Schema.Types.ObjectId,

@@ -209,21 +209,46 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
         const long = req.params.long
             ? parseFloat(req.params.long)
             : 75.78562232566131;
-
+            
         const vendorsWithActiveOffers = await Offer.distinct("vendor", {
             status: "active",
         });
+
+        const result = await OfferBuy.aggregate([
+            {
+                $match: { status: "active" }
+            },
+            {
+                $group: {
+                _id: "$vendor",          
+                offerCount: { $sum: 1 }  
+                }
+            },
+        ]);
+        // console.log("result", result);
+        
+        // Convert result array into a lookup Map
+        const offerCountMap = new Map(
+        result.map(item => [item._id.toString(), item.offerCount])
+        );
+
         const popular = await Vendor.find({
             user: { $in: vendorsWithActiveOffers },
         })
-            .select(
-                "business_name address business_logo vendor category user subcategory"
-            )
-            .populate("category")
-            .populate("user")
-            .populate("subcategory");
+        .select("business_name address business_logo vendor category user subcategory")
+        .populate("category")
+        .populate("user")
+        .populate("subcategory");
         // console.log("popular", popular);
         const popularvendor = await getVendorsWithMaxOffer(popular);
+
+        // Custom sort function
+        const sortedPopularVendors = popularvendor.sort((a, b) => {
+        const countA = offerCountMap.get(a.vendor?.user?._id?.toString()) || 0;
+        const countB = offerCountMap.get(b.vendor?.user?._id?.toString()) || 0;
+        return countB - countA; // descending order
+        });
+
 
         const nearby = await Vendor.aggregate([
             {
@@ -311,7 +336,7 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
 
         const category = await categories.find({});
         return successResponse(res, "Dashboard successfully", 200, {
-            popularvendor,
+            popularvendor: sortedPopularVendors,
             nearbyvendor,
             category,
             // categoriesdatavendor,
@@ -321,22 +346,23 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
     }
 });
 
-
 exports.OfferBrought = catchAsync(async (req, res) => {
     try {
-        const id = req.params.id;
-        const record = await OfferBuy.findById({ user: id })
+        const id = req?.user?.id;
+        const record = await OfferBuy.find({ user: id })
             .populate("user")
             .populate("offer")
-            .populate("percentage");
+            .populate("vendor")
+            .populate("payment_id");
         if (!record) {
             return validationErrorResponse(res, "Offers not found", 404);
         }
+        return successResponse(res, "Brought offers fetched successfully", 200, record);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
 
     }
-})
+});
 
 exports.PaymentGetByUser = catchAsync(async (req, res) => {
     try {
