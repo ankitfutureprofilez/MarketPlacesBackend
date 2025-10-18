@@ -78,6 +78,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
         const record = new OfferBuy({
           user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
           offer: paymentEntity.offer || "68edff002c5753929286bfac",
+          vendor: paymentEntity.vendor_id || "68edfeb22c5753929286bfa1",
           payment_id: data._id || "",
           discount: paymentEntity.amount,
           total_amount: paymentEntity.amount + 1500,

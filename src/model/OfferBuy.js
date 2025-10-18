@@ -10,6 +10,10 @@ const OfferBuySchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "offer",
         },
+        vendor:{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+        },
         payment_id: {
            type: mongoose.Schema.Types.ObjectId,
            ref: "Payment",
