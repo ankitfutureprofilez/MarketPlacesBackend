@@ -336,7 +336,7 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
         const popular = await Vendor.find({
             user: { $in: vendorsWithActiveOffers },
         })
-        .select("business_name address business_logo vendor category user subcategory")
+        .select("business_name address business_logo vendor category user subcategory city state area")
         .populate("category")
         .populate("user")
         .populate("subcategory");
@@ -417,6 +417,9 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
                     lat: 1,
                     long: 1,
                     distance: 1,
+                    state: 1,
+                    city: 1,
+                    area: 1,
                 },
             },
         ]);
