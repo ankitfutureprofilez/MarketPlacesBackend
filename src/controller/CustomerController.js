@@ -5,11 +5,7 @@ const Vendor = require("../model/Vendor");
 const Offer = require("../model/Offer.js");
 const OfferBuy = require("../model/OfferBuy.js");
 const catchAsync = require("../utils/catchAsync");
-const {
-    successResponse,
-    errorResponse,
-    validationErrorResponse,
-} = require("../utils/ErrorHandling.js");
+const { successResponse, errorResponse, validationErrorResponse } = require("../utils/ErrorHandling.js");
 const categories = require("../model/categories.js");
 const Razorpay = require("razorpay");
 const Payment = require("../model/Payment.js");
@@ -93,7 +89,6 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
 exports.GetOfferById = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
-        console.log("offerId", offerId);
         const record = await Offer.findById({ _id: offerId })
             .populate("vendor")
             .populate("flat")
@@ -202,6 +197,112 @@ exports.VendorGet = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
+exports.getVendorById = catchAsync(async (req, res) => {
+    try {
+        const _id = req.params.id;
+        let record = await Vendor.findOne({ user: _id })
+            .populate("user")
+            .populate("added_by")
+            .populate("category")
+            .populate("subcategory");
+
+        if (!record) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+
+        const offers = await Offer.find({ vendor: _id, status: "active" });
+        const similar = await Vendor.find({ category: record.category._id })
+        .select("state business_name business_image address business_logo vendor category user subcategory")
+            .populate("user")
+            .populate("category")
+            .populate("subcategory").limit(5);
+
+        const calcPercentage = (obj) => {
+            const keys = Object.keys(obj);
+            const total = keys.length;
+            let filled = 0;
+
+            keys.forEach((k) => {
+                if (obj[k] !== null && obj[k] !== undefined && obj[k] !== "") {
+                    filled++;
+                }
+            });
+
+            return total > 0 ? Math.round((filled / total) * 100) : 0;
+        };
+        const documentObj = {
+            business_logo: record.business_logo,
+            aadhaar_front: record.aadhaar_front,
+            aadhaar_back: record.aadhaar_back,
+            pan_card_image: record.pan_card_image,
+            gst_certificate: record.gst_certificate,
+            shop_license: record.shop_license,
+            aadhaar_verify: record.aadhaar_verify,
+            pan_card_verify: record.pan_card_verify,
+            gst_certificate_verify: record.gst_certificate_verify,
+        };
+
+        const businessObj = {
+            business_name: record.business_name,
+            category: record.category,
+            subcategory: record.subcategory,
+            business_register: record.business_register,
+            pan_card: record.pan_card,
+            gst_number: record.gst_number,
+            address: record.address,
+            city: record.city,
+            area: record.area,
+            pincode: record.pincode,
+            lat: record.lat,
+            long: record.long,
+            landmark: record.landmark,
+            business_image: record.business_image,
+            state: record.state,
+            email: record?.vendor?.email,
+            country: record?.country
+        };
+
+        const timingObj = {
+            opening_hours: record.opening_hours,
+            weekly_off_day: record.weekly_off_day,
+        };
+
+        const vendorObj = {
+            vendor: record.user,
+            sales: record.added_by,
+        };
+        const percentages = {
+            document: calcPercentage(documentObj),
+            business_details: calcPercentage(businessObj),
+            timing: calcPercentage(timingObj),
+            vendor_sales: calcPercentage(vendorObj),
+        };
+
+        // console.log("vendorObj", vendorObj)
+        const transformed = {
+            _id: record._id,
+            uuid: record.uuid,
+            document: documentObj,
+            business_details: businessObj,
+            timing: timingObj,
+            vendor: record.user,
+            offers,
+            similar,
+            sales: record.added_by,
+            status: record.status,
+            Verify_status: record.Verify_status,
+            createdAt: record.createdAt,
+            updatedAt: record.updatedAt,
+            percentages
+        };
+
+        return successResponse(res, "Vendor details fetched successfully", 200, transformed);
+
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+})
 
 exports.CustomerDashboard = catchAsync(async (req, res) => {
     try {
