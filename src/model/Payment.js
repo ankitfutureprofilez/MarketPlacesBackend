@@ -35,7 +35,7 @@ const paymentSchema = mongoose.Schema({
     },
     vendor_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "vendor",
+        ref: "User",
     },
 });
 
