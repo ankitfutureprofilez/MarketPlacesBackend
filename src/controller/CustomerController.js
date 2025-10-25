@@ -10,7 +10,6 @@ const categories = require("../model/categories.js");
 const Razorpay = require("razorpay");
 const Payment = require("../model/Payment.js");
 
-
 exports.CustomerRegister = catchAsync(async (req, res) => {
     try {
         const { name, phone, email } = req.body;
@@ -210,13 +209,47 @@ exports.getVendorById = catchAsync(async (req, res) => {
         if (!record) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
+        const offers = await Offer.find({ vendor: _id, status: "active" }).populate("flat")
+            .populate("percentage");
+        // console.log("result", result);
+        
+        const vendorsWithActiveOffers = await Offer.distinct("vendor", {
+            status: "active",
+        });
 
-        const offers = await Offer.find({ vendor: _id, status: "active" });
-        const similar = await Vendor.find({ category: record.category._id })
-        .select("state business_name business_image address business_logo vendor category user subcategory")
+        const similar = await Vendor.find({ category: record.category._id, user: { $in: vendorsWithActiveOffers } })
+        .select("state area city business_name business_image address business_logo vendor category user subcategory lat long")
             .populate("user")
             .populate("category")
             .populate("subcategory").limit(5);
+        const similarVendor = await getVendorsWithMaxOffer(similar);
+        // console.log("similarVendor", similarVendor);
+        // After fetching similar vendors
+        const toRad = (deg) => (deg * Math.PI) / 180;
+        const R = 6371; // Earth radius in km
+        const similarWithDistance = similarVendor.map((v) => {
+            // v.vendor contains lat/long
+            const vendorLat = 26.93018694624354;
+            const vendorLong = 75.78562232566131;
+            let distance = null;
+
+            if (vendorLat && vendorLong && record.lat && record.long) {
+                let arg =
+                    Math.sin(toRad(record.lat)) * Math.sin(toRad(vendorLat)) +
+                    Math.cos(toRad(record.lat)) *
+                        Math.cos(toRad(vendorLat)) *
+                        Math.cos(toRad(vendorLong) - toRad(record.long));
+                arg = Math.min(1, Math.max(-1, arg));
+                distance = R * Math.acos(arg);
+                distance = Math.round(distance * 100) / 100;
+            }
+
+            // Just spread v because it’s already a plain object
+            return {
+                ...v,
+                distance,
+            };
+        });
 
         const calcPercentage = (obj) => {
             const keys = Object.keys(obj);
@@ -231,6 +264,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
 
             return total > 0 ? Math.round((filled / total) * 100) : 0;
         };
+
         const documentObj = {
             business_logo: record.business_logo,
             aadhaar_front: record.aadhaar_front,
@@ -283,12 +317,12 @@ exports.getVendorById = catchAsync(async (req, res) => {
         const transformed = {
             _id: record._id,
             uuid: record.uuid,
-            document: documentObj,
+            // document: documentObj,
             business_details: businessObj,
             timing: timingObj,
             vendor: record.user,
             offers,
-            similar,
+            similar: similarWithDistance,
             sales: record.added_by,
             status: record.status,
             Verify_status: record.Verify_status,
@@ -305,149 +339,172 @@ exports.getVendorById = catchAsync(async (req, res) => {
 })
 
 exports.CustomerDashboard = catchAsync(async (req, res) => {
-    try {
-        const lat = req.params.lat ? parseFloat(req.params.lat) : 26.93018694624354;
-        const long = req.params.long
-            ? parseFloat(req.params.long)
-            : 75.78562232566131;
-            
-        const vendorsWithActiveOffers = await Offer.distinct("vendor", {
-            status: "active",
-        });
+  try {
+    const lat = req.params.lat ? parseFloat(req.params.lat) : 26.93018694624354;
+    const long = req.params.long ? parseFloat(req.params.long) : 75.78562232566131;
 
-        const result = await OfferBuy.aggregate([
-            {
-                $match: { status: "active" }
-            },
-            {
-                $group: {
-                _id: "$vendor",          
-                offerCount: { $sum: 1 }  
-                }
-            },
-        ]);
-        // console.log("result", result);
-        
-        // Convert result array into a lookup Map
-        const offerCountMap = new Map(
-        result.map(item => [item._id.toString(), item.offerCount])
+    const vendorsWithActiveOffers = await Offer.distinct("vendor", {
+      status: "active",
+    });
+
+    // Count offers for popularity
+    const result = await OfferBuy.aggregate([
+      { $match: { status: "active" } },
+      {
+        $group: {
+          _id: "$vendor",
+          offerCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Map for quick lookup
+    const offerCountMap = new Map(
+      result.map((item) => [item._id.toString(), item.offerCount])
+    );
+
+    // --- POPULAR VENDORS ---
+    const popular = await Vendor.find({
+      user: { $in: vendorsWithActiveOffers },
+    })
+      .select(
+        "business_name address business_logo vendor category user subcategory city state area lat long"
+      )
+      .populate("category")
+      .populate("user")
+      .populate("subcategory");
+
+    const popularvendor = await getVendorsWithMaxOffer(popular);
+
+   const popularWithDistance = popularvendor.map((item) => {
+    const v = item.vendor || {}; // vendor details are nested here
+    const vendorLat = v.lat;
+    const vendorLong = v.long;
+
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const R = 6371; // Earth radius in km
+
+    let distance = null;
+    if (vendorLat && vendorLong) {
+        const d =
+        R *
+        Math.acos(
+            Math.sin(toRad(lat)) * Math.sin(toRad(vendorLat)) +
+            Math.cos(toRad(lat)) *
+                Math.cos(toRad(vendorLat)) *
+                Math.cos(toRad(vendorLong) - toRad(long))
         );
 
-        const popular = await Vendor.find({
-            user: { $in: vendorsWithActiveOffers },
-        })
-        .select("business_name address business_logo vendor category user subcategory city state area")
-        .populate("category")
-        .populate("user")
-        .populate("subcategory");
-        // console.log("popular", popular);
-        const popularvendor = await getVendorsWithMaxOffer(popular);
-
-        // Custom sort function
-        const sortedPopularVendors = popularvendor.sort((a, b) => {
-        const countA = offerCountMap.get(a.vendor?.user?._id?.toString()) || 0;
-        const countB = offerCountMap.get(b.vendor?.user?._id?.toString()) || 0;
-        return countB - countA; // descending order
-        });
-
-
-        const nearby = await Vendor.aggregate([
-            {
-                $match: {
-                    user: {
-                        $in: vendorsWithActiveOffers.map(
-                            (id) => new mongoose.Types.ObjectId(id)
-                        ),
-                    },
-                    lat: { $ne: null },
-                    long: { $ne: null },
-                },
-            },
-            {
-                $addFields: {
-                    distance: {
-                        $round: [
-                            {
-                                $multiply: [
-                                    6371, // Earth radius in km
-                                    {
-                                        $acos: {
-                                            $add: [
-                                                {
-                                                    $multiply: [
-                                                        { $sin: { $degreesToRadians: lat } },
-                                                        { $sin: { $degreesToRadians: "$lat" } },
-                                                    ],
-                                                },
-                                                {
-                                                    $multiply: [
-                                                        { $cos: { $degreesToRadians: lat } },
-                                                        { $cos: { $degreesToRadians: "$lat" } },
-                                                        {
-                                                            $cos: {
-                                                                $subtract: [
-                                                                    { $degreesToRadians: "$long" },
-                                                                    { $degreesToRadians: long },
-                                                                ],
-                                                            },
-                                                        },
-                                                    ],
-                                                },
-                                            ],
-                                        },
-                                    },
-                                ],
-                            },
-                            2, // Round to 2 decimal places
-                        ],
-                    },
-                },
-            },
-            { $sort: { distance: 1 } },
-            { $limit: 20 },
-            {
-                $project: {
-                    _id: 1,
-                    business_name: 1,
-                    address: 1,
-                    business_logo: 1,
-                    category: 1,
-                    subcategory: 1,
-                    user: 1,
-                    lat: 1,
-                    long: 1,
-                    distance: 1,
-                    state: 1,
-                    city: 1,
-                    area: 1,
-                },
-            },
-        ]);
-
-        // Populate only necessary fields
-        const nearbyVendorsPopulated = await Vendor.populate(nearby, [
-            { path: "category", select: "_id name id" },
-            { path: "subcategory", select: "_id subcategory_id name category_id" },
-            { path: "user", select: "_id name phone email avatar" },
-        ]);
-
-        const nearbyvendor = await getVendorsWithMaxOffer(nearbyVendorsPopulated);
-
-        // const categoriesdata = await Vendor.find({ user: { $in: vendorsWithActiveOffers } })
-        //     .select("business_name address business_logo vendor category user subcategory")
-        //     .populate("category").populate("user").populate("category").populate("subcategory");
-        // const categoriesdatavendor = await getVendorsWithMaxOffer(categoriesdata);
-
-        const category = await categories.find({});
-        return successResponse(res, "Dashboard successfully", 200, {
-            popularvendor: sortedPopularVendors,
-            nearbyvendor,
-            category,
-            // categoriesdatavendor,
-        });
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+        distance = Math.round(d * 100) / 100; // 2 decimal places
     }
+
+    // Attach distance without mutating original reference
+    return {
+        ...item,
+        distance,
+    };
+    });
+
+
+    // Sort only by popularity (offer count)
+    const sortedPopularVendors = popularWithDistance.sort((a, b) => {
+      const countA = offerCountMap.get(a.vendor?.user?._id?.toString()) || 0;
+      const countB = offerCountMap.get(b.vendor?.user?._id?.toString()) || 0;
+      return countB - countA;
+    });
+
+    // --- NEARBY VENDORS ---
+    const nearby = await Vendor.aggregate([
+      {
+        $match: {
+          user: {
+            $in: vendorsWithActiveOffers.map(
+              (id) => new mongoose.Types.ObjectId(id)
+            ),
+          },
+          lat: { $ne: null },
+          long: { $ne: null },
+        },
+      },
+      {
+        $addFields: {
+          distance: {
+            $round: [
+              {
+                $multiply: [
+                  6371,
+                  {
+                    $acos: {
+                      $add: [
+                        {
+                          $multiply: [
+                            { $sin: { $degreesToRadians: lat } },
+                            { $sin: { $degreesToRadians: "$lat" } },
+                          ],
+                        },
+                        {
+                          $multiply: [
+                            { $cos: { $degreesToRadians: lat } },
+                            { $cos: { $degreesToRadians: "$lat" } },
+                            {
+                              $cos: {
+                                $subtract: [
+                                  { $degreesToRadians: "$long" },
+                                  { $degreesToRadians: long },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+              2,
+            ],
+          },
+        },
+      },
+      { $sort: { distance: 1 } },
+      { $limit: 20 },
+      {
+        $project: {
+          _id: 1,
+          business_name: 1,
+          address: 1,
+          business_logo: 1,
+          category: 1,
+          subcategory: 1,
+          user: 1,
+          lat: 1,
+          long: 1,
+          distance: 1,
+          state: 1,
+          city: 1,
+          area: 1,
+        },
+      },
+    ]);
+
+    const nearbyVendorsPopulated = await Vendor.populate(nearby, [
+      { path: "category", select: "_id name id" },
+      { path: "subcategory", select: "_id subcategory_id name category_id" },
+      { path: "user", select: "_id name phone email avatar" },
+    ]);
+
+    const nearbyvendor = await getVendorsWithMaxOffer(nearbyVendorsPopulated);
+
+    const category = await categories.find({});
+
+    return successResponse(res, "Dashboard successfully", 200, {
+      popularvendor: sortedPopularVendors,
+      nearbyvendor,
+      category,
+    });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.OfferBrought = catchAsync(async (req, res) => {

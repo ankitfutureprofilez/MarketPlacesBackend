@@ -8,6 +8,11 @@ const categorySchema = new mongoose.Schema({
     id:{
         type: Number,
         required: true
+    },
+    image:{
+        type: String,
+        // required: true
+        default: "https://thumbs.dreamstime.com/b/cool-emoji-headphones-vector-cartoon-164269199.jpg"
     }
 });
 
