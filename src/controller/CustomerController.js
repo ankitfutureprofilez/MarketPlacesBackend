@@ -543,9 +543,6 @@ exports.AddPayment = catchAsync(async (req, res) => {
     try {
         // const userid = req.user.id
         const { amount, currency, receipt, offer_id, vendor_id } = req.body;
-
-        console.log("req.body " ,req.body)
-
         const razorpay = new Razorpay({
             key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
             key_secret: "RcwuasbTHAdmm1mrZTiigw2x",   // aapka Secret Key
