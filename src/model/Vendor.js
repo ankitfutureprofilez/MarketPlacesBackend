@@ -70,7 +70,7 @@ const vendorSchema = new mongoose.Schema(
             default: null,
         },
         gst_certificate_verify: {
-              type: String,
+            type: String,
             default: "pending"
         },
         gst_number: {
@@ -134,6 +134,11 @@ const vendorSchema = new mongoose.Schema(
             ref: "User",
             default: null,
         },
+        assign_staff: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null
+        },
         status: {
             type: String,
             default: "active",
@@ -144,10 +149,14 @@ const vendorSchema = new mongoose.Schema(
             default: "unverify",
             enum: ["verify", "unverify"]
         },
-        country :{
-            type:String ,
-            default : "India"
-        }
+        country: {
+            type: String,
+            default: "India"
+        },
+        delete_At: {
+            type: Date,
+            default: null,
+        },
     },
     { timestamps: true }
 );

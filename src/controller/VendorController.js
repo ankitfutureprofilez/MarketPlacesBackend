@@ -288,16 +288,21 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 });
 
 exports.vendorDelete = catchAsync(async (req, res) => {
-    try {
-        const vendorId = req.user?._id || req.params.id;
-        const vendordata = await Vendor.findByIdAndDelete(vendorId);
-        if (!vendordata) {
-            return validationErrorResponse(res, "Vendor not found", 404);
-        }
-        return successResponse(res, "Vendor deleted successfully", vendordata);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const vendorId = req.user?._id || req.params.id;
+    console.log("req" ,req.params.id)
+    const vendordata = await Vendor.findByIdAndUpdate(
+      vendorId,
+      { delete_At: new Date() }, 
+      { new: true }
+    );
+    if (!vendordata) {
+      return validationErrorResponse(res, "Vendor not found", 404);
     }
+    return successResponse(res, "Vendor deleted successfully", 200 , vendordata);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.VendorStatus = catchAsync(async (req, res) => {

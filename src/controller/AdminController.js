@@ -70,7 +70,7 @@ exports.PaymentGet = catchAsync(async (req, res) => {
 
 exports.VendorGet = catchAsync(async (req, res) => {
     try {
-        const vendor = await Vendor.find().populate("user").populate("category").populate("subcategory");
+        const vendor = await Vendor.find().populate("user").populate("category").populate("subcategory").populate("assign_staff");
         if (!vendor || vendor.length === 0) {
             return validationErrorResponse(res, "No Vendors found", 404);
         }
@@ -155,8 +155,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             lat,
             long,
             address,
-            adhar_front,
-            adhar_back,
+            aadhaar_front,
+            aadhaar_back,
             pan_card_image,
             gst_certificate,
             GST_no,
@@ -220,8 +220,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             lat,
             long,
             address,
-            adhar_front,
-            adhar_back,
+            aadhaar_front,
+            aadhaar_back,
             pan_card_image,
             gst_certificate,
             gst_number: GST_no, // renamed correctly
@@ -254,6 +254,78 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             error.message || "Internal Server Error",
             500
         );
+    }
+});
+
+exports.vendorUpdate = catchAsync(async (req, res) => {
+    try {
+        const adminid = req.user.id;
+        const {
+            _id,
+            business_name,
+            city,
+            state,
+            category,
+            subcategory,
+            pincode,
+            area,
+            name,
+            phone,
+            lat,
+            long,
+            address,
+            aadhaar_front,
+            aadhaar_back,
+            pan_card_image,
+            gst_certificate,
+            gst_number,
+            business_logo,
+            opening_hours,
+            weekly_off_day,
+            business_register,
+            business_image,
+            email, avatar
+        } = req.body;
+        const userData = await User.findByIdAndUpdate({ _id: _id }, { email, name, avatar })
+        const vendordata = await Vendor.findOneAndUpdate(
+            { user: _id },
+            {
+                business_name,
+                city,
+                state,
+                category,
+                subcategory,
+                pincode,
+                area,
+                name,
+                phone,
+                lat,
+                long,
+                address,
+                aadhaar_front,
+                aadhaar_back,
+                pan_card_image,
+                gst_certificate,
+                gst_number,
+                business_logo,
+                opening_hours,
+                weekly_off_day,
+                business_register,
+                business_image,
+                email,
+                added_by: adminid,
+            },
+            { new: true, runValidators: true }
+        ).populate("user");
+
+        console.log("vendordata", vendordata)
+        if (!vendordata) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+
+        return successResponse(res, "Admin Vendor updated successfully", 200, vendordata);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
 
@@ -302,17 +374,46 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 
 exports.AdminDashboard = catchAsync(async (req, res) => {
     try {
-        const veondor = await Vendor.find({}).limit(5).sort({ "createdAt": -1 })
+        const vendors = await Vendor.find({}).limit(5).sort({ "createdAt": -1 }).populate("user")
         return successResponse(res, "Admin users fetched successfully", 200, {
-            veondor,
+            vendors,
             stats: {
-                total_vendors: 1500,
+                total_vendors: await Vendor.countDocuments(),
                 redeemed_offeres: 10,
                 coupons: 5,
-                total_sales: 200,
+                total_sales: await User.countDocuments(
+                    {
+                        "role": "sales"
+                    }
+                ),
             },
         });
     } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.AssignStaff = catchAsync(async (req, res) => {
+    try {
+        const { vendor_id, assign_staff } = req.body;
+
+        // Validate input
+        if (!vendor_id || !assign_staff) {
+            return validationErrorResponse(res, "vendor_id and assign_staff are required", 400);
+        }
+
+        const vendordata = await Vendor.findByIdAndUpdate(
+            vendor_id,
+            { assign_staff: assign_staff },
+            { new: true }
+        );
+
+        if (!vendordata) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+        return successResponse(res, "Assign Staff Successfully", 200, vendordata);
+    } catch (error) {
+        console.error("Error assigning staff:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
