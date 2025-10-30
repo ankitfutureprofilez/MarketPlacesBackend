@@ -205,16 +205,24 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 });
 
 exports.VendorGet = catchAsync(async (req, res) => {
-    try {
-        const vendors = await Vendor.find({}).populate("user");
-        if (!vendors || vendors.length === 0) {
-            return validationErrorResponse(res, "No vendors found", 404);
-        }
-        return successResponse(res, "Vendors fetched successfully", vendors);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+
+
+  try {
+   
+
+    const vendors = await Vendor.find(query).populate("user");
+
+    if (!vendors || vendors.length === 0) {
+      return validationErrorResponse(res, "No vendors found", 404);
     }
+
+    return successResponse(res, "Vendors fetched successfully", vendors);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
+
+
 
 exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
@@ -400,6 +408,7 @@ exports.GetOfferId = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
         const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
+        console.log("record" ,record)
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }

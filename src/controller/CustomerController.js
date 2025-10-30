@@ -86,25 +86,65 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
 });
 
 exports.GetOfferById = catchAsync(async (req, res) => {
-    try {
-        const offerId = req.params.id;
-        const record = await Offer.findById({ _id: offerId })
-            .populate("vendor")
-            .populate("flat")
-            .populate("percentage");
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-        return successResponse(res, "Offer Get Details successfully", 200, {
-            record: record,
-            redeem: 35,
-            purchase: 15,
-            pending: 20,
-        });
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const userId = req.query?.user_id 
+    const offerId = req.params.id.trim();
+    console.log("Offer ID:", offerId, "User ID:", userId);
+
+    // ✅ 1. Fetch the Offer details
+    const record = await Offer.findById(offerId)
+      .populate("vendor")
+      .populate("flat")
+      .populate("percentage");
+
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found", 404);
     }
+
+    // ✅ 2. Check if this user has purchased this offer
+    const existingBuy = await OfferBuy.findOne({
+      offer: offerId,
+      user: userId,
+    });
+
+    console.log("existingBuy" ,existingBuy)
+
+    // ✅ 3. Set user-specific offer status
+    const userOfferStatus = existingBuy ? "active" : "inactive";
+
+    // ✅ 4. Fetch all OfferBuys (for admin analytics)
+    const offerBuys = await OfferBuy.find({ offer: offerId })
+      .populate("user")
+      .populate("vendor")
+      .populate("payment_id")
+      .populate("offer");
+
+    // ✅ 5. Calculate offer stats
+    const totalBuys = offerBuys.length;
+    const redeemCount = offerBuys.filter(b => b.status === "redeemed").length;
+    const pendingCount = offerBuys.filter(b => b.status === "active").length;
+    const expiredCount = offerBuys.filter(b => b.status === "expired").length;
+
+    // ✅ 6. Send unified response
+    return successResponse(res, "Offer details fetched successfully", 200, {
+      record,
+      user_offer_status: userOfferStatus, 
+      stats: {
+        total: totalBuys,
+        redeemed: redeemCount,
+        pending: pendingCount,
+        expired: expiredCount,
+      },
+      offerBuys,
+    });
+
+  } catch (error) {
+    console.error("Error fetching offer details:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
+
+
 
 const getVendorsWithMaxOffer = async (vendors) => {
     return await Promise.all(

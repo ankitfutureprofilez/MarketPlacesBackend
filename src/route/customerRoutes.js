@@ -7,7 +7,7 @@ router.get("/customer/get_details", verifyToken, CustomerGet);
 router.get("/customer/getVendor", VendorGet);
 router.get("/customer/getVendorbyId/:id", getVendorById);
 router.get("/customer/getVendorOffers/:id", verifyToken, VendorOfferGet);
-router.get("/customer/offer/get_details/:id", GetOfferById);
+router.get("/customer/offer/get_details/:id" , GetOfferById);
 router.get("/customer/dashboard", CustomerDashboard);
 router.get("/customer/brought-offer",verifyToken, OfferBrought);
 router.get("/customer/payment_get", verifyToken, PaymentGetByUser);

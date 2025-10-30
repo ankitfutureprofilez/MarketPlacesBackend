@@ -1,11 +1,11 @@
 const router = require("express").Router();
-const { VendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff } = require("../controller/AdminController");
+const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff } = require("../controller/AdminController");
 const { SalesPersonStatus, AddSalesPersons } = require("../controller/SalesController");
 const { VendorStatus, AdminSubcaterites, vendorDelete } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
 
 router.post("/admin/login", Login);
-router.get("/admin/vendor_list", VendorGet);
+router.get("/admin/vendor_list", AdminVendorGet);
 router.get("/admin/sales_list", SalesGet);
 router.get("/admin/user_list", UserGet);
 router.get("/admin/vendor_status/:id/:status", VendorStatus);

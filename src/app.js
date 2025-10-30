@@ -123,7 +123,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
 
 
 
-app.use(express.json({ limit: "2000mb" }));
+app.use(express.json({ limit: "25000mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 5000;

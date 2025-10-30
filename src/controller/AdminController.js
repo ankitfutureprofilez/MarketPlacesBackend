@@ -22,7 +22,6 @@ exports.Login = catchAsync(async (req, res) => {
             process.env.JWT_SECRET_KEY,
             { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
         );
-        console.log("token", token)
         return successResponse(res, "Admin Login successfully", 200, {
             user: user,
             token: token,
@@ -68,22 +67,51 @@ exports.PaymentGet = catchAsync(async (req, res) => {
     }
 });
 
-exports.VendorGet = catchAsync(async (req, res) => {
+exports.AdminVendorGet = catchAsync(async (req, res) => {
     try {
-        const vendor = await Vendor.find().populate("user").populate("category").populate("subcategory").populate("assign_staff");
-        if (!vendor || vendor.length === 0) {
-            return validationErrorResponse(res, "No Vendors found", 404);
+        const { search = "", status = "", category = "" } = req.query;
+
+        let query = {};
+
+        if (search && search.trim() !== "") {
+            const regex = { $regex: search.trim(), $options: "i" };
+
+            const matchedUsers = await User.find({
+                $or: [{ name: regex }, { email: regex }],
+            }).select("_id");
+
+            const userIds = matchedUsers.map((u) => u._id);
+            query.$or = [{ business_name: regex }, { user: { $in: userIds } }];
         }
+
+        if (category && category.trim() !== "") {
+            query.category = category;
+        }
+
+        if (status === "verify") {
+            query.Verify_status = "verify";
+        } else if (status === "unverify") {
+            query.Verify_status = "unverify";
+        }
+
+
+        const vendor = await Vendor.find(query)
+            .populate("user")
+            .populate("category")
+            .populate("subcategory")
+            .populate("assign_staff");
+
         return res.json({
             message: "Vendor Get!!",
-            vendor: vendor,
-            status: 200
-        })
-
+            vendor,
+            status: 200,
+        });
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
+
 
 exports.SalesGet = catchAsync(async (req, res, next) => {
     try {
@@ -139,7 +167,6 @@ exports.SalesGet = catchAsync(async (req, res, next) => {
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
         const adminid = req.user.id;
-        console.log("req.", req.body);
 
         // ✅ Correct spelling for fields
         const {
@@ -318,7 +345,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
             { new: true, runValidators: true }
         ).populate("user");
 
-        console.log("vendordata", vendordata)
         if (!vendordata) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
@@ -332,7 +358,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 exports.adminGet = catchAsync(async (req, res) => {
     try {
         const adminId = req.user?.id || null;
-        console.log("adminId", adminId)
         const admins = await User.findOne({ role: "admin" }).select("-password");
 
         if (!admins || admins.length === 0) {
@@ -351,7 +376,6 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         if (!id) {
             return errorResponse(res, "Vendor ID is required", 400);
         }
-        console.log("vendorId:", id);
         const record = await Vendor.findById(
             {
                 _id: id
@@ -364,7 +388,6 @@ exports.VendorGetId = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
         const vendorid = record.user._id;
-        console.log("vendorid", vendorid)
         const offer = await Offer.find({ vendor: vendorid }).populate("flat").populate("percentage");
         return successResponse(res, "Vendor details fetched successfully", 200, { record, offer, coupon: 25, redeem: 23, purchased: 25, pending: 55 });
     } catch (error) {
