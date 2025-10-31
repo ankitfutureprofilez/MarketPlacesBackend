@@ -9,6 +9,7 @@ const { validationErrorResponse, successResponse, errorResponse } = require("../
 const jwt = require("jsonwebtoken");
 const FlatOffer = require("../model/FlatOffer.js");
 const PercentageOffer = require("../model/PercentageOffer.js");
+const Payment = require("../model/Payment.js");
 
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
@@ -436,7 +437,6 @@ exports.GetOffer = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
-
 // Offer Status 
 exports.OfferStatus = catchAsync(async (req, res) => {
     try {
@@ -644,4 +644,24 @@ exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
+});
+
+
+
+exports.VendorOrder = catchAsync(async (req, res) => {
+  try {
+    const id = req?.user?.id;
+    const record = await Payment.find({ vendor_id: id })
+      .populate("user")
+      .populate("Offer_id")
+      .populate("vendor_id");
+
+    if (!record) {
+      return validationErrorResponse(res, "Offers not found", 404);
+    }
+    return successResponse(res, "Brought offers fetched successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+
+  }
 });
