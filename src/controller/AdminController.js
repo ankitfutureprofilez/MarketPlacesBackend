@@ -556,13 +556,14 @@ exports.DeleteSalesPerson = catchAsync(async (req, res) => {
 
         const user = await User.findById(id);
         if (!user || user.deleted_at) {
-            return validationErrorResponse(res, "Sales Person not found or already deleted.", 404);
+            return validationErrorResponse(res, " Person not found or already deleted.", 404);
         }
         user.deleted_at = new Date();
         await user.save();
-        return successResponse(res, "Sales Person deleted successfully.", 200);
+        return successResponse(res, " Person deleted successfully.", 200);
     } catch (error) {
         console.error("DeleteSalesPerson error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
