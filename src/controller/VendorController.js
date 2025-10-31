@@ -651,6 +651,7 @@ exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
 exports.VendorOrder = catchAsync(async (req, res) => {
   try {
     const id = req?.user?.id;
+    console.log("68edfeb22c5753929286bfa1" ,id)
     const record = await Payment.find({ vendor_id: id })
       .populate("user")
       .populate("Offer_id")

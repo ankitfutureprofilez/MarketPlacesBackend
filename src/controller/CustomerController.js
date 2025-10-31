@@ -580,7 +580,14 @@ exports.OfferBrought = catchAsync(async (req, res) => {
       .populate("user")
       .populate("offer")
       .populate("vendor")
-      .populate("payment_id");
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [
+          { path: "flat" },
+          { path: "percentage" }
+        ],
+      });
     if (!record) {
       return validationErrorResponse(res, "Offers not found", 404);
     }
@@ -609,7 +616,7 @@ exports.AddPayment = catchAsync(async (req, res) => {
   try {
     const userid = req.user.id;
     const { amount, currency, offer_id, vendor_id } = req.body;
-    
+
     const razorpay = new Razorpay({
       key_id: "rzp_test_RQ3O3IWq0ayjsg",
       key_secret: "RcwuasbTHAdmm1mrZTiigw2x",
