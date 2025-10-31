@@ -44,16 +44,29 @@ exports.Login = catchAsync(async (req, res) => {
 });
 
 exports.UserGet = catchAsync(async (req, res) => {
-    try {
-        const record = await User.find({ role: "customer" });
-        if (!record || record.length === 0) {
-            return validationErrorResponse(res, "No Users found", 404);
-        }
-        return successResponse(res, "Customers fetched successfully", 200, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const { search = "" } = req.query;
+
+    console.log("req.query" ,req.query)
+    let query = { role: "customer" };
+
+    if (search && search.trim() !== "") {
+      const regex = { $regex: search.trim(), $options: "i" };
+      query.$or = [{ name: regex }, { email: regex }];
     }
+
+    const record = await User.find(query);
+
+    if (!record || record.length === 0) {
+      return validationErrorResponse(res, "No Users found", 404);
+    }
+
+    return successResponse(res, "Customers fetched successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
+
 
 exports.PaymentGet = catchAsync(async (req, res) => {
     try {

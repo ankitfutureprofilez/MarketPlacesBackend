@@ -65,15 +65,12 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
     // Correct way to get :id from route
     const vendorid = req.params.id;
     console.log("userId:", vendorid);
-    const user_id =  req.user.id
-    console.log("user_id" ,user_id )
-
+    const user_id = req.user.id
+    console.log("user_id", user_id)
     const record = await Offer.find({ vendor: vendorid })
       .populate("flat")
       .populate("percentage");
-
-
-       const updatedOffers = await Promise.all(
+    const updatedOffers = await Promise.all(
       record.map(async (offer) => {
         const existingBuy = await OfferBuy.findOne({
           offer: offer._id,
@@ -85,7 +82,7 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
       })
     );
 
-    console.log("updatedOffers" ,updatedOffers)
+    console.log("updatedOffers", updatedOffers)
 
     if (!record || record.length === 0) {
       return validationErrorResponse(res, "Offer not found", 404);
@@ -95,7 +92,7 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
       res,
       "Offer Get fetched successfully",
       200,
-     updatedOffers
+      updatedOffers
     );
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -282,7 +279,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
       })
     );
 
-    console.log("updatedOffers" ,updatedOffers)
+    console.log("updatedOffers", updatedOffers)
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
     });
@@ -391,7 +388,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
       business_details: businessObj,
       timing: timingObj,
       vendor: record.user,
-      offers:updatedOffers,
+      offers: updatedOffers,
       similar: similarWithDistance,
       sales: record.added_by,
       status: record.status,
@@ -611,7 +608,7 @@ exports.PaymentGetByUser = catchAsync(async (req, res) => {
 
 exports.AddPayment = catchAsync(async (req, res) => {
   try {
-    // const userid = req.user.id
+     const userid = req.user.id
     const { amount, currency, receipt, offer_id, vendor_id } = req.body;
     const razorpay = new Razorpay({
       key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
@@ -624,7 +621,7 @@ exports.AddPayment = catchAsync(async (req, res) => {
       notes: [{
         offer_id,
         vendor_id,
-        userid: "68edfb9be37a34d7bc1e2412",
+        userid: userid,
       }],
     };
     const order = await razorpay.orders.create(options);
