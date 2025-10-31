@@ -453,3 +453,116 @@ exports.AssignStaff = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
+exports.AddSalesPersons = catchAsync(async (req, res) => {
+    try {
+        console.log("req.body", req.body);
+        const { phone, otp, role, name, email, avatar } = req.body;
+        // Validate required fields
+        if (!phone || !otp || !name || !email) {
+            return validationErrorResponse(
+                res,
+                "Phone number, OTP, Name, and Email are required.",
+                401
+            );
+        }
+        // OTP validation
+        if (otp !== "111111") {
+            return validationErrorResponse(
+                res,
+                "Invalid or expired OTP. Please try again.",
+                400
+            );
+        }
+        // Check if user already exists
+        const existingUser = await User.findOne({ phone });
+        if (existingUser) {
+            return errorResponse(
+                res,
+                "A Sales Person with this phone number already exists.",
+                200,
+                { role: role }
+            );
+        }
+
+        // Create new Sales Person
+        const newUser = new User({
+            name,
+            email,
+            phone,
+            role,
+            avatar
+        });
+
+        const record = await newUser.save();
+
+        // Success response
+        return successResponse(
+            res,
+            "Sales Person registered successfully.",
+            200,
+            { record }
+        );
+
+        // Optional: Verify OTP with Twilio (currently unreachable)
+        // const verificationCheck = await client.verify.v2
+        //     .services(process.env.TWILIO_VERIFY_SID)
+        //     .verificationChecks.create({ to: phone, code: otp });
+        // if (verificationCheck.status === "approved") {
+        //     return successResponse(res, "OTP verified successfully", 200);
+        // } else {
+        //     return validationErrorResponse(res, "Invalid or expired OTP", 400);
+        // }
+
+    } catch (error) {
+        console.error("AddSalesPersons error:", error);
+        return errorResponse(
+            res,
+            error.message || "Internal Server Error",
+            500
+        );
+    }
+});
+
+exports.EditSalesPerson = catchAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, email, phone, avatar, role, status } = req.body;
+
+        const user = await User.findById(id);
+        if (!user || user.deleted_at) {
+            return validationErrorResponse(res, "Sales Person not found.", 404);
+        }
+
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (phone) user.phone = phone;
+        if (avatar) user.avatar = avatar;
+        if (role) user.role = role;
+        if (status) user.status = status;
+
+        const updatedUser = await user.save();
+
+        return successResponse(res, "Sales Person updated successfully.", 200, updatedUser );
+    } catch (error) {
+        console.error("EditSalesPerson error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.DeleteSalesPerson = catchAsync(async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const user = await User.findById(id);
+        if (!user || user.deleted_at) {
+            return validationErrorResponse(res, "Sales Person not found or already deleted.", 404);
+        }
+        user.deleted_at = new Date();
+        await user.save();
+        return successResponse(res, "Sales Person deleted successfully.", 200);
+    } catch (error) {
+        console.error("DeleteSalesPerson error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});

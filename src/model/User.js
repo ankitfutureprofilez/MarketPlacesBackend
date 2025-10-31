@@ -60,6 +60,10 @@ const UserSchema = new mongoose.Schema({
         },
         default: "customer",
     },
+    deleted_at: {
+        type: Date,
+        default: null
+    }
 }, { timestamps: true });
 
 UserSchema.index({ name: 1, email: 1 }, { unique: true });
