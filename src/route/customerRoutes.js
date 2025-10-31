@@ -11,7 +11,6 @@ router.get("/customer/offer/get_details/:id" , GetOfferById);
 router.get("/customer/dashboard", CustomerDashboard);
 router.get("/customer/brought-offer",verifyToken, OfferBrought);
 router.get("/customer/payment_get", verifyToken, PaymentGetByUser);
-router.get("/customer/offfer_buy_get", verifyToken, CustomerOfferBuyGet);
 
 router.post("/customer/add_payment",verifyToken, AddPayment);
 
