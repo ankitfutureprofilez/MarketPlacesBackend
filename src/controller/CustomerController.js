@@ -122,7 +122,7 @@ exports.GetOfferById = catchAsync(async (req, res) => {
     // ✅ 6. Send unified response
     return successResponse(res, "Offer details fetched successfully", 200, {
       record,
-      user_offer_status: userOfferStatus,
+      purchase_status: userOfferStatus,
       stats: {
         total: totalBuys,
         redeemed: redeemCount,
