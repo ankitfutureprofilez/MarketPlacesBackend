@@ -260,11 +260,12 @@ exports.getVendorById = catchAsync(async (req, res) => {
           user: user_id,
         });
 
-        const userOfferStatus = existingBuy ? true : false;
-        return { ...offer.toObject(), userOfferStatus };
+        const purchase_status = existingBuy ? true : false;
+        return { ...offer.toObject(), purchase_status };
       })
     );
 
+    console.log("updatedOffers" ,updatedOffers)
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
     });
@@ -373,7 +374,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
       business_details: businessObj,
       timing: timingObj,
       vendor: record.user,
-      offers,
+      offers:updatedOffers,
       similar: similarWithDistance,
       sales: record.added_by,
       status: record.status,
