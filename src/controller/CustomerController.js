@@ -153,7 +153,6 @@ exports.GetOfferById = catchAsync(async (req, res) => {
 });
 
 
-
 const getVendorsWithMaxOffer = async (vendors) => {
   return await Promise.all(
     vendors.map(async (vendor) => {
@@ -637,3 +636,6 @@ exports.AddPayment = catchAsync(async (req, res) => {
     return errorResponse(res, err.message || "Internal Server Error", 500);
   }
 });
+
+
+

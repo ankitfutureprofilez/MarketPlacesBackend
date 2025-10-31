@@ -47,26 +47,26 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
         console.log("Order ID:", orderId || "Standalone payment");
 
         const isStandalonePayment = !paymentEntity.order_id;
-console.log("🔍 Is Standalone Payment:", isStandalonePayment);
+        console.log("🔍 Is Standalone Payment:", isStandalonePayment);
 
-let notes = {};
+        let notes = {};
 
-if (isStandalonePayment) {
-  // ✅ Standalone payment ke liye default values use karen
-  console.log("🔄 Standalone payment detected, using default values");
-  notes = {
-    offer_id: "68edff002c5753929286bfac",
-    userid: "68edfb9be37a34d7bc1e2412",
-    vendor_id: "68edfeb22c5753929286bfa1"
-  };
-} else {
-  // ✅ Order-based payment - notes extract karen
-  notes = paymentEntity.notes && Object.keys(paymentEntity.notes).length > 0 
-    ? paymentEntity.notes 
-    : {};
-}
+        if (isStandalonePayment) {
+          // ✅ Standalone payment ke liye default values use karen
+          console.log("🔄 Standalone payment detected, using default values");
+          notes = {
+            offer_id: "68edff002c5753929286bfac",
+            userid: "68edfb9be37a34d7bc1e2412",
+            vendor_id: "68edfeb22c5753929286bfa1"
+          };
+        } else {
+          // ✅ Order-based payment - notes extract karen
+          notes = paymentEntity.notes && Object.keys(paymentEntity.notes).length > 0
+            ? paymentEntity.notes
+            : {};
+        }
 
-console.log("📝 Final notes:", notes);
+        console.log("📝 Final notes:", notes);
 
         console.log("📝 Notes:", notes);
 
