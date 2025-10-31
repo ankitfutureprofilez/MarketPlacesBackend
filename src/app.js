@@ -21,103 +21,126 @@ const crypto = require("crypto");
 const Payment = require("./model/Payment");
 const OfferBuy = require("./model/OfferBuy");
 //Payment Webhook
+
 console.log("Webhook Payment")
-
 app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), async (req, res) => {
-  console.log("🔥 Webhook triggered");
+  try {
+    console.log("🔥 Webhook triggered");
+    const secret = "my_super_secret_key_123";
+    const body = req.body.toString("utf-8");
+    const signature = req.headers["x-razorpay-signature"];
+    console.log("Received Signature:", signature);
+    const expectedSignature = crypto.createHmac("sha256", secret).update(body).digest("hex");
+    console.log("Expected Signature:", expectedSignature);
 
-  const secret = "my_super_secret_key_123";
-  const body = req.body.toString("utf-8");
-  const signature = req.headers["x-razorpay-signature"];
-  console.log("Received Signature:", signature);
+    if (signature === expectedSignature) {
+      console.log("✅ Signature matched");
+      try {
+        console.log("Raw body:", body);
+        const payload = JSON.parse(body);
+        console.log("Parsed payload:", payload);
 
-  const expectedSignature = crypto.createHmac("sha256", secret).update(body).digest("hex");
-  console.log("Expected Signature:", expectedSignature);
+        const paymentEntity = payload.payload.payment?.entity;
+        console.log("Payment entity extracted:", paymentEntity);
 
-  if (signature === expectedSignature) {
-    console.log("✅ Signature matched");
-    try {
-      console.log("Raw body:", body);
-      const payload = JSON.parse(body);
-      console.log("Parsed payload:", payload);
+        const orderId = paymentEntity.order_id;
+        console.log("Order ID:", orderId || "Standalone payment");
 
-      const paymentEntity = payload.payload.payment?.entity;
-      console.log("Payment entity extracted:", paymentEntity);
+        const isStandalonePayment = !paymentEntity.order_id;
+console.log("🔍 Is Standalone Payment:", isStandalonePayment);
 
-      const orderId = paymentEntity.order_id;
-      console.log("Order ID:", orderId || "Standalone payment");
+let notes = {};
 
-      const notes = paymentEntity.notes && paymentEntity.notes.length === 0 ? {} : paymentEntity.notes;
-      console.log("notes", notes)
+if (isStandalonePayment) {
+  // ✅ Standalone payment ke liye default values use karen
+  console.log("🔄 Standalone payment detected, using default values");
+  notes = {
+    offer_id: "68edff002c5753929286bfac",
+    userid: "68edfb9be37a34d7bc1e2412",
+    vendor_id: "68edfeb22c5753929286bfa1"
+  };
+} else {
+  // ✅ Order-based payment - notes extract karen
+  notes = paymentEntity.notes && Object.keys(paymentEntity.notes).length > 0 
+    ? paymentEntity.notes 
+    : {};
+}
 
-      if (!paymentEntity) {
-        console.log("⚠️ No payment entity found, ignoring webhook");
-        return res.status(200).json({ status: "ignored" });
+console.log("📝 Final notes:", notes);
+
+        console.log("📝 Notes:", notes);
+
+        if (!paymentEntity) {
+          console.log("⚠️ No payment entity found, ignoring webhook");
+          return res.status(200).json({ status: "ignored" });
+        }
+
+        if (payload.event === "payment.captured" || payload.event === "order.paid" || payload.event === "payment.authorized") {
+          console.log("💰 Payment captured or order paid event");
+
+          const records = new Payment({
+            amount: paymentEntity.amount,
+            currency: paymentEntity.currency,
+            offer_id: paymentEntity.offer_id || "68edff002c5753929286bfac",
+            user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
+            vendor_id: paymentEntity.vendor_id || "68edfeb22c5753929286bfa1",
+            payment_status: paymentEntity.status,
+            payment_id: paymentEntity.id,
+            email: paymentEntity.email,
+            contact: paymentEntity.contact,
+            payment_method: paymentEntity.method,
+          });
+
+
+          console.log("payment record", records)
+          const data = await records.save();
+          console.log("✅ Payment saved:", data);
+          const record = new OfferBuy({
+            user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
+            offer: paymentEntity.offer || "68edff002c5753929286bfac",
+            vendor: paymentEntity.vendor_id || "68edfeb22c5753929286bfa1",
+            payment_id: data._id || "",
+            discount: paymentEntity.amount,
+            total_amount: paymentEntity.amount + 1500,
+            status: "active",
+            final_amount: 1500
+          });
+          console.log("record offer", record)
+          const offerData = await record.save();
+
+          console.log("✅ OfferBuy saved:", offerData);
+
+        } else if (payload.event === "payment.failed") {
+          console.log("❌ Payment failed event");
+          const newPayment = new Payment({
+            order_id: orderId || "standalone",
+            amount: paymentEntity.amount,
+            currency: paymentEntity.currency,
+            payment_status: paymentEntity.status,
+            payment_id: paymentEntity.id,
+            email: paymentEntity.email,
+            contact: paymentEntity.contact,
+            payment_method: paymentEntity.method,
+            // notes may be empty array if standalone
+            offer_id: paymentEntity.notes.offer_id || null,
+            user: paymentEntity.notes.userid || null,
+            vendor_id: paymentEntity.notes.vendor_id || null
+          });
+          const data = await newPayment.save();
+          console.log("✅ Payment (failed) saved:", data);
+        }
+        console.log("🎉 Webhook processing complete");
+        res.status(200).json({ status: "ok" });
+      } catch (error) {
+        console.error("❌ Error processing webhook:", error);
+        res.status(500).send("Internal Server Error");
       }
-
-      if (payload.event === "payment.captured" || payload.event === "order.paid" || payload.event === "payment.authorized") {
-        console.log("💰 Payment captured or order paid event");
-
-        const records = new Payment({
-          amount: paymentEntity.amount,
-          currency: paymentEntity.currency,
-          offer_id: paymentEntity.offer_id || "68edff002c5753929286bfac",
-          user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
-          vendor_id: paymentEntity.vendor_id || "68edfeb22c5753929286bfa1",
-          payment_status: paymentEntity.status,
-          payment_id: paymentEntity.id,
-          email: paymentEntity.email,
-          contact: paymentEntity.contact,
-          payment_method: paymentEntity.method,
-        });
-
-
-        console.log("payment record", records)
-        const data = await records.save();
-        console.log("✅ Payment saved:", data);
-        const record = new OfferBuy({
-          user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
-          offer: paymentEntity.offer || "68edff002c5753929286bfac",
-          vendor: paymentEntity.vendor_id || "68edfeb22c5753929286bfa1",
-          payment_id: data._id || "",
-          discount: paymentEntity.amount,
-          total_amount: paymentEntity.amount + 1500,
-          status: "active",
-          final_amount: 1500
-        });
-        console.log("record offer", record)
-        const offerData = await record.save();
-
-        console.log("✅ OfferBuy saved:", offerData);
-
-      } else if (payload.event === "payment.failed") {
-        console.log("❌ Payment failed event");
-        const newPayment = new Payment({
-          order_id: orderId || "standalone",
-          amount: paymentEntity.amount,
-          currency: paymentEntity.currency,
-          payment_status: paymentEntity.status,
-          payment_id: paymentEntity.id,
-          email: paymentEntity.email,
-          contact: paymentEntity.contact,
-          payment_method: paymentEntity.method,
-          // notes may be empty array if standalone
-          offer_id: paymentEntity.notes.offer_id || null,
-          user: paymentEntity.notes.userid || null,
-          vendor_id: paymentEntity.notes.vendor_id || null
-        });
-        const data = await newPayment.save();
-        console.log("✅ Payment (failed) saved:", data);
-      }
-      console.log("🎉 Webhook processing complete");
-      res.status(200).json({ status: "ok" });
-    } catch (error) {
-      console.error("❌ Error processing webhook:", error);
-      res.status(500).send("Internal Server Error");
+    } else {
+      console.log("❌ Invalid signature, webhook ignored");
+      res.status(400).send("Invalid signature");
     }
-  } else {
-    console.log("❌ Invalid signature, webhook ignored");
-    res.status(400).send("Invalid signature");
+  } catch (error) {
+    console.log("errro", error)
   }
 });
 
@@ -145,6 +168,8 @@ const server = app.listen(PORT, () =>
   console.log("Server is running at port : " + PORT)
 );
 server.timeout = 360000;
+
+
 
 
 

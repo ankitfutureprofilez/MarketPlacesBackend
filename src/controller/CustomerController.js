@@ -608,26 +608,32 @@ exports.PaymentGetByUser = catchAsync(async (req, res) => {
 
 exports.AddPayment = catchAsync(async (req, res) => {
   try {
-     const userid = req.user.id
-    const { amount, currency, receipt, offer_id, vendor_id } = req.body;
+    const userid = req.user.id;
+    const { amount, currency, offer_id, vendor_id } = req.body;
+    
     const razorpay = new Razorpay({
-      key_id: "rzp_test_RQ3O3IWq0ayjsg",    // aapka Key ID
-      key_secret: "RcwuasbTHAdmm1mrZTiigw2x",   // aapka Secret Key
+      key_id: "rzp_test_RQ3O3IWq0ayjsg",
+      key_secret: "RcwuasbTHAdmm1mrZTiigw2x",
     });
-    const options = {
-      amount: amount, // in paise
+
+    // ✅ Pehle ORDER create karen with notes
+    const orderOptions = {
+      amount: amount * 100,
       currency: currency || "INR",
-      receipt: receipt || "rcpt_" + Math.random().toString(36).substring(7),
-      notes: [{
-        offer_id,
-        vendor_id,
-        userid: userid,
-      }],
+      receipt: "rcpt_" + Math.random().toString(36).substring(7),
+      notes: {  // ✅ Notes yahan add karen
+        offer_id: offer_id || "68edff002c5753929286bfac",
+        vendor_id: vendor_id || "68edfeb22c5753929286bfa1",
+        userid: userid || "68edfb9be37a34d7bc1e2412",
+      },
     };
-    const order = await razorpay.orders.create(options);
-    return successResponse(res, "payment  successfully", 200, order);
+
+    const order = await razorpay.orders.create(orderOptions);
+    console.log("✅ Order created with notes:", order);
+
+    return successResponse(res, "Order created successfully", 200, order);
   } catch (err) {
-    console.error(err);
+    console.error("Error creating order:", err);
     return errorResponse(res, err.message || "Internal Server Error", 500);
   }
-})
+});
