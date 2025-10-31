@@ -63,12 +63,29 @@ exports.CustomerGet = catchAsync(async (req, res) => {
 exports.VendorOfferGet = catchAsync(async (req, res) => {
   try {
     // Correct way to get :id from route
-    const userId = req.params.id;
-    console.log("userId:", userId);
+    const vendorid = req.params.id;
+    console.log("userId:", vendorid);
+    const user_id =  req.user.id
+    console.log("user_id" ,user_id )
 
-    const record = await Offer.find({ vendor: userId })
+    const record = await Offer.find({ vendor: vendorid })
       .populate("flat")
       .populate("percentage");
+
+
+       const updatedOffers = await Promise.all(
+      record.map(async (offer) => {
+        const existingBuy = await OfferBuy.findOne({
+          offer: offer._id,
+          user: user_id,
+        });
+
+        const purchase_status = existingBuy ? true : false;
+        return { ...offer.toObject(), purchase_status };
+      })
+    );
+
+    console.log("updatedOffers" ,updatedOffers)
 
     if (!record || record.length === 0) {
       return validationErrorResponse(res, "Offer not found", 404);
@@ -76,9 +93,9 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
 
     return successResponse(
       res,
-      "Offer details fetched successfully",
+      "Offer Get fetched successfully",
       200,
-      record
+     updatedOffers
     );
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
