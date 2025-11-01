@@ -617,6 +617,8 @@ exports.AddPayment = catchAsync(async (req, res) => {
     const userid = req.user.id;
     const { amount, currency, offer_id, vendor_id } = req.body;
 
+    console.log("req.body" ,req.body)
+
     const razorpay = new Razorpay({
       key_id: "rzp_test_RQ3O3IWq0ayjsg",
       key_secret: "RcwuasbTHAdmm1mrZTiigw2x",
@@ -628,9 +630,9 @@ exports.AddPayment = catchAsync(async (req, res) => {
       currency: currency || "INR",
       receipt: "rcpt_" + Math.random().toString(36).substring(7),
       notes: {  // ✅ Notes yahan add karen
-        offer_id: offer_id || "68edff002c5753929286bfac",
-        vendor_id: vendor_id || "68edfeb22c5753929286bfa1",
-        userid: userid || "68edfb9be37a34d7bc1e2412",
+        offer_id: offer_id ,
+        vendor_id: vendor_id ,
+        userid: userid ,
       },
     };
 

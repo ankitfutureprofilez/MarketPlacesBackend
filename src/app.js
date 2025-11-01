@@ -39,20 +39,14 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
         console.log("Raw body:", body);
         const payload = JSON.parse(body);
         console.log("Parsed payload:", payload);
-
         const paymentEntity = payload.payload.payment?.entity;
         console.log("Payment entity extracted:", paymentEntity);
-
         const orderId = paymentEntity.order_id;
         console.log("Order ID:", orderId || "Standalone payment");
-
         const isStandalonePayment = !paymentEntity.order_id;
         console.log("🔍 Is Standalone Payment:", isStandalonePayment);
-
         let notes = {};
-
         if (isStandalonePayment) {
-          // ✅ Standalone payment ke liye default values use karen
           console.log("🔄 Standalone payment detected, using default values");
           notes = {
             offer_id: "68edff002c5753929286bfac",
@@ -65,11 +59,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
             ? paymentEntity.notes
             : {};
         }
-
-        console.log("📝 Final notes:", notes);
-
         console.log("📝 Notes:", notes);
-
         if (!paymentEntity) {
           console.log("⚠️ No payment entity found, ignoring webhook");
           return res.status(200).json({ status: "ignored" });
@@ -77,13 +67,12 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
 
         if (payload.event === "payment.captured" || payload.event === "order.paid" || payload.event === "payment.authorized") {
           console.log("💰 Payment captured or order paid event");
-
           const records = new Payment({
             amount: paymentEntity.amount,
             currency: paymentEntity.currency,
-            offer_id: paymentEntity.offer_id || "68edff002c5753929286bfac",
-            user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
-            vendor_id: paymentEntity.vendor_id || "68edfeb22c5753929286bfa1",
+            offer_id: notes.offer_id ,
+            user: notes.userid ,
+            vendor_id: notes.vendor_id ,
             payment_status: paymentEntity.status,
             payment_id: paymentEntity.id,
             email: paymentEntity.email,
@@ -96,9 +85,9 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
           const data = await records.save();
           console.log("✅ Payment saved:", data);
           const record = new OfferBuy({
-            user: paymentEntity.userid || "68edfb9be37a34d7bc1e2412",
-            offer: paymentEntity.offer || "68edff002c5753929286bfac",
-            vendor: paymentEntity.vendor_id || "68edfeb22c5753929286bfa1",
+            user: notes.userid ,
+            offer: notes.offer_id,
+            vendor: notes.vendor_id ,
             payment_id: data._id || "",
             discount: paymentEntity.amount,
             total_amount: paymentEntity.amount + 1500,
@@ -122,9 +111,9 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
             contact: paymentEntity.contact,
             payment_method: paymentEntity.method,
             // notes may be empty array if standalone
-            offer_id: paymentEntity.notes.offer_id || null,
-            user: paymentEntity.notes.userid || null,
-            vendor_id: paymentEntity.notes.vendor_id || null
+            offer_id: notes.offer_id || null,
+            user: notes.userid || null,
+            vendor_id: notes.vendor_id || null
           });
           const data = await newPayment.save();
           console.log("✅ Payment (failed) saved:", data);
