@@ -714,10 +714,7 @@ exports.VendorOrder = catchAsync(async (req, res) => {
                 },
             });
         });
-
-        // Convert to array for frontend
         const offerSummary = Object.values(offerStats);
-
         return successResponse(
             res,
             "Vendor purchase history fetched successfully",
