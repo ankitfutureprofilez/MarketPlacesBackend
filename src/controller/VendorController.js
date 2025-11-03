@@ -652,14 +652,13 @@ exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
 exports.VendorOrder = catchAsync(async (req, res) => {
     try {
         const vendorId = req?.user?.id;
-        console.log("Vendor ID:", vendorId);
 
         if (!vendorId) {
             return validationErrorResponse(res, "Vendor not authenticated", 401);
         }
 
         const purchases = await OfferBuy.find({ vendor: vendorId })
-            .populate("user", "name email phone") // buyer details
+            .populate("user", "name email phone") 
             .populate({
                 path: "offer",
                 populate: [{ path: "flat" }, { path: "percentage" }],
@@ -674,12 +673,10 @@ exports.VendorOrder = catchAsync(async (req, res) => {
 
         purchases.forEach((purchase) => {
             const offer = purchase.offer;
-            console.log("offer", offer)
             if (!offer) return;
 
             const offerId = offer._id.toString();
 
-            console.log("offerId", offerId)
             if (!offerStats[offerId]) {
                 offerStats[offerId] = {
                     offer_id: offer._id,
@@ -693,11 +690,9 @@ exports.VendorOrder = catchAsync(async (req, res) => {
                 };
             }
 
-            // ✅ Update totals
             offerStats[offerId].total_revenue += purchase.final_amount || 0;
             offerStats[offerId].total_customers += 1;
 
-            // 🧾 Add purchase details
             offerStats[offerId].purchased_customers.push({
                 customer: {
                     id: purchase.user?._id,
@@ -713,7 +708,7 @@ exports.VendorOrder = catchAsync(async (req, res) => {
                     currency: purchase.payment_id?.currency || "INR",
                     status: purchase.payment_id?.payment_status || "unknown",
                     date:
-                        purchase.payment_id?.createdAt ||
+                        purchase.payment_id?.payment_date ||
                         purchase.createdAt ||
                         new Date(),
                 },
