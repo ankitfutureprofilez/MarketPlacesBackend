@@ -648,24 +648,94 @@ exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
     }
 });
 
+
 exports.VendorOrder = catchAsync(async (req, res) => {
-    try {
-        const id = req?.user?.id;
-        console.log("68edfeb22c5753929286bfa1", id)
-        const record = await OfferBuy.find({ vendor_id: id })
-            .populate("user")
-            .populate("Offer_id")
-            .populate("vendor_id");
+  try {
+    const vendorId = req?.user?.id;
+    console.log("Vendor ID:", vendorId);
 
-        if (!record) {
-            return validationErrorResponse(res, "Offers not found", 404);
-        }
-        return successResponse(res, "Brought offers fetched successfully", 200, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
-
+    if (!vendorId) {
+      return validationErrorResponse(res, "Vendor not authenticated", 401);
     }
+
+    const purchases = await OfferBuy.find({ vendor: vendorId })
+      .populate("user", "name email phone") // buyer details
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .populate("payment_id");
+
+    if (!purchases || purchases.length === 0) {
+      return validationErrorResponse(res, "No purchases found for this vendor", 404);
+    }
+
+    const offerStats = {};
+
+    purchases.forEach((purchase) => {
+      const offer = purchase.offer;
+      console.log("offer" ,offer)
+      if (!offer) return;
+
+      const offerId = offer._id.toString();
+
+      console.log("offerId" ,offerId)
+      if (!offerStats[offerId]) {
+        offerStats[offerId] = {
+          offer_id: offer._id,
+          offer_title: offer.percentage.title || offer.flat.title || "Untitled Offer",
+          offer_type: offer.type || "General",
+          offer_status: purchase.status || "active",
+          isExpired: new Date() > new Date(offer.percentage.expiryDate ||  offer.flat.expiryDate || Date.now()),
+          total_revenue: 0,
+          total_customers: 0,
+          purchased_customers: [],
+        };
+      }
+
+      // ✅ Update totals
+      offerStats[offerId].total_revenue += purchase.final_amount || 0;
+      offerStats[offerId].total_customers += 1;
+
+      // 🧾 Add purchase details
+      offerStats[offerId].purchased_customers.push({
+        customer: {
+          id: purchase.user?._id,
+          name: purchase.user?.name || "Unknown",
+          email: purchase.user?.email || "N/A",
+          phone: purchase.user?.phone || "N/A",
+        },
+        payment: {
+          id: purchase.payment_id?._id,
+          payment_id: purchase.payment_id?.payment_id || "",
+          method: purchase.payment_id?.payment_method || "",
+          amount: purchase.payment_id?.amount || 0,
+          currency: purchase.payment_id?.currency || "INR",
+          status: purchase.payment_id?.payment_status || "unknown",
+          date:
+            purchase.payment_id?.createdAt ||
+            purchase.createdAt ||
+            new Date(),
+        },
+      });
+    });
+
+    // Convert to array for frontend
+    const offerSummary = Object.values(offerStats);
+
+    return successResponse(
+      res,
+      "Vendor purchase history fetched successfully",
+      200,
+      offerSummary
+    );
+  } catch (error) {
+    console.error("VendorOrder error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
+
+
 
 exports.Paymentvendor = catchAsync(async (req, res) => {
     try {
