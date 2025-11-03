@@ -246,6 +246,10 @@ exports.VendorGet = catchAsync(async (req, res) => {
 exports.getVendorById = catchAsync(async (req, res) => {
   try {
     const _id = req.params.id;
+    console.log("_id" ,_id)
+      if (!_id) {
+      return validationErrorResponse(res, "Vendor Id not found", 404);
+    }
     const user_id = req.query.user_id
     let record = await Vendor.findOne({ user: _id })
       .populate("user")

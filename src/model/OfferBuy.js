@@ -34,6 +34,10 @@ const OfferBuySchema = new mongoose.Schema(
             type: String,
             default: "active",
             enum:["active", "expired", "redeemed", "under-dispute"]
+        },
+         vendor_bill_status:{
+            type: Boolean,
+            default: false,
         }
     },
     { timestamps: true }

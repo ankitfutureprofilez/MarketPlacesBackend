@@ -1,4 +1,4 @@
-const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorRegister, category, subcategory, Dashboard, MarkOfferAsUsed, VendorOrder } = require("../controller/VendorController");
+const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorRegister, category, subcategory, Dashboard, MarkOfferAsUsed, VendorOrder, UpdateAmount } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
@@ -15,7 +15,7 @@ router.get("/vendor/dashboard", verifyToken, Dashboard);
 
 router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
 
-router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
+router.get("/vendor/Payment_aporve/", verifyToken, UpdateAmount);
 
 
 module.exports = router;

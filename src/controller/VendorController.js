@@ -108,6 +108,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
         const _id = req.user.id;
+        console.log(req.params)
         console.log
         console.log("vendorId:", _id);
         console.log("_id", _id)
@@ -673,7 +674,7 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
         const userid = req.user.id
         const offerId = req.params.id;
         const record = await Payment.findByIdAndUpdate(
-            offerId,
+            offerId ,  userid,
             { status: "redeemed" },
             { new: true }
         );
@@ -684,4 +685,30 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
+});
+
+exports.UpdateAmount = catchAsync(async (req, res) => {
+  try {
+    const vendor = req.user.id;
+    const { final_amount, vendor_bill_status, offer } = req.body;
+    console.log(req.body ,  vendor)
+
+    const record = await OfferBuy.findOneAndUpdate(
+      { offer: offer, vendor: vendor }, 
+      {
+        final_amount,
+        vendor_bill_status ,
+      },
+      { new: true } 
+    );
+
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found for this vendor", 404);
+    }
+
+    return successResponse(res, "Vendor amount updated successfully", 200, record);
+  } catch (error) {
+    console.log("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
