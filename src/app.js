@@ -44,6 +44,14 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
         console.log("Payment entity extracted:", paymentEntity);
         const orderId = paymentEntity.order_id;
         console.log("Order ID:", orderId || "Standalone payment");
+
+        const paymentId = paymentEntity.id;
+        console.log("🔍 Payment ID:", paymentId);
+        const existingPayment = await Payment.findOne({ payment_id: paymentId });
+        if (existingPayment) {
+          console.log("⚠️ Duplicate webhook ignored for:", paymentId);
+          return res.status(200).json({ status: "duplicate" });
+        }
         const isStandalonePayment = !paymentEntity.order_id;
         console.log("🔍 Is Standalone Payment:", isStandalonePayment);
         let notes = {};
@@ -71,9 +79,9 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
           const records = new Payment({
             amount: paymentEntity.amount,
             currency: paymentEntity.currency,
-            offer_id: notes.offer_id ,
-            user: notes.userid ,
-            vendor_id: notes.vendor_id ,
+            offer_id: notes.offer_id,
+            user: notes.userid,
+            vendor_id: notes.vendor_id,
             payment_status: paymentEntity.status,
             payment_id: paymentEntity.id,
             email: paymentEntity.email,
@@ -86,9 +94,9 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
           const data = await records.save();
           console.log("✅ Payment saved:", data);
           const record = new OfferBuy({
-            user: notes.userid ,
+            user: notes.userid,
             offer: notes.offer_id,
-            vendor: notes.vendor_id ,
+            vendor: notes.vendor_id,
             payment_id: data._id || "",
             discount: paymentEntity.amount,
             total_amount: paymentEntity.amount + 1500,

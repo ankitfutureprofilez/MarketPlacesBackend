@@ -648,13 +648,11 @@ exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
     }
 });
 
-
-
 exports.VendorOrder = catchAsync(async (req, res) => {
     try {
         const id = req?.user?.id;
         console.log("68edfeb22c5753929286bfa1", id)
-        const record = await Payment.find({ vendor_id: id })
+        const record = await OfferBuy.find({ vendor_id: id })
             .populate("user")
             .populate("Offer_id")
             .populate("vendor_id");
@@ -668,7 +666,6 @@ exports.VendorOrder = catchAsync(async (req, res) => {
 
     }
 });
-
 
 exports.Paymentvendor = catchAsync(async (req, res) => {
     try {
@@ -689,6 +686,32 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
 });
 
 exports.UpdateAmount = catchAsync(async (req, res) => {
+  try {
+    const vendor = req.user.id;
+    const { final_amount, vendor_bill_status, offer ,user } = req.body;
+    console.log(req.body ,  vendor)
+    const record = await OfferBuy.findOneAndUpdate(
+      { offer: offer, vendor: vendor  ,user: user}, 
+      {
+        final_amount,
+        vendor_bill_status ,
+      },
+      { new: true } 
+    );
+
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found for this vendor", 404);
+    }
+
+    return successResponse(res, "Vendor amount updated successfully", 200, record);
+  } catch (error) {
+    console.log("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+// updatekarna hai 
+exports.PaymentDetails = catchAsync(async (req, res) => {
   try {
     const vendor = req.user.id;
     const { final_amount, vendor_bill_status, offer ,user } = req.body;
