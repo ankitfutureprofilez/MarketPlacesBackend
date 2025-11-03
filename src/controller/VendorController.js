@@ -379,6 +379,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
                 title,
                 description,
                 expiryDate,
+                amount,
                 discountPercentage,
                 maxDiscountCap,
                 minBillAmount,
@@ -690,10 +691,10 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
 exports.UpdateAmount = catchAsync(async (req, res) => {
   try {
     const vendor = req.user.id;
-    const { final_amount, vendor_bill_status, offer } = req.body;
+    const { final_amount, vendor_bill_status, offer ,user } = req.body;
     console.log(req.body ,  vendor)
     const record = await OfferBuy.findOneAndUpdate(
-      { offer: offer, vendor: vendor }, 
+      { offer: offer, vendor: vendor  ,user: user}, 
       {
         final_amount,
         vendor_bill_status ,

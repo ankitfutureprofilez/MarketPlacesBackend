@@ -269,7 +269,6 @@ exports.getVendorById = catchAsync(async (req, res) => {
     }
 
     console.log("record" ,record)
-    // 2️⃣ For each offer, check if user has already used/bought it
     const updatedOffers = await Promise.all(
       offers.map(async (offer) => {
         const existingBuy = await OfferBuy.findOne({
@@ -668,6 +667,30 @@ exports.EditCustomerPerson = catchAsync(async (req, res) => {
     return successResponse(res, "customer updated successfully.", 200, updatedUser);
   } catch (error) {
     console.error("customer error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+
+exports.UpdateAmount = catchAsync(async (req, res) => {
+  try {
+    const user = req.user.id;
+    const { final_amount,  offer  , vendor} = req.body;
+    const record = await OfferBuy.findOneAndUpdate(
+      { offer: offer, user: user  , vendor:vendor}, 
+      {
+        final_amount,
+      },
+      { new: true } 
+    );
+
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found for this vendor", 404);
+    }
+
+    return successResponse(res, "Vendor amount updated successfully", 200, record);
+  } catch (error) {
+    console.log("Error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
