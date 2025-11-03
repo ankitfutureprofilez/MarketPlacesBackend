@@ -268,6 +268,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "No active offers found", 404);
     }
 
+    console.log("record" ,record)
     // 2️⃣ For each offer, check if user has already used/bought it
     const updatedOffers = await Promise.all(
       offers.map(async (offer) => {
@@ -281,12 +282,11 @@ exports.getVendorById = catchAsync(async (req, res) => {
       })
     );
 
-    console.log("updatedOffers", updatedOffers)
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
     });
 
-    const similar = await Vendor.find({ category: record.category._id, user: { $in: vendorsWithActiveOffers } })
+    const similar = await Vendor.find({ category: record?.category?._id, user: { $in: vendorsWithActiveOffers } })
       .select("state area city business_name business_image address business_logo vendor category user subcategory lat long")
       .populate("user")
       .populate("category")
@@ -403,6 +403,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
     return successResponse(res, "Vendor details fetched successfully", 200, transformed);
 
   } catch (error) {
+    console.log("error" ,error)
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 })

@@ -692,7 +692,6 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
     const vendor = req.user.id;
     const { final_amount, vendor_bill_status, offer } = req.body;
     console.log(req.body ,  vendor)
-
     const record = await OfferBuy.findOneAndUpdate(
       { offer: offer, vendor: vendor }, 
       {
