@@ -12,6 +12,10 @@ router.get("/vendor/sub_categroy/:id", subcategory);
 router.get("/vendor/order", verifyToken ,VendorOrder);
 router.get("/vendor/dashboard", verifyToken, Dashboard);
 // This api is used for marking the offer brought by the customer as used after scanning
+
 router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
+
+router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
+
 
 module.exports = router;

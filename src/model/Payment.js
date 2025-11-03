@@ -18,8 +18,7 @@ const paymentSchema = mongoose.Schema({
     payment_method: {
         type: String
     },
-
-    Offer_id: {
+    offer_id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Offer",
     },

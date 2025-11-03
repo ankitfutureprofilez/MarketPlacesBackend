@@ -1,6 +1,7 @@
 const dotenv = require("dotenv");
 dotenv.config();
 require("./monogconfig"); // check spelling
+require("./Cron")
 
 const express = require("express");
 const app = express();

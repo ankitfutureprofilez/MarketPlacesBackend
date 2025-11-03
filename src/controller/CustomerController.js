@@ -152,7 +152,6 @@ exports.GetOfferById = catchAsync(async (req, res) => {
   }
 });
 
-
 const getVendorsWithMaxOffer = async (vendors) => {
   return await Promise.all(
     vendors.map(async (vendor) => {
@@ -617,7 +616,7 @@ exports.AddPayment = catchAsync(async (req, res) => {
     const userid = req.user.id;
     const { amount, currency, offer_id, vendor_id } = req.body;
 
-    console.log("req.body" ,req.body)
+    console.log("req.body", req.body)
 
     const razorpay = new Razorpay({
       key_id: "rzp_test_RQ3O3IWq0ayjsg",
@@ -630,9 +629,9 @@ exports.AddPayment = catchAsync(async (req, res) => {
       currency: currency || "INR",
       receipt: "rcpt_" + Math.random().toString(36).substring(7),
       notes: {  // ✅ Notes yahan add karen
-        offer_id: offer_id ,
-        vendor_id: vendor_id ,
-        userid: userid ,
+        offer_id: offer_id,
+        vendor_id: vendor_id,
+        userid: userid,
       },
     };
 
@@ -646,5 +645,24 @@ exports.AddPayment = catchAsync(async (req, res) => {
   }
 });
 
-
-
+exports.EditCustomerPerson = catchAsync(async (req, res) => {
+  try {
+    const { id } = req.user.id;
+    const { name, email, phone, avatar, role = "customer", status = "active" } = req.body;
+    const user = await User.findById(id);
+    if (!user || user.deleted_at) {
+      return validationErrorResponse(res, "customer not found.", 404);
+    }
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (phone) user.phone = phone;
+    if (avatar) user.avatar = avatar;
+    if (role) user.role = role;
+    if (status) user.status = status;
+    const updatedUser = await user.save();
+    return successResponse(res, "customer updated successfully.", 200, updatedUser);
+  } catch (error) {
+    console.error("customer error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});

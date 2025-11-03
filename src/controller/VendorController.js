@@ -666,3 +666,22 @@ exports.VendorOrder = catchAsync(async (req, res) => {
 
   }
 });
+
+
+exports.Paymentvendor = catchAsync(async (req, res) => {
+    try {
+        const userid =  req.user.id
+        const offerId = req.params.id;
+        const record = await Payment.findByIdAndUpdate(
+            offerId,
+            { status: "redeemed" },
+            { new: true }
+        );
+        if (!record) {
+            return validationErrorResponse(res, "Offer not found", 404);
+        }
+        return successResponse(res, "Offer status updated successfully", 201, record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
