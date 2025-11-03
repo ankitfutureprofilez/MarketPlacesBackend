@@ -93,7 +93,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
         const token = jwt.sign(
             { id: savedUser._id, role: savedUser.role, email: savedUser.email },
             process.env.JWT_SECRET_KEY,
-            { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
+            { expiresIn: process.env.JWT_EXPIRES_IN || "365d" }
         );
         return successResponse(res, "Vendor created successfully", 201, {
             user: savedVendor,
@@ -208,19 +208,19 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 exports.VendorGet = catchAsync(async (req, res) => {
 
 
-  try {
-   
+    try {
 
-    const vendors = await Vendor.find(query).populate("user");
 
-    if (!vendors || vendors.length === 0) {
-      return validationErrorResponse(res, "No vendors found", 404);
+        const vendors = await Vendor.find(query).populate("user");
+
+        if (!vendors || vendors.length === 0) {
+            return validationErrorResponse(res, "No vendors found", 404);
+        }
+
+        return successResponse(res, "Vendors fetched successfully", vendors);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
     }
-
-    return successResponse(res, "Vendors fetched successfully", vendors);
-  } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
 });
 
 
@@ -297,21 +297,21 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 });
 
 exports.vendorDelete = catchAsync(async (req, res) => {
-  try {
-    const vendorId = req.user?._id || req.params.id;
-    console.log("req" ,req.params.id)
-    const vendordata = await Vendor.findByIdAndUpdate(
-      vendorId,
-      { delete_At: new Date() }, 
-      { new: true }
-    );
-    if (!vendordata) {
-      return validationErrorResponse(res, "Vendor not found", 404);
+    try {
+        const vendorId = req.user?._id || req.params.id;
+        console.log("req", req.params.id)
+        const vendordata = await Vendor.findByIdAndUpdate(
+            vendorId,
+            { delete_At: new Date() },
+            { new: true }
+        );
+        if (!vendordata) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+        return successResponse(res, "Vendor deleted successfully", 200, vendordata);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
     }
-    return successResponse(res, "Vendor deleted successfully", 200 , vendordata);
-  } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
 });
 
 exports.VendorStatus = catchAsync(async (req, res) => {
@@ -409,7 +409,7 @@ exports.GetOfferId = catchAsync(async (req, res) => {
     try {
         const offerId = req.params.id;
         const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
-        console.log("record" ,record)
+        console.log("record", record)
         if (!record) {
             return validationErrorResponse(res, "Offer not found", 404);
         }
@@ -649,28 +649,28 @@ exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
 
 
 exports.VendorOrder = catchAsync(async (req, res) => {
-  try {
-    const id = req?.user?.id;
-    console.log("68edfeb22c5753929286bfa1" ,id)
-    const record = await Payment.find({ vendor_id: id })
-      .populate("user")
-      .populate("Offer_id")
-      .populate("vendor_id");
+    try {
+        const id = req?.user?.id;
+        console.log("68edfeb22c5753929286bfa1", id)
+        const record = await Payment.find({ vendor_id: id })
+            .populate("user")
+            .populate("Offer_id")
+            .populate("vendor_id");
 
-    if (!record) {
-      return validationErrorResponse(res, "Offers not found", 404);
+        if (!record) {
+            return validationErrorResponse(res, "Offers not found", 404);
+        }
+        return successResponse(res, "Brought offers fetched successfully", 200, record);
+    } catch (error) {
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+
     }
-    return successResponse(res, "Brought offers fetched successfully", 200, record);
-  } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-
-  }
 });
 
 
 exports.Paymentvendor = catchAsync(async (req, res) => {
     try {
-        const userid =  req.user.id
+        const userid = req.user.id
         const offerId = req.params.id;
         const record = await Payment.findByIdAndUpdate(
             offerId,
