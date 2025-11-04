@@ -10,6 +10,7 @@ const jwt = require("jsonwebtoken");
 const FlatOffer = require("../model/FlatOffer.js");
 const PercentageOffer = require("../model/PercentageOffer.js");
 const Payment = require("../model/Payment.js");
+const { default: mongoose } = require("mongoose");
 
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
@@ -207,17 +208,11 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 });
 
 exports.VendorGet = catchAsync(async (req, res) => {
-
-
     try {
-
-
         const vendors = await Vendor.find(query).populate("user");
-
         if (!vendors || vendors.length === 0) {
             return validationErrorResponse(res, "No vendors found", 404);
         }
-
         return successResponse(res, "Vendors fetched successfully", vendors);
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -648,7 +643,6 @@ exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
     }
 });
 
-
 exports.VendorOrder = catchAsync(async (req, res) => {
     try {
         const vendorId = req?.user?.id;
@@ -656,22 +650,23 @@ exports.VendorOrder = catchAsync(async (req, res) => {
         if (!vendorId) {
             return validationErrorResponse(res, "Vendor not authenticated", 401);
         }
-
-        const purchases = await OfferBuy.find({ vendor: vendorId })
-            .populate("user", "name email phone") 
+        const allPurchases = await OfferBuy.find({ vendor: vendorId })
+            .populate("user", "name email phone")
             .populate({
                 path: "offer",
                 populate: [{ path: "flat" }, { path: "percentage" }],
             })
-            .populate("payment_id");
+            .populate("payment_id")
+            .sort({ createdAt: -1 });
 
-        if (!purchases || purchases.length === 0) {
+        if (!allPurchases || allPurchases.length === 0) {
             return validationErrorResponse(res, "No purchases found for this vendor", 404);
         }
 
         const offerStats = {};
+        let total_customers = 0;
 
-        purchases.forEach((purchase) => {
+        allPurchases.forEach((purchase) => {
             const offer = purchase.offer;
             if (!offer) return;
 
@@ -680,10 +675,21 @@ exports.VendorOrder = catchAsync(async (req, res) => {
             if (!offerStats[offerId]) {
                 offerStats[offerId] = {
                     offer_id: offer._id,
-                    offer_title: offer.percentage.title || offer.flat.title || "Untitled Offer",
+                    offer_title:
+                        offer.percentage?.title ||
+                        offer.flat?.title ||
+                        offer.title ||
+                        "Untitled Offer",
                     offer_type: offer.type || "General",
                     offer_status: purchase.status || "active",
-                    isExpired: new Date() > new Date(offer.percentage.expiryDate || offer.flat.expiryDate || Date.now()),
+                    isExpired:
+                        new Date() >
+                        new Date(
+                            offer.percentage?.expiryDate ||
+                            offer.flat?.expiryDate ||
+                            offer.expiry_date ||
+                            Date.now()
+                        ),
                     total_revenue: 0,
                     total_customers: 0,
                     purchased_customers: [],
@@ -692,40 +698,168 @@ exports.VendorOrder = catchAsync(async (req, res) => {
 
             offerStats[offerId].total_revenue += purchase.final_amount || 0;
             offerStats[offerId].total_customers += 1;
+            total_customers += 1;
 
-            offerStats[offerId].purchased_customers.push({
-                customer: {
-                    id: purchase.user?._id,
-                    name: purchase.user?.name || "Unknown",
-                    email: purchase.user?.email || "N/A",
-                    phone: purchase.user?.phone || "N/A",
-                },
-                payment: {
-                    id: purchase.payment_id?._id,
-                    payment_id: purchase.payment_id?.payment_id || "",
-                    method: purchase.payment_id?.payment_method || "",
-                    amount: purchase.payment_id?.amount || 0,
-                    currency: purchase.payment_id?.currency || "INR",
-                    status: purchase.payment_id?.payment_status || "unknown",
-                    date:
-                        purchase.payment_id?.payment_date ||
-                        purchase.createdAt ||
-                        new Date(),
-                },
-            });
+            // const offerBuyData = {
+            //     id: purchase._id,
+            //     total_amount: purchase.total_amount || 0,
+            //     final_amount: purchase.final_amount || 0,
+            //     status: purchase.status || "active",
+            //     vendor_bill_status: purchase.vendor_bill_status || false,
+            // };
+
+            // offerStats[offerId].purchased_customers.push({
+            //     purchase_id: purchase._id,
+            //     customer: {
+            //         id: purchase.user?._id,
+            //         name: purchase.user?.name || "Unknown",
+            //         email: purchase.user?.email || "N/A",
+            //         phone: purchase.user?.phone || "N/A",
+            //     },
+            //     payment: {
+            //         id: purchase.payment_id?._id,
+            //         payment_id: purchase.payment_id?.payment_id || "",
+            //         method: purchase.payment_id?.payment_method || "",
+            //         amount: purchase.payment_id?.amount || 0,
+            //         currency: purchase.payment_id?.currency || "INR",
+            //         status: purchase.payment_id?.payment_status || "unknown",
+            //         date:
+            //             purchase.payment_id?.payment_date ||
+            //             purchase.createdAt ||
+            //             new Date(),
+            //     },
+            //     offerBuy:
+            //         purchase.user &&
+            //             purchase.vendor &&
+            //             purchase.offer &&
+            //             purchase.payment_id
+            //             ? offerBuyData
+            //             : null,
+            // });
         });
-        const offerSummary = Object.values(offerStats);
-        return successResponse(
-            res,
-            "Vendor purchase history fetched successfully",
-            200,
-            offerSummary
-        );
+
+        const allOffers = Object.values(offerStats);
+
+        const total_offers = allOffers.length;
+        // const totalPages = Math.ceil(total_offers / limit);
+        // const paginatedOffers = allOffers.slice(skip, skip + limit);
+
+        // paginatedOffers.forEach((offer) => {
+        //     const total_customer_records = offer.purchased_customers.length;
+        //     const total_customer_pages = Math.ceil(total_customer_records / customer_limit);
+
+        //     const paginated_customers = offer.purchased_customers.slice(
+        //         customer_skip,
+        //         customer_skip + customer_limit
+        //     );
+
+        //     offer.purchased_customers = {
+        //         total_records: total_customer_records,
+        //         current_page: customer_page,
+        //         per_page: customer_limit,
+        //         total_pages: total_customer_pages,
+        //         nextPage: customer_page < total_customer_pages ? customer_page + 1 : null,
+        //         previousPage: customer_page > 1 ? customer_page - 1 : null,
+        //         data: paginated_customers,
+        //     };
+        // });
+
+        return successResponse(res, "Vendor purchase history fetched successfully", 200, {
+            total_offers,
+            total_customers,
+            data: allOffers,
+        });
     } catch (error) {
         console.error("VendorOrder error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
+exports.getPurchasedCustomers = async (req, res) => {
+  try {
+    const vendorId =  req.user.id ;
+    const {  offerId, page = 1, limit = 10 } = req.query;
+console.log("req." ,req.query)
+    // ✅ Validate inputs
+    if (!vendorId || !offerId) {
+      return res.status(400).json({ message: "Vendor ID and Offer ID are required." });
+    }
+
+    // ✅ Build query
+    const query = {
+      vendor: new mongoose.Types.ObjectId(vendorId),
+      offer: new mongoose.Types.ObjectId(offerId),
+    };
+console.log("query" ,query)
+    // ✅ Pagination
+    const skip = (page - 1) * limit;
+
+    // ✅ Fetch records
+    const allPurchases = await OfferBuy.find(query)
+      .populate("user", "name email phone")
+      .populate({
+        path: "offer",
+        select: "title description discountPercentage", // only needed fields
+        populate: [
+          { path: "flat", select: "title discount" },
+          { path: "percentage", select: "title discount" },
+        ],
+      })
+      .populate({
+        path: "payment_id",
+        select: "payment_id method amount currency status createdAt",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+      console.log("allPurchases" ,allPurchases)
+    // ✅ Count total records
+    const total_records = await OfferBuy.countDocuments(query);
+    const total_pages = Math.ceil(total_records / limit);
+
+    if (!allPurchases.length) {
+      return res.status(404).json({ message: "No purchase found" });
+    }
+
+    // ✅ Format response
+    const purchased_customers = allPurchases.map((purchase) => ({
+      purchase_id: purchase._id,
+      final_amount :  purchase.final_amount,
+      status :  purchase.status,
+      vendor_bill_status :purchase.vendor_bill_status,
+      customer: {
+        id: purchase.user?._id,
+        name: purchase.user?.name,
+        email: purchase.user?.email,
+        phone: purchase.user?.phone,
+      },
+      payment: {
+        id: purchase.payment_id?._id,
+        payment_id: purchase.payment_id?.payment_id,
+        method: purchase.payment_id?.method,
+        amount: purchase.payment_id?.amount,
+        currency: purchase.payment_id?.currency,
+        status: purchase.payment_id?.status,
+        date: purchase.payment_id?.createdAt,
+      },
+    }));
+
+    // ✅ Final response
+    return res.status(200).json({
+      purchased_customers,
+      total_records,
+      current_page: Number(page),
+      per_page: Number(limit),
+      total_pages,
+      nextPage: page < total_pages ? Number(page) + 1 : null,
+      previousPage: page > 1 ? Number(page) - 1 : null,
+    });
+  } catch (error) {
+    console.error("Error fetching purchased customers:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
 
 

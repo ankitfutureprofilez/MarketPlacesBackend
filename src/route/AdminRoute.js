@@ -23,5 +23,4 @@ router.get("/admin/payment_get", PaymentGet);
 router.get("/admin/vendor/delete/:id", vendorDelete);
 router.post("/admin/assign-staff", AssignStaff);
 
-
 module.exports = router;

@@ -1,4 +1,4 @@
-const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorRegister, category, subcategory, Dashboard, MarkOfferAsUsed, VendorOrder, UpdateAmount } = require("../controller/VendorController");
+const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorRegister, category, subcategory, Dashboard, MarkOfferAsUsed, VendorOrder, UpdateAmount, VendorSecondOrder, getPurchasedCustomers } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
 
 const router = require("express").Router();
@@ -10,12 +10,14 @@ router.post("/vendor/update", verifyToken,vendorUpdate);
 router.get("/vendor/categroy", category);
 router.get("/vendor/sub_categroy/:id", subcategory);
 router.get("/vendor/order", verifyToken ,VendorOrder);
+router.get("/vendor/second-order", verifyToken ,getPurchasedCustomers);
+
 router.get("/vendor/dashboard", verifyToken, Dashboard);
 // This api is used for marking the offer brought by the customer as used after scanning
 
 router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
 
-router.post("/vendor/Payment_aporve/", verifyToken, UpdateAmount);
+router.post("/vendor/Payment_aporve", verifyToken, UpdateAmount);
 
 
 module.exports = router;
