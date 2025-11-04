@@ -882,10 +882,7 @@ exports.getPurchasedCustomers = async (req, res) => {
     };
     console.log("query", query);
 
-    // ✅ Pagination
-    const skip = (page - 1) * limit;
-
-    // ✅ Fetch records
+    // ✅ Fetch all records (no pagination yet)
     const allPurchases = await OfferBuy.find(query)
       .populate("user", "name email phone")
       .populate({
@@ -900,15 +897,7 @@ exports.getPurchasedCustomers = async (req, res) => {
         path: "payment_id",
         select: "payment_id method amount currency status createdAt",
       })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    console.log("allPurchases", allPurchases);
-
-    // ✅ Count total records
-    const total_records = await OfferBuy.countDocuments(query);
-    const total_pages = Math.ceil(total_records / limit);
+      .sort({ createdAt: -1 });
 
     if (!allPurchases.length) {
       return validationErrorResponse(res, "No purchase found", 404);
@@ -941,30 +930,29 @@ exports.getPurchasedCustomers = async (req, res) => {
       },
     }));
 
-    // ✅ Multiply the results by 100 for pagination test
+    // ✅ Multiply results for pagination testing
     const multiplier = 100;
     purchased_customers = Array(multiplier)
-      .fill(purchased_customers)
-      .flat()
+      .fill(null)
+      .flatMap(() => purchased_customers)
       .map((item, index) => ({
         ...item,
-        fake_index: index + 1, // optional: to identify duplicates
+        fake_index: index + 1,
       }));
 
-    // ✅ Simulated total count
-    const simulated_total_records = purchased_customers.length;
-    const simulated_total_pages = Math.ceil(simulated_total_records / limit);
-
-    // ✅ Slice based on current page
+    // ✅ Apply pagination AFTER multiplying
+    const total_records = purchased_customers.length;
+    const total_pages = Math.ceil(total_records / limit);
+    const skip = (page - 1) * limit;
     const paginatedData = purchased_customers.slice(skip, skip + parseInt(limit));
 
     return successResponse(res, "Purchased customers fetched successfully", 200, {
       purchased_customers: paginatedData,
-      total_records: simulated_total_records,
+      total_records,
       current_page: Number(page),
       per_page: Number(limit),
-      total_pages: simulated_total_pages,
-      nextPage: page < simulated_total_pages ? Number(page) + 1 : null,
+      total_pages,
+      nextPage: page < total_pages ? Number(page) + 1 : null,
       previousPage: page > 1 ? Number(page) - 1 : null,
     });
   } catch (error) {
@@ -972,6 +960,7 @@ exports.getPurchasedCustomers = async (req, res) => {
     return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 
 
