@@ -672,14 +672,14 @@ exports.EditCustomerPerson = catchAsync(async (req, res) => {
 });
 
 
-exports.UpdateAmount = catchAsync(async (req, res) => {
+exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
   try {
     const user = req.user.id;
-    const { final_amount,  offer  , vendor} = req.body;
+    const { total_amount,  offer  , vendor} = req.body;
     const record = await OfferBuy.findOneAndUpdate(
       { offer: offer, user: user  , vendor:vendor}, 
       {
-        final_amount,
+        total_amount,
       },
       { new: true } 
     );

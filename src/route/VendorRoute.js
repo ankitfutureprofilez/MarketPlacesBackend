@@ -17,7 +17,7 @@ router.get("/vendor/dashboard", verifyToken, Dashboard);
 
 router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
 
-router.post("/vendor/Payment_aporve", verifyToken, UpdateAmount);
+router.post("/vendor/Payment_update", verifyToken, UpdateAmount);
 
 
 module.exports = router;
