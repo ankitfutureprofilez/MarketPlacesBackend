@@ -828,6 +828,8 @@ exports.getPurchasedCustomers = async (req, res) => {
                 final_amount: purchase.final_amount,
                 status: purchase.status,
                 vendor_bill_status: purchase.vendor_bill_status,
+                description: purchase?.description ||  "",
+                createdAt : purchase?.createdAt || ""
             },
             customer: {
                 id: purchase.user?._id,

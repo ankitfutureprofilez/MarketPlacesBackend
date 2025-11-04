@@ -38,6 +38,9 @@ const OfferBuySchema = new mongoose.Schema(
          vendor_bill_status:{
             type: Boolean,
             default: false,
+        },
+        description :{
+            type: String
         }
     },
     { timestamps: true }
