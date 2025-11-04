@@ -775,94 +775,204 @@ exports.VendorOrder = catchAsync(async (req, res) => {
     }
 });
 
+// exports.getPurchasedCustomers = async (req, res) => {
+//     try {
+//         const vendorId = req.user.id;
+//         const { offerId, page = 1, limit = 20 } = req.query;
+//         // ✅ Validate inputs
+//         if (!vendorId || !offerId) {
+//              return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
+//         }
+
+//         // ✅ Build query
+//         const query = {
+//             vendor: new mongoose.Types.ObjectId(vendorId),
+//             offer: new mongoose.Types.ObjectId(offerId),
+//         };
+//         console.log("query", query)
+//         // ✅ Pagination
+//         const skip = (page - 1) * limit;
+
+//         // ✅ Fetch records
+//         const allPurchases = await OfferBuy.find(query)
+//             .populate("user", "name email phone")
+//             .populate({
+//                 path: "offer",
+//                 select: "title description discountPercentage", // only needed fields
+//                 populate: [
+//                     { path: "flat", select: "title discount" },
+//                     { path: "percentage", select: "title discount" },
+//                 ],
+//             })
+//             .populate({
+//                 path: "payment_id",
+//                 select: "payment_id method amount currency status createdAt",
+//             })
+//             .sort({ createdAt: -1 })
+//             .skip(skip)
+//             .limit(parseInt(limit));
+
+//         console.log("allPurchases", allPurchases)
+//         // ✅ Count total records
+//         const total_records = await OfferBuy.countDocuments(query);
+//         const total_pages = Math.ceil(total_records / limit);
+
+//         if (!allPurchases.length) {
+//              return validationErrorResponse(res, "No purchase found", 404);
+//         }
+
+//         // ✅ Format response
+//         const purchased_customers = allPurchases.map((purchase) => ({
+//             offer_buy: {
+//                 purchase_id: purchase._id,
+//                 final_amount: purchase.final_amount,
+//                 status: purchase.status,
+//                 vendor_bill_status: purchase.vendor_bill_status,
+//                 description: purchase?.description ||  "",
+//                 createdAt : purchase?.createdAt || ""
+//             },
+//             customer: {
+//                 id: purchase.user?._id,
+//                 name: purchase.user?.name,
+//                 email: purchase.user?.email,
+//                 phone: purchase.user?.phone,
+//             },
+//             payment: {
+//                 id: purchase.payment_id?._id,
+//                 payment_id: purchase.payment_id?.payment_id,
+//                 method: purchase.payment_id?.method,
+//                 amount: purchase.payment_id?.amount,
+//                 currency: purchase.payment_id?.currency,
+//                 status: purchase.payment_id?.status,
+//                 date: purchase.payment_id?.createdAt,
+//             },
+//         }));
+
+
+//         return successResponse(res, "Vendor amount updated successfully", 200, {
+//             purchased_customers,
+//             total_records,
+//             current_page: Number(page),
+//             per_page: Number(limit),
+//             total_pages,
+//             nextPage: page < total_pages ? Number(page) + 1 : null,
+//             previousPage: page > 1 ? Number(page) - 1 : null,
+//         });
+//     } catch (error) {
+//         console.error("Error fetching purchased customers:", error);
+//         return res.status(500).json({ message: "Server error", error: error.message });
+//     }
+// };
+
+
 exports.getPurchasedCustomers = async (req, res) => {
-    try {
-        const vendorId = req.user.id;
-        const { offerId, page = 1, limit = 20 } = req.query;
-        // ✅ Validate inputs
-        if (!vendorId || !offerId) {
-             return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
-        }
+  try {
+    const vendorId = req.user.id;
+    const { offerId, page = 1, limit = 20 } = req.query;
 
-        // ✅ Build query
-        const query = {
-            vendor: new mongoose.Types.ObjectId(vendorId),
-            offer: new mongoose.Types.ObjectId(offerId),
-        };
-        console.log("query", query)
-        // ✅ Pagination
-        const skip = (page - 1) * limit;
-
-        // ✅ Fetch records
-        const allPurchases = await OfferBuy.find(query)
-            .populate("user", "name email phone")
-            .populate({
-                path: "offer",
-                select: "title description discountPercentage", // only needed fields
-                populate: [
-                    { path: "flat", select: "title discount" },
-                    { path: "percentage", select: "title discount" },
-                ],
-            })
-            .populate({
-                path: "payment_id",
-                select: "payment_id method amount currency status createdAt",
-            })
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(parseInt(limit));
-
-        console.log("allPurchases", allPurchases)
-        // ✅ Count total records
-        const total_records = await OfferBuy.countDocuments(query);
-        const total_pages = Math.ceil(total_records / limit);
-
-        if (!allPurchases.length) {
-             return validationErrorResponse(res, "No purchase found", 404);
-        }
-
-        // ✅ Format response
-        const purchased_customers = allPurchases.map((purchase) => ({
-            offer_buy: {
-                purchase_id: purchase._id,
-                final_amount: purchase.final_amount,
-                status: purchase.status,
-                vendor_bill_status: purchase.vendor_bill_status,
-                description: purchase?.description ||  "",
-                createdAt : purchase?.createdAt || ""
-            },
-            customer: {
-                id: purchase.user?._id,
-                name: purchase.user?.name,
-                email: purchase.user?.email,
-                phone: purchase.user?.phone,
-            },
-            payment: {
-                id: purchase.payment_id?._id,
-                payment_id: purchase.payment_id?.payment_id,
-                method: purchase.payment_id?.method,
-                amount: purchase.payment_id?.amount,
-                currency: purchase.payment_id?.currency,
-                status: purchase.payment_id?.status,
-                date: purchase.payment_id?.createdAt,
-            },
-        }));
-
-
-        return successResponse(res, "Vendor amount updated successfully", 200, {
-            purchased_customers,
-            total_records,
-            current_page: Number(page),
-            per_page: Number(limit),
-            total_pages,
-            nextPage: page < total_pages ? Number(page) + 1 : null,
-            previousPage: page > 1 ? Number(page) - 1 : null,
-        });
-    } catch (error) {
-        console.error("Error fetching purchased customers:", error);
-        return res.status(500).json({ message: "Server error", error: error.message });
+    // ✅ Validate inputs
+    if (!vendorId || !offerId) {
+      return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
     }
+
+    // ✅ Build query
+    const query = {
+      vendor: new mongoose.Types.ObjectId(vendorId),
+      offer: new mongoose.Types.ObjectId(offerId),
+    };
+    console.log("query", query);
+
+    // ✅ Pagination
+    const skip = (page - 1) * limit;
+
+    // ✅ Fetch records
+    const allPurchases = await OfferBuy.find(query)
+      .populate("user", "name email phone")
+      .populate({
+        path: "offer",
+        select: "title description discountPercentage",
+        populate: [
+          { path: "flat", select: "title discount" },
+          { path: "percentage", select: "title discount" },
+        ],
+      })
+      .populate({
+        path: "payment_id",
+        select: "payment_id method amount currency status createdAt",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    console.log("allPurchases", allPurchases);
+
+    // ✅ Count total records
+    const total_records = await OfferBuy.countDocuments(query);
+    const total_pages = Math.ceil(total_records / limit);
+
+    if (!allPurchases.length) {
+      return validationErrorResponse(res, "No purchase found", 404);
+    }
+
+    // ✅ Format response
+    let purchased_customers = allPurchases.map((purchase) => ({
+      offer_buy: {
+        purchase_id: purchase._id,
+        final_amount: purchase.final_amount,
+        status: purchase.status,
+        vendor_bill_status: purchase.vendor_bill_status,
+        description: purchase?.description || "",
+        createdAt: purchase?.createdAt || "",
+      },
+      customer: {
+        id: purchase.user?._id,
+        name: purchase.user?.name,
+        email: purchase.user?.email,
+        phone: purchase.user?.phone,
+      },
+      payment: {
+        id: purchase.payment_id?._id,
+        payment_id: purchase.payment_id?.payment_id,
+        method: purchase.payment_id?.method,
+        amount: purchase.payment_id?.amount,
+        currency: purchase.payment_id?.currency,
+        status: purchase.payment_id?.status,
+        date: purchase.payment_id?.createdAt,
+      },
+    }));
+
+    // ✅ Multiply the results by 100 for pagination test
+    const multiplier = 100;
+    purchased_customers = Array(multiplier)
+      .fill(purchased_customers)
+      .flat()
+      .map((item, index) => ({
+        ...item,
+        fake_index: index + 1, // optional: to identify duplicates
+      }));
+
+    // ✅ Simulated total count
+    const simulated_total_records = purchased_customers.length;
+    const simulated_total_pages = Math.ceil(simulated_total_records / limit);
+
+    // ✅ Slice based on current page
+    const paginatedData = purchased_customers.slice(skip, skip + parseInt(limit));
+
+    return successResponse(res, "Purchased customers fetched successfully", 200, {
+      purchased_customers: paginatedData,
+      total_records: simulated_total_records,
+      current_page: Number(page),
+      per_page: Number(limit),
+      total_pages: simulated_total_pages,
+      nextPage: page < simulated_total_pages ? Number(page) + 1 : null,
+      previousPage: page > 1 ? Number(page) - 1 : null,
+    });
+  } catch (error) {
+    console.error("Error fetching purchased customers:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 };
+
 
 
 exports.Paymentvendor = catchAsync(async (req, res) => {
