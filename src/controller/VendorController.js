@@ -778,7 +778,7 @@ exports.VendorOrder = catchAsync(async (req, res) => {
 exports.getPurchasedCustomers = async (req, res) => {
   try {
     const vendorId =  req.user.id ;
-    const {  offerId, page = 1, limit = 10 } = req.query;
+    const {  offerId, page = 1, limit = 20 } = req.query;
 console.log("req." ,req.query)
     // ✅ Validate inputs
     if (!vendorId || !offerId) {
@@ -828,6 +828,7 @@ console.log("query" ,query)
       final_amount :  purchase.final_amount,
       status :  purchase.status,
       vendor_bill_status :purchase.vendor_bill_status,
+
       customer: {
         id: purchase.user?._id,
         name: purchase.user?.name,
