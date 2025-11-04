@@ -779,10 +779,9 @@ exports.getPurchasedCustomers = async (req, res) => {
     try {
         const vendorId = req.user.id;
         const { offerId, page = 1, limit = 20 } = req.query;
-        console.log("req.", req.query)
         // ✅ Validate inputs
         if (!vendorId || !offerId) {
-            return res.status(400).json({ message: "Vendor ID and Offer ID are required." });
+             return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
         }
 
         // ✅ Build query
@@ -819,16 +818,17 @@ exports.getPurchasedCustomers = async (req, res) => {
         const total_pages = Math.ceil(total_records / limit);
 
         if (!allPurchases.length) {
-            return res.status(404).json({ message: "No purchase found" });
+             return validationErrorResponse(res, "No purchase found", 404);
         }
 
         // ✅ Format response
         const purchased_customers = allPurchases.map((purchase) => ({
-            purchase_id: purchase._id,
-            final_amount: purchase.final_amount,
-            status: purchase.status,
-            vendor_bill_status: purchase.vendor_bill_status,
-
+            offer_buy: {
+                purchase_id: purchase._id,
+                final_amount: purchase.final_amount,
+                status: purchase.status,
+                vendor_bill_status: purchase.vendor_bill_status,
+            },
             customer: {
                 id: purchase.user?._id,
                 name: purchase.user?.name,
@@ -846,8 +846,8 @@ exports.getPurchasedCustomers = async (req, res) => {
             },
         }));
 
-        // ✅ Final response
-        return res.status(200).json({
+
+        return successResponse(res, "Vendor amount updated successfully", 200, {
             purchased_customers,
             total_records,
             current_page: Number(page),
