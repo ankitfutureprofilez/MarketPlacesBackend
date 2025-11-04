@@ -776,90 +776,90 @@ exports.VendorOrder = catchAsync(async (req, res) => {
 });
 
 exports.getPurchasedCustomers = async (req, res) => {
-  try {
-    const vendorId =  req.user.id ;
-    const {  offerId, page = 1, limit = 20 } = req.query;
-console.log("req." ,req.query)
-    // ✅ Validate inputs
-    if (!vendorId || !offerId) {
-      return res.status(400).json({ message: "Vendor ID and Offer ID are required." });
+    try {
+        const vendorId = req.user.id;
+        const { offerId, page = 1, limit = 20 } = req.query;
+        console.log("req.", req.query)
+        // ✅ Validate inputs
+        if (!vendorId || !offerId) {
+            return res.status(400).json({ message: "Vendor ID and Offer ID are required." });
+        }
+
+        // ✅ Build query
+        const query = {
+            vendor: new mongoose.Types.ObjectId(vendorId),
+            offer: new mongoose.Types.ObjectId(offerId),
+        };
+        console.log("query", query)
+        // ✅ Pagination
+        const skip = (page - 1) * limit;
+
+        // ✅ Fetch records
+        const allPurchases = await OfferBuy.find(query)
+            .populate("user", "name email phone")
+            .populate({
+                path: "offer",
+                select: "title description discountPercentage", // only needed fields
+                populate: [
+                    { path: "flat", select: "title discount" },
+                    { path: "percentage", select: "title discount" },
+                ],
+            })
+            .populate({
+                path: "payment_id",
+                select: "payment_id method amount currency status createdAt",
+            })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        console.log("allPurchases", allPurchases)
+        // ✅ Count total records
+        const total_records = await OfferBuy.countDocuments(query);
+        const total_pages = Math.ceil(total_records / limit);
+
+        if (!allPurchases.length) {
+            return res.status(404).json({ message: "No purchase found" });
+        }
+
+        // ✅ Format response
+        const purchased_customers = allPurchases.map((purchase) => ({
+            purchase_id: purchase._id,
+            final_amount: purchase.final_amount,
+            status: purchase.status,
+            vendor_bill_status: purchase.vendor_bill_status,
+
+            customer: {
+                id: purchase.user?._id,
+                name: purchase.user?.name,
+                email: purchase.user?.email,
+                phone: purchase.user?.phone,
+            },
+            payment: {
+                id: purchase.payment_id?._id,
+                payment_id: purchase.payment_id?.payment_id,
+                method: purchase.payment_id?.method,
+                amount: purchase.payment_id?.amount,
+                currency: purchase.payment_id?.currency,
+                status: purchase.payment_id?.status,
+                date: purchase.payment_id?.createdAt,
+            },
+        }));
+
+        // ✅ Final response
+        return res.status(200).json({
+            purchased_customers,
+            total_records,
+            current_page: Number(page),
+            per_page: Number(limit),
+            total_pages,
+            nextPage: page < total_pages ? Number(page) + 1 : null,
+            previousPage: page > 1 ? Number(page) - 1 : null,
+        });
+    } catch (error) {
+        console.error("Error fetching purchased customers:", error);
+        return res.status(500).json({ message: "Server error", error: error.message });
     }
-
-    // ✅ Build query
-    const query = {
-      vendor: new mongoose.Types.ObjectId(vendorId),
-      offer: new mongoose.Types.ObjectId(offerId),
-    };
-console.log("query" ,query)
-    // ✅ Pagination
-    const skip = (page - 1) * limit;
-
-    // ✅ Fetch records
-    const allPurchases = await OfferBuy.find(query)
-      .populate("user", "name email phone")
-      .populate({
-        path: "offer",
-        select: "title description discountPercentage", // only needed fields
-        populate: [
-          { path: "flat", select: "title discount" },
-          { path: "percentage", select: "title discount" },
-        ],
-      })
-      .populate({
-        path: "payment_id",
-        select: "payment_id method amount currency status createdAt",
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-      console.log("allPurchases" ,allPurchases)
-    // ✅ Count total records
-    const total_records = await OfferBuy.countDocuments(query);
-    const total_pages = Math.ceil(total_records / limit);
-
-    if (!allPurchases.length) {
-      return res.status(404).json({ message: "No purchase found" });
-    }
-
-    // ✅ Format response
-    const purchased_customers = allPurchases.map((purchase) => ({
-      purchase_id: purchase._id,
-      final_amount :  purchase.final_amount,
-      status :  purchase.status,
-      vendor_bill_status :purchase.vendor_bill_status,
-
-      customer: {
-        id: purchase.user?._id,
-        name: purchase.user?.name,
-        email: purchase.user?.email,
-        phone: purchase.user?.phone,
-      },
-      payment: {
-        id: purchase.payment_id?._id,
-        payment_id: purchase.payment_id?.payment_id,
-        method: purchase.payment_id?.method,
-        amount: purchase.payment_id?.amount,
-        currency: purchase.payment_id?.currency,
-        status: purchase.payment_id?.status,
-        date: purchase.payment_id?.createdAt,
-      },
-    }));
-
-    // ✅ Final response
-    return res.status(200).json({
-      purchased_customers,
-      total_records,
-      current_page: Number(page),
-      per_page: Number(limit),
-      total_pages,
-      nextPage: page < total_pages ? Number(page) + 1 : null,
-      previousPage: page > 1 ? Number(page) - 1 : null,
-    });
-  } catch (error) {
-    console.error("Error fetching purchased customers:", error);
-    return res.status(500).json({ message: "Server error", error: error.message });
-  }
 };
 
 
