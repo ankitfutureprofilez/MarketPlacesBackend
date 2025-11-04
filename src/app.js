@@ -99,7 +99,6 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
             vendor: notes.vendor_id,
             payment_id: data._id || "",
             discount: paymentEntity.amount,
-            total_amount: paymentEntity.amount + 1500,
             status: "active",
             final_amount: 1500
           });
