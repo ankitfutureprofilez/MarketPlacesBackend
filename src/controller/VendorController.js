@@ -863,7 +863,6 @@ exports.getPurchasedCustomers = async (req, res) => {
 };
 
 
-
 exports.Paymentvendor = catchAsync(async (req, res) => {
     try {
         const userid = req.user.id
