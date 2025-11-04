@@ -219,8 +219,6 @@ exports.VendorGet = catchAsync(async (req, res) => {
     }
 });
 
-
-
 exports.vendorUpdate = catchAsync(async (req, res) => {
     try {
         const vendor = req.user?.id || req.params.id;
@@ -775,13 +773,13 @@ exports.VendorOrder = catchAsync(async (req, res) => {
     }
 });
 
-exports.getPurchasedCustomers = async (req, res) => {
+exports.getPurchasedCustomers = catchAsync(async (req, res) => {
     try {
         const vendorId = req.user.id;
         const { offerId, page = 1, limit = 20 } = req.query;
         // ✅ Validate inputs
         if (!vendorId || !offerId) {
-             return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
+            return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
         }
 
         // ✅ Build query
@@ -818,7 +816,7 @@ exports.getPurchasedCustomers = async (req, res) => {
         const total_pages = Math.ceil(total_records / limit);
 
         if (!allPurchases.length) {
-             return validationErrorResponse(res, "No purchase found", 404);
+            return validationErrorResponse(res, "No purchase found", 404);
         }
 
         // ✅ Format response
@@ -828,8 +826,8 @@ exports.getPurchasedCustomers = async (req, res) => {
                 final_amount: purchase.final_amount,
                 status: purchase.status,
                 vendor_bill_status: purchase.vendor_bill_status,
-                description: purchase?.description ||  "",
-                createdAt : purchase?.createdAt || ""
+                description: purchase?.description || "",
+                createdAt: purchase?.createdAt || ""
             },
             customer: {
                 id: purchase.user?._id,
@@ -862,7 +860,7 @@ exports.getPurchasedCustomers = async (req, res) => {
         console.error("Error fetching purchased customers:", error);
         return res.status(500).json({ message: "Server error", error: error.message });
     }
-};
+});
 
 exports.Paymentvendor = catchAsync(async (req, res) => {
     try {

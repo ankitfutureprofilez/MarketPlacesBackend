@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteSalesPerson } = require("../controller/AdminController");
+const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteSalesPerson, EditAdmin } = require("../controller/AdminController");
 const { SalesPersonStatus } = require("../controller/SalesController");
 const { VendorStatus, AdminSubcaterites, vendorDelete } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
@@ -22,5 +22,8 @@ router.get("/admin/dashboard", AdminDashboard);
 router.get("/admin/payment_get", PaymentGet);
 router.get("/admin/vendor/delete/:id", vendorDelete);
 router.post("/admin/assign-staff", AssignStaff);
+router.post("/admin/edit",verifyToken , EditAdmin);
+
+
 
 module.exports = router;

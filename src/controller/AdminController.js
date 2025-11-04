@@ -9,6 +9,7 @@ const jwt = require("jsonwebtoken");
 exports.Login = catchAsync(async (req, res) => {
     try {
         const { email, password, role } = req.body;
+        console.log(req.body)
         if (!email || !password || !role) {
             return validationErrorResponse(
                 res,
@@ -16,7 +17,10 @@ exports.Login = catchAsync(async (req, res) => {
                 401
             );
         }
-        const user = await User.findOne({ email: email });
+        const user = await User.findOne({ email: email , password : password
+
+            
+        });
         const token = jwt.sign(
             { id: user._id, role: user.role, email: user.email },
             process.env.JWT_SECRET_KEY,
@@ -567,3 +571,56 @@ exports.DeleteSalesPerson = catchAsync(async (req, res) => {
     }
 });
 
+
+
+exports.EditAdmin = catchAsync(async (req, res) => {
+    try {
+        console.log(req.user)
+        const id = req.user.id;
+        console.log("id" ,id)
+        const { name, email, phone, avatar, role, status } = req.body;
+
+        const user = await User.findById(id);
+        if (!user || user.deleted_at) {
+            return validationErrorResponse(res, "Admin  Person not found.", 404);
+        }
+
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (phone) user.phone = phone;
+        if (avatar) user.avatar = avatar;
+        if (role) user.role = role;
+        if (status) user.status = status;
+
+        const updatedUser = await user.save();
+
+        return successResponse(res, "Admin  Person updated successfully.", 200, updatedUser );
+    } catch (error) {
+        console.error("EditAdmin Person error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+
+exports.EditAdmin = catchAsync(async (req, res) => {
+    try {
+        console.log(req.user)
+        const id = req.user.id;
+        console.log("id" ,id)
+        const { name, email, phone, avatar, role, status } = req.body;
+        const user = await User.findById(id);
+        if (!user || user.deleted_at) {
+            return validationErrorResponse(res, "Admin  Person not found.", 404);
+        }
+
+        if (password) user.password = password;
+        if (status) user.status = status;
+
+        const updatedUser = await user.save();
+
+        return successResponse(res, "Admin  Person updated successfully.", 200, updatedUser );
+    } catch (error) {
+        console.error("EditAdmin Person error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
