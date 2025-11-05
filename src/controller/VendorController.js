@@ -930,3 +930,18 @@ exports.PaymentDetails = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
+exports.getPayments = catchAsync(async (req, res) => {
+    try {
+        const vendor = req.user.id;
+        const {customer, offer} = req.params;
+        const record = await OfferBuy.find({ offer: offer, vendor: vendor, user: customer });
+        if (!record) {
+            return validationErrorResponse(res, "Payment not found", 404);
+        }
+        return successResponse(res, "Payments fetched successfully", 200, record);
+    } catch (error) {
+        console.log("Error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
