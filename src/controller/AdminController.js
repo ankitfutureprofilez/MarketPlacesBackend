@@ -602,25 +602,17 @@ exports.EditAdmin = catchAsync(async (req, res) => {
 });
 
 
-exports.EditAdmin = catchAsync(async (req, res) => {
-    try {
-        console.log(req.user)
-        const id = req.user.id;
-        console.log("id" ,id)
-        const { name, email, phone, avatar, role, status } = req.body;
-        const user = await User.findById(id);
-        if (!user || user.deleted_at) {
-            return validationErrorResponse(res, "Admin  Person not found.", 404);
-        }
-
-        if (password) user.password = password;
-        if (status) user.status = status;
-
-        const updatedUser = await user.save();
-
-        return successResponse(res, "Admin  Person updated successfully.", 200, updatedUser );
-    } catch (error) {
-        console.error("EditAdmin Person error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+exports.resetpassword = catchAsync(async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: "Password has been reset successfully!" });
+  } catch (error) {
+    res.status(500).json({ message: "Error resetting password", error });
+  }
 });
