@@ -18,6 +18,7 @@ router.get("/vendor/dashboard", verifyToken, Dashboard);
 router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
 
 router.post("/vendor/Payment_update", verifyToken, UpdateAmount);
+
 router.get("/vendor/payment/:customer/:offer", verifyToken, getPayments);
 
 

@@ -151,10 +151,6 @@ exports.AdminVendorGet = catchAsync(async (req, res) => {
     }
 });
 
-
-
-
-
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
         const adminid = req.user.id;
