@@ -70,7 +70,30 @@ exports.UserGet = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
+exports.SalesGet = catchAsync(async (req, res) => {
+  try {
+    const { search = "" } = req.query;
 
+    console.log("req.query" ,req.query)
+    let query = { role: "sales" };
+
+    if (search && search.trim() !== "") {
+      const regex = { $regex: search.trim(), $options: "i" };
+      query.$or = [{ name: regex }, { email: regex }];
+    }
+
+    const record = await User.find(query);
+
+    console.log("record" ,record)
+    if (!record || record.length === 0) {
+      return validationErrorResponse(res, "No Users found", 404);
+    }
+
+    return successResponse(res, "Customers fetched successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
 
 exports.PaymentGet = catchAsync(async (req, res) => {
     try {
@@ -130,56 +153,7 @@ exports.AdminVendorGet = catchAsync(async (req, res) => {
 
 
 
-exports.SalesGet = catchAsync(async (req, res, next) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 25;
-        const search = req.query.search || "";
-        let userData, totalPages, totaluser;
 
-        // Fetch users based on the filter
-        const filter = { role: "sales" };
-        const skip = (page - 1) * limit;
-
-        const users = await User.find(filter)
-            .sort({ created_at: -1 })
-            .skip(skip)
-            .limit(limit);
-
-
-        if (search === "") {
-            const skip = (page - 1) * limit;
-            totaluser = await User.countDocuments();
-            userData = await User.find(filter)
-                .sort({ created_at: -1 })
-                .skip(skip)
-                .limit(limit)
-            totalPages = Math.ceil(totaluser / limit);
-        }
-        else {
-            userData = await filterUsers(search);
-            totalPages = 1;
-            totaluser = userData;
-        }
-        res.status(200).json({
-            data: {
-                userData: userData,
-                totaluser: totaluser,
-                totalPages: totalPages,
-                currentPage: page,
-                perPage: limit,
-                nextPage: page < totalPages ? page + 1 : null,
-                previousPage: page > 1 ? page - 1 : null,
-            },
-            msg: "User Get",
-        });
-    } catch (error) {
-        res.status(500).json({
-            msg: "Failed to fetch User get",
-            error: error.message,
-        });
-    }
-});
 
 exports.VendorRegister = catchAsync(async (req, res) => {
     try {
@@ -390,6 +364,7 @@ exports.adminGet = catchAsync(async (req, res) => {
 exports.VendorGetId = catchAsync(async (req, res) => {
     try {
         const id = req.params.id;
+        console.log("id" ,id)
         if (!id) {
             return errorResponse(res, "Vendor ID is required", 400);
         }
