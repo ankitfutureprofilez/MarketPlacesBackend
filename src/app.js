@@ -2,6 +2,7 @@ const dotenv = require("dotenv");
 dotenv.config();
 require("./monogconfig"); // check spelling
 require("./Cron")
+const path = require("path");
 
 const express = require("express");
 const app = express();
@@ -141,10 +142,11 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
   }
 });
 
-
-
 app.use(express.json({ limit: "25000mb" }));
 app.use(express.urlencoded({ extended: true }));
+// Serving public folder for files
+app.use(express.static(path.join(__dirname, "../public")));
+
 
 const PORT = process.env.PORT || 5000;
 app.get("/", (req, res) => {

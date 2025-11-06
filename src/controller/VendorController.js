@@ -11,6 +11,7 @@ const FlatOffer = require("../model/FlatOffer.js");
 const PercentageOffer = require("../model/PercentageOffer.js");
 const Payment = require("../model/Payment.js");
 const { default: mongoose } = require("mongoose");
+const deleteUploadedFiles = require("../utils/fileDeleter.js");
 
 // Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
@@ -935,7 +936,8 @@ exports.getPayments = catchAsync(async (req, res) => {
     try {
         const vendor = req.user.id;
         const {customer, offer} = req.params;
-        const record = await OfferBuy.find({ offer: offer, vendor: vendor, user: customer });
+        const record = await OfferBuy.find({ offer: offer, vendor: vendor, user: customer })
+        .populate('user').populate('offer').populate('vendor').populate('payment_id');
         if (!record) {
             return validationErrorResponse(res, "Payment not found", 404);
         }
@@ -944,4 +946,74 @@ exports.getPayments = catchAsync(async (req, res) => {
         console.log("Error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
+});
+
+exports.uploadGallery = catchAsync(async (req, res) => {
+    try {
+        const user = req.user.id;
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: "No files uploaded" });
+        }
+        const fileUrls = req.files.map(
+            (file) => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
+        );
+        const vendor = await Vendor.findOne({user: user});
+        if (!vendor) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+        // ✅ Ensure vendor.gallery exists and is an array
+        if (!Array.isArray(vendor.gallery)) {
+         vendor.gallery = [];
+        }
+        vendor.gallery = vendor.gallery.concat(fileUrls);
+        await vendor.save();
+        res.json({
+            message: "Files uploaded successfully",
+            count: req.files.length,
+            data: fileUrls,
+        });             
+    } catch (error) {
+        console.log("Error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.deleteGallery = catchAsync(async (req, res) => {
+  try {
+    const user = req.user.id;
+    const { files } = req.body; // expecting an array of file URLs
+
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ message: "No files provided" });
+    }
+
+    const vendor = await Vendor.findOne({ user });
+    if (!vendor) {
+      return validationErrorResponse(res, "Vendor not found", 404);
+    }
+
+    // ✅ Ensure vendor.gallery exists and is an array
+    if (!Array.isArray(vendor.gallery)) {
+      vendor.gallery = [];
+    }
+
+    // Delete the physical files from the server
+    deleteUploadedFiles(files);
+
+    // Filter out deleted files from vendor.gallery
+    vendor.gallery = vendor.gallery.filter(
+      (imageUrl) => !files.includes(imageUrl)
+    );
+
+    await vendor.save();
+
+    res.json({
+      message: "Files deleted successfully",
+      deletedCount: files.length,
+      remainingGallery: vendor.gallery,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
