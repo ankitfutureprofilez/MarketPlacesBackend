@@ -13,6 +13,6 @@ router.get("/customer/brought-offer",verifyToken, OfferBrought);
 router.get("/customer/payment_get", verifyToken, PaymentGetByUser);
 router.post("/customer/add_payment",verifyToken, AddPayment);
 router.post("/customer/update",verifyToken, EditCustomerPerson);
-router.post("/customer/Payment_aporve/", verifyToken, UpdateCustomerAmount);
+router.post("/customer/payment/update", verifyToken, UpdateCustomerAmount);
 
 module.exports = router;
