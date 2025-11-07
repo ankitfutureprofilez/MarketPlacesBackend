@@ -882,28 +882,32 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
 });
 
 exports.UpdateAmount = catchAsync(async (req, res) => {
-    try {
-        const vendor = req.user.id;
-        const { final_amount, vendor_bill_status, offer, user } = req.body;
-        console.log(req.body, vendor)
-        const record = await OfferBuy.findOneAndUpdate(
-            { offer: offer, vendor: vendor, user: user },
-            {
-                final_amount,
-                vendor_bill_status,
-            },
-            { new: true }
-        );
-
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found for this vendor", 404);
-        }
-
-        return successResponse(res, "Vendor amount updated successfully", 200, record);
-    } catch (error) {
-        console.log("Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const { id } = req.params; 
+    const { total_amount } = req.body;
+    if (!id) {
+      return validationErrorResponse(res, "Missing offer ID", 400);
     }
+
+    if (total_amount === undefined || total_amount === null) {
+      return validationErrorResponse(res, "Total amount is required", 400);
+    }
+
+    const record = await OfferBuy.findByIdAndUpdate(
+      id,
+      { total_amount },
+      { new: true }
+    );
+
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found for this vendor", 404);
+    }
+
+    return successResponse(res, "Vendor amount updated successfully", 200, record);
+  } catch (error) {
+    console.error("Error updating amount:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 // updatekarna hai 

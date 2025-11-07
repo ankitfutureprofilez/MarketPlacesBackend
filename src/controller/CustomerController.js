@@ -604,7 +604,7 @@ exports.OfferBrought = catchAsync(async (req, res) => {
 exports.OfferBroughtById = catchAsync(async (req, res) => {
   try {
     const id = req?.params?.id;
-    const record = await OfferBuy.findbyId(id)
+    const record = await OfferBuy.findById(id)
       .populate("user")
       .populate("offer")
       .populate("vendor")
@@ -616,6 +616,7 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
           { path: "percentage" }
         ],
       });
+      console.log("record"  ,record)
     if (!record) {
       return validationErrorResponse(res, " Briught Offer not found", 404);
     }
@@ -696,17 +697,23 @@ exports.EditCustomerPerson = catchAsync(async (req, res) => {
   }
 });
 
-
 exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
   try {
-    const user = req.user.id;
-    const { total_amount,  offer  , vendor} = req.body;
-    const record = await OfferBuy.findOneAndUpdate(
-      { offer: offer, user: user  , vendor:vendor}, 
-      {
-        total_amount,
-      },
-      { new: true } 
+    const { id } = req.params; 
+    const { total_amount } = req.body;
+
+    if (!id) {
+      return validationErrorResponse(res, "Missing offer ID", 400);
+    }
+
+    if (total_amount === undefined || total_amount === null) {
+      return validationErrorResponse(res, "Total amount is required", 400);
+    }
+
+    const record = await OfferBuy.findByIdAndUpdate(
+      id,
+      { total_amount },
+      { new: true }
     );
 
     if (!record) {
@@ -715,10 +722,11 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
 
     return successResponse(res, "Vendor amount updated successfully", 200, record);
   } catch (error) {
-    console.log("Error:", error);
+    console.error("Error updating amount:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
+
 
 exports.getVendorGallery = catchAsync(async (req, res) => {
     try {

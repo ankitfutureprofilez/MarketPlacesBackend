@@ -12,14 +12,9 @@ router.get("/vendor/categroy", category);
 router.get("/vendor/sub_categroy/:id", subcategory);
 router.get("/vendor/order", verifyToken ,VendorOrder);
 router.get("/vendor/second-order", verifyToken ,getPurchasedCustomers);
-
 router.get("/vendor/dashboard", verifyToken, Dashboard);
-// This api is used for marking the offer brought by the customer as used after scanning
-
 router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
-
-router.post("/vendor/payment/approve", verifyToken, UpdateAmount);
-
+router.post("/vendor/payment/approve/:id", UpdateAmount);
 router.get("/vendor/payment/:id", verifyToken, getPayments);
 router.post("/vendor/gallery/upload", verifyToken, upload.array("files", 10), uploadGallery);
 router.get("/vendor/gallery/get", verifyToken, getGallery);
