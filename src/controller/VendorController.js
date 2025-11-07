@@ -962,16 +962,30 @@ exports.uploadGallery = catchAsync(async (req, res) => {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
         // ✅ Ensure vendor.gallery exists and is an array
-        if (!Array.isArray(vendor.gallery)) {
-         vendor.gallery = [];
+        if (!Array.isArray(vendor.business_image)) {
+         vendor.business_image = [];
         }
-        vendor.gallery = vendor.gallery.concat(fileUrls);
+        vendor.business_image = vendor.business_image.concat(fileUrls);
         await vendor.save();
         res.json({
             message: "Files uploaded successfully",
             count: req.files.length,
             data: fileUrls,
         });             
+    } catch (error) {
+        console.log("Error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.getGallery = catchAsync(async (req, res) => {
+    try {
+        const user = req.user.id;
+        const data = await Vendor.findOne({user: user}).select('business_image');
+        if (!data) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+         return successResponse(res, "Gallery fetched successfully", 200, data);           
     } catch (error) {
         console.log("Error:", error);
         return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -993,15 +1007,15 @@ exports.deleteGallery = catchAsync(async (req, res) => {
     }
 
     // ✅ Ensure vendor.gallery exists and is an array
-    if (!Array.isArray(vendor.gallery)) {
-      vendor.gallery = [];
+    if (!Array.isArray(vendor.business_image)) {
+      vendor.business_image = [];
     }
 
     // Delete the physical files from the server
     deleteUploadedFiles(files);
 
-    // Filter out deleted files from vendor.gallery
-    vendor.gallery = vendor.gallery.filter(
+    // Filter out deleted files from vendor.business_image
+    vendor.business_image = vendor.business_image.filter(
       (imageUrl) => !files.includes(imageUrl)
     );
 
@@ -1010,7 +1024,7 @@ exports.deleteGallery = catchAsync(async (req, res) => {
     res.json({
       message: "Files deleted successfully",
       deletedCount: files.length,
-      remainingGallery: vendor.gallery,
+      remainingbusiness_image: vendor.business_image,
     });
   } catch (error) {
     console.error("Error:", error);

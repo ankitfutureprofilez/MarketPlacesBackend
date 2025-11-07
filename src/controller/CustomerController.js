@@ -694,3 +694,17 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
+
+exports.getVendorGallery = catchAsync(async (req, res) => {
+    try {
+        const user = req.params.id;
+        const data = await Vendor.findOne({user: user}).select('business_image');
+        if (!data) {
+            return validationErrorResponse(res, "Vendor not found", 404);
+        }
+         return successResponse(res, "Gallery fetched successfully", 200, data);           
+    } catch (error) {
+        console.log("Error:", error);
+        return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
