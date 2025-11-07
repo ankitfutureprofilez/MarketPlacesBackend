@@ -941,7 +941,13 @@ exports.getPayments = catchAsync(async (req, res) => {
         const vendor = req.user.id;
         const {id} = req.params;
         const record = await OfferBuy.findById(id)
-        .populate('user').populate('offer').populate('vendor').populate('payment_id');
+        .populate('user').populate({
+                path: "offer",
+                populate: [
+                    { path: "flat",  },
+                    { path: "percentage", },
+                ],
+            }).populate('vendor').populate('payment_id');
         if (!record) {
             return validationErrorResponse(res, "Payment not found", 404);
         }
