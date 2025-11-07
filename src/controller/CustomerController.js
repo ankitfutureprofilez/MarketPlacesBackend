@@ -601,6 +601,31 @@ exports.OfferBrought = catchAsync(async (req, res) => {
   }
 });
 
+exports.OfferBroughtById = catchAsync(async (req, res) => {
+  try {
+    const id = req?.params?.id;
+    const record = await OfferBuy.findbyId(id)
+      .populate("user")
+      .populate("offer")
+      .populate("vendor")
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [
+          { path: "flat" },
+          { path: "percentage" }
+        ],
+      });
+    if (!record) {
+      return validationErrorResponse(res, " Briught Offer not found", 404);
+    }
+    return successResponse(res, "Brought Offer Detail fetched successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+
+  }
+});
+
 exports.PaymentGetByUser = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
