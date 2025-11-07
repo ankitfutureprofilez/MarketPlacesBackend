@@ -884,7 +884,7 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
 exports.UpdateAmount = catchAsync(async (req, res) => {
   try {
     const { id } = req.params; 
-    const { total_amount } = req.body;
+    const { total_amount  ,vendor_bill_status} = req.body;
     if (!id) {
       return validationErrorResponse(res, "Missing offer ID", 400);
     }
@@ -895,7 +895,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
 
     const record = await OfferBuy.findByIdAndUpdate(
       id,
-      { total_amount },
+      { total_amount   , vendor_bill_status },
       { new: true }
     );
 
