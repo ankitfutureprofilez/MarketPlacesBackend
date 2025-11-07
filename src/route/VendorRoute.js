@@ -20,7 +20,7 @@ router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
 
 router.post("/vendor/payment/approve", verifyToken, UpdateAmount);
 
-router.get("/vendor/payment/:customer/:offer", verifyToken, getPayments);
+router.get("/vendor/payment/:id", verifyToken, getPayments);
 router.post("/vendor/gallery/upload", verifyToken, upload.array("files", 5), uploadGallery);
 router.post("/vendor/gallery/delete", verifyToken, deleteGallery);
 
