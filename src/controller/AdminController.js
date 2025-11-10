@@ -17,10 +17,11 @@ exports.Login = catchAsync(async (req, res) => {
                 401
             );
         }
-        const user = await User.findOne({ email: email , password : password
-
+        const user = await User.findOne({ email: email , password : password });
+        if(!user){
+            return validationErrorResponse( res, "Invalid email or password", 401);
+        }
             
-        });
         const token = jwt.sign(
             { id: user._id, role: user.role, email: user.email },
             process.env.JWT_SECRET_KEY,
