@@ -38,7 +38,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             opening_hours,
             weekly_off_day,
             business_register,
-            business_image,
+            // business_image,
             email
         } = req.body;
         // console.log("req.body", req.body)
@@ -84,7 +84,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             weekly_off_day,
             gst_number,
             business_register,
-            business_image
+            // business_image
         });
 
         const savedVendor = await vendor.save();
@@ -246,7 +246,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
             opening_hours,
             weekly_off_day,
             business_register,
-            business_image,
+            // business_image,
             email, avatar
         } = req.body;
         const userData = await User.findByIdAndUpdate({ _id: vendor }, { email, name, avatar })
@@ -274,13 +274,13 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
                 opening_hours,
                 weekly_off_day,
                 business_register,
-                business_image,
+                // business_image,
                 email
             },
             { new: true, runValidators: true }
         ).populate("user");
 
-        console.log("vendordata", vendordata)
+        // console.log("vendordata", vendordata)
         if (!vendordata) {
             return validationErrorResponse(res, "Vendor not found", 404);
         }
