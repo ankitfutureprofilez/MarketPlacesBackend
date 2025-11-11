@@ -677,7 +677,7 @@ exports.AddPayment = catchAsync(async (req, res) => {
 
 exports.EditCustomerPerson = catchAsync(async (req, res) => {
   try {
-    const { id } = req.user.id;
+    const  id  = req.user.id;
     const { name, email, phone, avatar, role = "customer", status = "active" } = req.body;
     const user = await User.findById(id);
     if (!user || user.deleted_at) {

@@ -38,7 +38,7 @@ exports.SendOtp = catchAsync(async (req, res) => {
 
 exports.Login = catchAsync(async (req, res) => {
   try {
-    console.log("req.body" ,req.body)
+    // console.log("req.body" ,req.body)
     const { phone, otp, role } = req.body;
     if (!phone || !otp || !role) {
       return validationErrorResponse(
