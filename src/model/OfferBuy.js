@@ -41,7 +41,11 @@ const OfferBuySchema = new mongoose.Schema(
         },
         description :{
             type: String
-        }
+        },
+        bill:{
+            type: String,
+            default: null,
+        },
     },
     { timestamps: true }
 );

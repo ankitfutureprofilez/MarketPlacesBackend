@@ -619,9 +619,34 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
       });
       console.log("record"  ,record)
     if (!record) {
-      return validationErrorResponse(res, " Briught Offer not found", 404);
+      return validationErrorResponse(res, " Brought Offer not found", 404);
     }
     return successResponse(res, "Brought Offer Detail fetched successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+
+  }
+});
+
+exports.RedeemedOffers = catchAsync(async (req, res) => {
+  try {
+    const id = req?.user?.id;
+    const record = await OfferBuy.find({ user: id, vendor_bill_status: true })
+      .populate("user")
+      .populate("offer")
+      .populate("vendor")
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [
+          { path: "flat" },
+          { path: "percentage" }
+        ],
+      });
+    if (!record) {
+      return validationErrorResponse(res, "Offers not found", 404);
+    }
+    return successResponse(res, "Brought offers fetched successfully", 200, record);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
 
@@ -691,7 +716,7 @@ exports.EditCustomerPerson = catchAsync(async (req, res) => {
     // if (phone) user.phone = phone;
     // console.log("user", user);
 
-    if (req.file) {
+    if (req.file && req.file.filename) {
       if (user.avatar) {
         try {
           await deleteUploadedFiles([user.avatar]); // pass as array of URLs
@@ -715,26 +740,75 @@ exports.EditCustomerPerson = catchAsync(async (req, res) => {
 
 exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
   try {
-    const { id } = req.params; 
+    const { id } = req.params;
     const { total_amount } = req.body;
 
     if (!id) {
       return validationErrorResponse(res, "Missing offer ID", 400);
     }
 
-    if (total_amount === undefined || total_amount === null) {
+    if (!total_amount && total_amount !== 0) {
       return validationErrorResponse(res, "Total amount is required", 400);
     }
 
-    const record = await OfferBuy.findByIdAndUpdate(
-      id,
-      { total_amount },
-      { new: true }
-    );
+    const record = await OfferBuy.findById(id)
+      .populate({
+        path: "offer",
+        populate: [
+          { path: "flat" },
+          { path: "percentage" }
+        ]
+      });
 
     if (!record) {
-      return validationErrorResponse(res, "Offer not found for this vendor", 404);
+      return validationErrorResponse(res, "No offer found", 404);
     }
+
+    // return successResponse(res, "Vendor amount updated successfully", 200, record);
+
+    let discount = 0, final = total_amount;
+
+    if (record?.offer?.percentage && record?.offer?.type === "percentage") {
+      const offerData = record.offer.percentage;
+
+      // ✅ Check minimum bill amount
+      if (total_amount < offerData.minBillAmount) {
+        return validationErrorResponse(
+          res,
+          `Minimum bill amount should be ₹${offerData.minBillAmount} to apply this offer.`,
+          400
+        );
+      }
+
+      // ✅ Calculate discount (bounded by maxDiscountCap)
+      discount = Math.min(
+        offerData.maxDiscountCap,
+        (offerData.discountPercentage * total_amount) / 100
+      );
+
+      final = total_amount - discount;
+    }
+    else if(record?.offer?.type === "flat"){
+      const offerData = record.offer.flat;
+        if (total_amount < offerData.minBillAmount) {
+          return validationErrorResponse(
+            res,
+            `Minimum bill amount should be ₹${offerData.minBillAmount} to apply this offer.`,
+            400
+          );
+        }
+        discount = offerData?.discountPercentage;
+        final = total_amount - discount;
+    }
+    else{
+      console.log("invalid offer type");
+    }
+
+    // Optionally update record fields if you want to persist
+    record.discount = discount;
+    record.total_amount = total_amount;
+    record.final_amount = final;
+    await record.save();
 
     return successResponse(res, "Vendor amount updated successfully", 200, record);
   } catch (error) {
@@ -743,6 +817,50 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
   }
 });
 
+exports.CustomerAddBill = catchAsync(async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return validationErrorResponse(res, "ID is required", 400);
+    }
+
+    const record = await OfferBuy.findById(id)
+    .populate({
+      path: "offer",
+      populate: [
+        { path: "flat" },
+        { path: "percentage" }
+      ]
+    });
+
+    if (!record) {
+      return validationErrorResponse(res, "No offer found", 404);
+    }
+
+    if (!req.file || !req.file.filename) {
+      return validationErrorResponse(res, "Bill file is required", 400);
+    }
+
+    if (record.bill) {
+      try {
+        await deleteUploadedFiles([record.bill]);
+      } catch (err) {
+        console.log("Failed to delete old bill:", err.message);
+      }
+    }
+
+    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    record.bill = fileUrl;
+
+    await record.save();
+
+    return successResponse(res, "Vendor amount updated successfully", 200, record);
+  } catch (error) {
+    console.error("Error updating amount:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
 
 exports.getVendorGallery = catchAsync(async (req, res) => {
     try {

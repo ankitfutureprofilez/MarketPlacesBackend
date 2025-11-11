@@ -12,6 +12,7 @@ const flatoffer = new mongoose.Schema(
             default: null,
             trim: true,
         },
+        // Ye percentage nhi fix amount hai flat table ke liye and maxDiscountCap useless hai iss mein
         discountPercentage: {
             type: Number,
             required: [true, "Discount percentage is required"],
