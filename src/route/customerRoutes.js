@@ -17,7 +17,7 @@ router.get("/customer/payment_get", verifyToken, PaymentGetByUser);
 router.post("/customer/add_payment",verifyToken, AddPayment);
 router.post("/customer/update",verifyToken, upload.single("avatar"), EditCustomerPerson);
 router.post("/customer/payment/update/:id", UpdateCustomerAmount);
-router.get("/customer/bill-add/:id",verifyToken, upload.single("bill"), CustomerAddBill);
+router.post("/customer/bill-add/:id",verifyToken, upload.single("bill"), CustomerAddBill);
 router.get("/customer/vendor-gallery/:id", getVendorGallery);
 
 module.exports = router;
