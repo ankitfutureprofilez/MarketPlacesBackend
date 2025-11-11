@@ -9,6 +9,7 @@ const { successResponse, errorResponse, validationErrorResponse } = require("../
 const categories = require("../model/categories.js");
 const Razorpay = require("razorpay");
 const Payment = require("../model/Payment.js");
+const deleteUploadedFiles = require("../utils/fileDeleter.js");
 
 exports.CustomerRegister = catchAsync(async (req, res) => {
   try {
@@ -677,22 +678,37 @@ exports.AddPayment = catchAsync(async (req, res) => {
 
 exports.EditCustomerPerson = catchAsync(async (req, res) => {
   try {
-    const  id  = req.user.id;
-    const { name, email, phone, avatar, role = "customer", status = "active" } = req.body;
+    const id = req.user.id;
+    const { name, email } = req.body;
+
     const user = await User.findById(id);
     if (!user || user.deleted_at) {
-      return validationErrorResponse(res, "customer not found.", 404);
+      return validationErrorResponse(res, "Customer not found.", 404);
     }
+
     if (name) user.name = name;
     if (email) user.email = email;
-    if (phone) user.phone = phone;
-    if (avatar) user.avatar = avatar;
-    if (role) user.role = role;
-    if (status) user.status = status;
+    // if (phone) user.phone = phone;
+    // console.log("user", user);
+
+    if (req.file) {
+      if (user.avatar) {
+        try {
+          await deleteUploadedFiles([user.avatar]); // pass as array of URLs
+        } catch (err) {
+          console.log("Failed to delete old avatar:", err.message);
+        }
+      }
+
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      user.avatar = fileUrl;
+    }
+
     const updatedUser = await user.save();
-    return successResponse(res, "customer updated successfully.", 200, updatedUser);
+
+    return successResponse(res, "Customer updated successfully.", 200, updatedUser);
   } catch (error) {
-    console.error("customer error:", error);
+    console.error("Customer update error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
