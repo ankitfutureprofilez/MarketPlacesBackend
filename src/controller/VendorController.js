@@ -346,7 +346,6 @@ exports.AddOffer = catchAsync(async (req, res) => {
             title,
             description,
             expiryDate,
-            image,
             discountPercentage,
             maxDiscountCap,
             minBillAmount,
@@ -354,6 +353,15 @@ exports.AddOffer = catchAsync(async (req, res) => {
             type
         } = req.body;
 
+        // ✅ Check if file is present
+        if (!req.file || !req.file.filename) {
+        return validationErrorResponse(res, "Image file is required", 400);
+        }
+
+        // ✅ Construct the public file URL (same pattern as CustomerAddBill)
+        const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+
+        // ✅ Create offer based on type
         let offerRecord;
 
         if (type === "flat") {
@@ -363,9 +371,10 @@ exports.AddOffer = catchAsync(async (req, res) => {
                 expiryDate,
                 amount, // flat amount
                 minBillAmount,
-                offer_image: image,
+                offer_image: fileUrl,
                 status: "active",
-                maxDiscountCap, discountPercentage
+                maxDiscountCap, 
+                discountPercentage
             });
             offerRecord = await newOffer.save();
         } else if (type === "percentage") {
@@ -377,7 +386,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
                 discountPercentage,
                 maxDiscountCap,
                 minBillAmount,
-                offer_image: image,
+                offer_image: fileUrl,
                 status: "active"
             });
             offerRecord = await newOffer.save();
@@ -489,67 +498,55 @@ exports.OfferDelete = catchAsync(async (req, res) => {
 
 // Edit Offer 
 exports.EditOffer = catchAsync(async (req, res) => {
-    try {
-        const Id = req.params.id;
-        console.log("Id", Id);
+  try {
+    const Id = req.params.id;
+    const {
+      title,
+      description,
+      expiryDate,
+      discountPercentage,
+      maxDiscountCap,
+      minBillAmount,
+      amount,
+    } = req.body;
 
-        const {
-            title,
-            description,
-            expiryDate,
-            image,
-            discountPercentage,
-            maxDiscountCap,
-            minBillAmount,
-            amount,
-        } = req.body;
-
-        const record = await Offer.findById(Id);
-        console.log("record", record);
-
-        if (!record) {
-            return errorResponse(res, "Offer not found", 404);
-        }
-
-        let offers;
-
-        if (record.type === "flat") {
-            offers = await FlatOffer.findByIdAndUpdate(
-                record.flat,
-                {
-                    title,
-                    description,
-                    expiryDate,
-                    image,
-                    discountPercentage,
-                    maxDiscountCap,
-                    minBillAmount,
-                    amount,
-                },
-                { new: true } // ✅ important: returns updated doc
-            );
-        } else {
-            offers = await PercentageOffer.findByIdAndUpdate(
-                record.percentage,
-                {
-                    title,
-                    description,
-                    expiryDate,
-                    image,
-                    discountPercentage,
-                    maxDiscountCap,
-                    minBillAmount,
-                    amount,
-                },
-                { new: true } // ✅ important: returns updated doc
-            );
-        }
-
-        console.log("updated offer", offers);
-        return successResponse(res, "Offer updated successfully", 200, offers);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+    const record = await Offer.findById(Id);
+    if (!record) {
+      return errorResponse(res, "Offer not found", 404);
     }
+
+    const updateData = {
+      title,
+      description,
+      expiryDate,
+      discountPercentage,
+      maxDiscountCap,
+      minBillAmount,
+      amount,
+    };
+
+    if (req.file && req.file.filename) {
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      updateData.offer_image = fileUrl;
+    }
+
+    let updatedOffer;
+    if (record.type === "flat") {
+      updatedOffer = await FlatOffer.findByIdAndUpdate(record.flat, updateData, {
+        new: true,
+      });
+    } else {
+      updatedOffer = await PercentageOffer.findByIdAndUpdate(
+        record.percentage,
+        updateData,
+        { new: true }
+      );
+    }
+
+    return successResponse(res, "Offer updated successfully", 200, updatedOffer);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 // Category Management
