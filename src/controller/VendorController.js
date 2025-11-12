@@ -583,28 +583,137 @@ exports.subcategory = catchAsync(async (req, res) => {
 });
 
 exports.Dashboard = catchAsync(async (req, res) => {
-    try {
-        const userId = req.user.id;
-        if (!userId) {
-            return validationErrorResponse(res, "Please provide id", 404);
-        }
-        console.log("userId", userId);
-        const Vendors = await Vendor.findOne({ user: userId })
-        const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage").limit(6);
-        return successResponse(res, "dashboard data fetched successfully", 200, {
-            stats: {
-                total_sales: 1500,
-                redeemed_offeres: 10,
-                pending_offers: 5,
-                total_customers: 200,
-            },
-            offers: record,
-            vendors: Vendors
-        });
-    } catch (error) {
-        console.log("error", error)
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const userId = req.user.id;
+    if (!userId) {
+      return validationErrorResponse(res, "Please provide id", 404);
     }
+
+    const Vendors = await Vendor.findOne({ user: userId });
+
+    const offerBuyStats = await OfferBuy.aggregate([
+      { $match: { vendor: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: null,
+          totalSales: { $sum: "$final_amount" },
+          users: { $addToSet: "$user" },
+          redeemedCount: {
+            $sum: { $cond: [{ $eq: ["$vendor_bill_status", true] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+
+    const statsData = offerBuyStats[0] || {
+      totalSales: 0,
+      users: [],
+      redeemedCount: 0,
+    };
+
+    const activeOffersCount = await Offer.countDocuments({
+      vendor: userId,
+      status: "active",
+    });
+
+    const now = new Date(); // current UTC time
+    const sevenDaysAgo = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - 6, // 6 days before today (total 7 days incl today)
+      0, 0, 0, 0
+    ));
+
+    const offersLast7Days = await OfferBuy.countDocuments({
+      vendor: userId,
+      createdAt: { $gte: sevenDaysAgo, $lte: now },
+    });
+
+    // ✅ Last 5 Purchases
+const lastFivePurchases = await OfferBuy.find({ vendor: userId })
+  .populate("user", "name email")
+  .populate({
+    path: "offer",
+    populate: [
+      { path: "flat" },
+      { path: "percentage" },
+    ],
+  })
+  .populate("payment_id", "amount status method")
+  .sort({ createdAt: -1 })
+  .limit(5);
+
+
+// ✅ Top 3 Offers (with flat & percentage populated)
+const topOffers = await OfferBuy.aggregate([
+  { $match: { vendor: new mongoose.Types.ObjectId(userId) } },
+  {
+    $group: {
+      _id: "$offer",
+      count: { $sum: 1 },
+    },
+  },
+  { $sort: { count: -1 } },
+  { $limit: 3 },
+  {
+    $lookup: {
+      from: "offers",
+      localField: "_id",
+      foreignField: "_id",
+      as: "offerDetails",
+    },
+  },
+  { $unwind: "$offerDetails" },
+  // Lookup for 'flat'
+  {
+    $lookup: {
+      from: "flats", // ⚠️ Collection name must match your model name in lowercase plural form
+      localField: "offerDetails.flat",
+      foreignField: "_id",
+      as: "offerDetails.flat",
+    },
+  },
+  // Lookup for 'percentage'
+  {
+    $lookup: {
+      from: "percentageoffers", // ⚠️ Collection name must match model: "PercentageOffer"
+      localField: "offerDetails.percentage",
+      foreignField: "_id",
+      as: "offerDetails.percentage",
+    },
+  },
+  {
+    $addFields: {
+      "offerDetails.flat": { $arrayElemAt: ["$offerDetails.flat", 0] },
+      "offerDetails.percentage": { $arrayElemAt: ["$offerDetails.percentage", 0] },
+    },
+  },
+  {
+    $project: {
+      _id: 0,
+      offer: "$offerDetails",
+      title: "$offerDetails.title",
+      count: 1,
+    },
+  },
+]);
+
+    return successResponse(res, "Dashboard data fetched successfully", 200, {
+      stats: {
+        total_sales: statsData.totalSales || 0,
+        redeemed_offeres: statsData.redeemedCount || 0,
+        pending_offers: activeOffersCount || 0,
+        total_customers: statsData.users.length || 0,
+        last_7_days_purchases: offersLast7Days || 0,
+      },
+      vendors: Vendors,
+      last_five_purchases: lastFivePurchases,
+      top_offers: topOffers,
+    });
+  } catch (error) {
+    console.log("error", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.AdminSubcaterites = catchAsync(async (req, res) => {
