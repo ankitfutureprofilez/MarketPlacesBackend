@@ -631,6 +631,13 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
 exports.RedeemedOffers = catchAsync(async (req, res) => {
   try {
     const id = req?.user?.id;
+    const { page = 1, limit = 20 } = req.query;
+
+    if (!id) {
+      return validationErrorResponse(res, "User ID is required", 400);
+    }
+    const skip = (page - 1) * limit;
+
     const record = await OfferBuy.find({ user: id, vendor_bill_status: true })
       .populate("user")
       .populate("offer")
@@ -642,11 +649,28 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
           { path: "flat" },
           { path: "percentage" }
         ],
-      });
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    // ✅ Count total records
+    const total_records = await OfferBuy.countDocuments({ user: id, vendor_bill_status: true });
+    const total_pages = Math.ceil(total_records / limit);
+
     if (!record) {
       return validationErrorResponse(res, "Offers not found", 404);
     }
-    return successResponse(res, "Brought offers fetched successfully", 200, record);
+
+    return successResponse(res, "Brought offers fetched successfully", 200, {
+      redeemed_offers: record,
+      total_records,
+      current_page: Number(page),
+      per_page: Number(limit),
+      total_pages,
+      nextPage: page < total_pages ? Number(page) + 1 : null,
+      previousPage: page > 1 ? Number(page) - 1 : null,
+    });
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
 
