@@ -588,6 +588,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
 
     const Vendors = await Vendor.findOne({ user: userId });
 
+    // ✅ Aggregation for overall stats
     const offerBuyStats = await OfferBuy.aggregate([
       { $match: { vendor: new mongoose.Types.ObjectId(userId) } },
       {
@@ -613,96 +614,117 @@ exports.Dashboard = catchAsync(async (req, res) => {
       status: "active",
     });
 
-    const now = new Date(); // current UTC time
-    const sevenDaysAgo = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() - 6, // 6 days before today (total 7 days incl today)
-      0, 0, 0, 0
-    ));
+    const now = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 6);
 
-    const offersLast7Days = await OfferBuy.countDocuments({
-      vendor: userId,
-      createdAt: { $gte: sevenDaysAgo, $lte: now },
-    });
+    // ✅ Fetch offer sales grouped by day (last 7 days)
+    const dailySales = await OfferBuy.aggregate([
+      {
+        $match: {
+          vendor: new mongoose.Types.ObjectId(userId),
+          createdAt: { $gte: sevenDaysAgo, $lte: now },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          },
+          offers_sold: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id": 1 } },
+    ]);
+
+    // ✅ Ensure all 7 days are present even if 0 sales
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dayKey = d.toISOString().split("T")[0];
+      const match = dailySales.find((x) => x._id === dayKey);
+      last7Days.push({
+        date: dayKey,
+        offers_sold: match ? match.offers_sold : 0,
+      });
+    }
 
     // ✅ Last 5 Purchases
-const lastFivePurchases = await OfferBuy.find({ vendor: userId })
-  .populate("user", "name email")
-  .populate({
-    path: "offer",
-    populate: [
-      { path: "flat" },
-      { path: "percentage" },
-    ],
-  })
-  .populate("payment_id", "amount status method")
-  .sort({ createdAt: -1 })
-  .limit(5);
+    const lastFivePurchases = await OfferBuy.find({ vendor: userId })
+      .populate("user", "name email")
+      .populate({
+        path: "offer",
+        populate: [
+          { path: "flat" },
+          { path: "percentage" },
+        ],
+      })
+      .populate("payment_id", "amount status method")
+      .sort({ createdAt: -1 })
+      .limit(5);
 
+    // ✅ Top 3 Offers (with populated data)
+    const topOffers = await OfferBuy.aggregate([
+      { $match: { vendor: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: "$offer",
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 3 },
+      {
+        $lookup: {
+          from: "offers",
+          localField: "_id",
+          foreignField: "_id",
+          as: "offerDetails",
+        },
+      },
+      { $unwind: "$offerDetails" },
+      {
+        $lookup: {
+          from: "flats",
+          localField: "offerDetails.flat",
+          foreignField: "_id",
+          as: "offerDetails.flat",
+        },
+      },
+      {
+        $lookup: {
+          from: "percentageoffers",
+          localField: "offerDetails.percentage",
+          foreignField: "_id",
+          as: "offerDetails.percentage",
+        },
+      },
+      {
+        $addFields: {
+          "offerDetails.flat": { $arrayElemAt: ["$offerDetails.flat", 0] },
+          "offerDetails.percentage": { $arrayElemAt: ["$offerDetails.percentage", 0] },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          offer: "$offerDetails",
+          title: "$offerDetails.title",
+          count: 1,
+        },
+      },
+    ]);
 
-// ✅ Top 3 Offers (with flat & percentage populated)
-const topOffers = await OfferBuy.aggregate([
-  { $match: { vendor: new mongoose.Types.ObjectId(userId) } },
-  {
-    $group: {
-      _id: "$offer",
-      count: { $sum: 1 },
-    },
-  },
-  { $sort: { count: -1 } },
-  { $limit: 3 },
-  {
-    $lookup: {
-      from: "offers",
-      localField: "_id",
-      foreignField: "_id",
-      as: "offerDetails",
-    },
-  },
-  { $unwind: "$offerDetails" },
-  // Lookup for 'flat'
-  {
-    $lookup: {
-      from: "flats", // ⚠️ Collection name must match your model name in lowercase plural form
-      localField: "offerDetails.flat",
-      foreignField: "_id",
-      as: "offerDetails.flat",
-    },
-  },
-  // Lookup for 'percentage'
-  {
-    $lookup: {
-      from: "percentageoffers", // ⚠️ Collection name must match model: "PercentageOffer"
-      localField: "offerDetails.percentage",
-      foreignField: "_id",
-      as: "offerDetails.percentage",
-    },
-  },
-  {
-    $addFields: {
-      "offerDetails.flat": { $arrayElemAt: ["$offerDetails.flat", 0] },
-      "offerDetails.percentage": { $arrayElemAt: ["$offerDetails.percentage", 0] },
-    },
-  },
-  {
-    $project: {
-      _id: 0,
-      offer: "$offerDetails",
-      title: "$offerDetails.title",
-      count: 1,
-    },
-  },
-]);
-
+    // ✅ Final Response
     return successResponse(res, "Dashboard data fetched successfully", 200, {
       stats: {
         total_sales: statsData.totalSales || 0,
         redeemed_offeres: statsData.redeemedCount || 0,
         pending_offers: activeOffersCount || 0,
         total_customers: statsData.users.length || 0,
-        last_7_days_purchases: offersLast7Days || 0,
       },
+      last_7_days_sales: last7Days, // 👈 this replaces the number-only stat
       vendors: Vendors,
       last_five_purchases: lastFivePurchases,
       top_offers: topOffers,
