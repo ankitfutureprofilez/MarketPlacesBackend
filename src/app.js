@@ -3,6 +3,7 @@ dotenv.config();
 require("./monogconfig"); // check spelling
 require("./Cron")
 const path = require("path");
+const logger = require("./utils/Logger");
 
 const express = require("express");
 const app = express();
@@ -24,59 +25,91 @@ const Payment = require("./model/Payment");
 const OfferBuy = require("./model/OfferBuy");
 //Payment Webhook
 
-console.log("Webhook Payment")
+// console.log("Webhook Payment")
 app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), async (req, res) => {
   try {
     console.log("🔥 Webhook triggered");
+    logger.info("🔥 Webhook triggered");
+
     const secret = "my_super_secret_key_123";
     const body = req.body.toString("utf-8");
     const signature = req.headers["x-razorpay-signature"];
+
     console.log("Received Signature:", signature);
+    logger.info("Received Signature:", signature);
+
     const expectedSignature = crypto.createHmac("sha256", secret).update(body).digest("hex");
+
     console.log("Expected Signature:", expectedSignature);
+    logger.info("Expected Signature:", expectedSignature);
 
     if (signature === expectedSignature) {
       console.log("✅ Signature matched");
+      logger.info("✅ Signature matched");
+
       try {
         console.log("Raw body:", body);
+        logger.info("Raw body:", body);
+
         const payload = JSON.parse(body);
         console.log("Parsed payload:", payload);
+        logger.info("Parsed payload:", payload);
+
         const paymentEntity = payload.payload.payment?.entity;
         console.log("Payment entity extracted:", paymentEntity);
+        logger.info("Payment entity extracted:", paymentEntity);
+
         const orderId = paymentEntity.order_id;
         console.log("Order ID:", orderId || "Standalone payment");
+        logger.info("Order ID:", orderId || "Standalone payment");
 
         const paymentId = paymentEntity.id;
         console.log("🔍 Payment ID:", paymentId);
+        logger.info("🔍 Payment ID:", paymentId);
+
         const existingPayment = await Payment.findOne({ payment_id: paymentId });
         if (existingPayment) {
           console.log("⚠️ Duplicate webhook ignored for:", paymentId);
+          logger.info("⚠️ Duplicate webhook ignored for:", paymentId);
           return res.status(200).json({ status: "duplicate" });
         }
+
         const isStandalonePayment = !paymentEntity.order_id;
         console.log("🔍 Is Standalone Payment:", isStandalonePayment);
+        logger.info("🔍 Is Standalone Payment:", isStandalonePayment);
+
         let notes = {};
         if (isStandalonePayment) {
           console.log("🔄 Standalone payment detected, using default values");
+          logger.info("🔄 Standalone payment detected, using default values");
           notes = {
             offer_id: "68edff002c5753929286bfac",
             userid: "68edfb9be37a34d7bc1e2412",
             vendor_id: "68edfeb22c5753929286bfa1"
           };
         } else {
-          // ✅ Order-based payment - notes extract karen
           notes = paymentEntity.notes && Object.keys(paymentEntity.notes).length > 0
             ? paymentEntity.notes
             : {};
         }
+
         console.log("📝 Notes:", notes);
+        logger.info("📝 Notes:", notes);
+
         if (!paymentEntity) {
           console.log("⚠️ No payment entity found, ignoring webhook");
+          logger.info("⚠️ No payment entity found, ignoring webhook");
           return res.status(200).json({ status: "ignored" });
         }
 
-        if (payload.event === "payment.captured" || payload.event === "order.paid" || payload.event === "payment.authorized") {
+        if (
+          payload.event === "payment.captured" ||
+          payload.event === "order.paid" ||
+          payload.event === "payment.authorized"
+        ) {
           console.log("💰 Payment captured or order paid event");
+          logger.info("💰 Payment captured or order paid event");
+
           const records = new Payment({
             amount: paymentEntity.amount,
             currency: paymentEntity.currency,
@@ -90,10 +123,14 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
             payment_method: paymentEntity.method,
           });
 
+          console.log("payment record", records);
+          logger.info("payment record", records);
 
-          console.log("payment record", records)
           const data = await records.save();
+
           console.log("✅ Payment saved:", data);
+          logger.info("✅ Payment saved:", data);
+
           const record = new OfferBuy({
             user: notes.userid,
             offer: notes.offer_id,
@@ -103,13 +140,19 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
             status: "active",
             final_amount: 1500
           });
-          console.log("record offer", record)
+
+          console.log("record offer", record);
+          logger.info("record offer", record);
+
           const offerData = await record.save();
 
           console.log("✅ OfferBuy saved:", offerData);
+          logger.info("✅ OfferBuy saved:", offerData);
 
         } else if (payload.event === "payment.failed") {
           console.log("❌ Payment failed event");
+          logger.info("❌ Payment failed event");
+
           const newPayment = new Payment({
             order_id: orderId || "standalone",
             amount: paymentEntity.amount,
@@ -119,26 +162,33 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
             email: paymentEntity.email,
             contact: paymentEntity.contact,
             payment_method: paymentEntity.method,
-            // notes may be empty array if standalone
             offer_id: notes.offer_id || null,
             user: notes.userid || null,
             vendor_id: notes.vendor_id || null
           });
+
           const data = await newPayment.save();
           console.log("✅ Payment (failed) saved:", data);
+          logger.info("✅ Payment (failed) saved:", data);
         }
+
         console.log("🎉 Webhook processing complete");
+        logger.info("🎉 Webhook processing complete");
+
         res.status(200).json({ status: "ok" });
       } catch (error) {
         console.error("❌ Error processing webhook:", error);
+        logger.error("❌ Error processing webhook:", error);
         res.status(500).send("Internal Server Error");
       }
     } else {
       console.log("❌ Invalid signature, webhook ignored");
+      logger.warn("❌ Invalid signature, webhook ignored");
       res.status(400).send("Invalid signature");
     }
   } catch (error) {
-    console.log("errro", error)
+    console.log("errro", error);
+    logger.error("errro", error);
   }
 });
 
