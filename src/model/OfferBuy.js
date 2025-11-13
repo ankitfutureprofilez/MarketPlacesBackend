@@ -20,15 +20,15 @@ const OfferBuySchema = new mongoose.Schema(
         },
         discount: {
             type: Number,
-            default: 0
+            default: null
         },
         total_amount: {
             type: Number,
-            default: 0
+            default: null
         },
         final_amount: {
             type: Number,
-            default: 0
+            default: null
         },
         status:{
             type: String,

@@ -13,98 +13,104 @@ const Payment = require("../model/Payment.js");
 const { default: mongoose } = require("mongoose");
 const deleteUploadedFiles = require("../utils/fileDeleter.js");
 
-// Vendor Register
 exports.VendorRegister = catchAsync(async (req, res) => {
-    try {
-        // console.log("req.", req.body)
-        const {
-            business_name,
-            city,
-            category,
-            subcategory,
-            state,
-            pincode,
-            area,
-            name,
-            phone,
-            lat, long,
-            address,
-            aadhaar_front,
-            aadhaar_back,
-            pan_card_image,
-            gst_certificate,
-            gst_number,
-            business_logo,
-            opening_hours,
-            weekly_off_day,
-            business_register,
-            // business_image,
-            email
-        } = req.body;
-        // console.log("req.body", req.body)
-        // if (!name || !phone) {
-        //     return errorResponse(res, "Name and phone are required", 400);
-        // }
+  try {
+    const {
+      business_name,
+      city,
+      category,
+      subcategory,
+      state,
+      pincode,
+      area,
+      name,
+      phone,
+      lat,
+      long,
+      address,
+      gst_number,
+      opening_hours,
+      weekly_off_day,
+      business_register,
+      email
+    } = req.body;
 
-        // if (!business_name || !city || !category || !subcategory || !state || !pincode || !area) {
-        //     return errorResponse(res, "All vendor details are required", 400);
-        // }
-
-
-        const Users = await User.findOne({ phone: phone });
-
-        if (Users) {
-            return errorResponse(res, "Phone number already exists", 400,);
-        }
-        const userdata = new User({ name, phone, role: "vendor", email });
-        const savedUser = await userdata.save();
-        if (!savedUser) {
-            return errorResponse(res, "Failed to create user", 500);
-        }
-        const vendor = new Vendor({
-            business_name,
-            city,
-            category,
-            subcategory,
-            state,
-            pincode,
-            email,
-            area,
-            user: savedUser._id,
-            added_by: null,
-            address,
-            lat,
-            long,
-            aadhaar_front,
-            aadhaar_back,
-            pan_card_image,
-            gst_certificate,
-            business_logo,
-            opening_hours,
-            weekly_off_day,
-            gst_number,
-            business_register,
-            // business_image
-        });
-
-        const savedVendor = await vendor.save();
-
-        if (!savedVendor) {
-            return errorResponse(res, "Failed to create vendor", 500,);
-        }
-        const token = jwt.sign(
-            { id: savedUser._id, role: savedUser.role, email: savedUser.email },
-            process.env.JWT_SECRET_KEY,
-            { expiresIn: process.env.JWT_EXPIRES_IN || "365d" }
-        );
-        return successResponse(res, "Vendor created successfully", 201, {
-            user: savedVendor,
-            token: token,
-            role: savedUser?.role,
-        }); // 201 = Created
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+    // 🔹 Check if user already exists
+    const existingUser = await User.findOne({ phone });
+    if (existingUser) {
+      return errorResponse(res, "Phone number already exists", 400);
     }
+
+    // 🔹 Uploaded files handling
+    const uploadedFiles = req.files || {};
+    const makeFileUrl = (fieldName) => {
+      if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0) return null;
+      const file = uploadedFiles[fieldName][0];
+      return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+    };
+
+    // 🔹 Create user first
+    const user = new User({ name, phone, role: "vendor", email });
+    const savedUser = await user.save();
+    if (!savedUser) {
+      return errorResponse(res, "Failed to create user", 500);
+    }
+
+    // 🔹 Safely cast category/subcategory to ObjectId (if valid)
+    const safeObjectId = (val) => {
+      if (!val) return null;
+      const trimmed = val.trim();
+      return mongoose.isValidObjectId(trimmed) ? new mongoose.Types.ObjectId(trimmed) : null;
+    };
+
+    // 🔹 Create vendor with file URLs
+    const vendor = new Vendor({
+      business_name,
+      city,
+      category: safeObjectId(category),
+      subcategory: safeObjectId(subcategory),
+      state,
+      pincode,
+      email,
+      area,
+      user: savedUser._id,
+      added_by: null,
+      address,
+      lat,
+      long,
+      gst_number,
+      opening_hours,
+      weekly_off_day,
+      business_register,
+      aadhaar_front: makeFileUrl("aadhaar_front"),
+      aadhaar_back: makeFileUrl("aadhaar_back"),
+      pan_card_image: makeFileUrl("pan_card_image"),
+      gst_certificate: makeFileUrl("gst_certificate"),
+      business_logo: makeFileUrl("business_logo"),
+    });
+
+    const savedVendor = await vendor.save();
+    if (!savedVendor) {
+      return errorResponse(res, "Failed to create vendor", 500);
+    }
+
+    // 🔹 Generate JWT token
+    const token = jwt.sign(
+      { id: savedUser._id, role: savedUser.role, email: savedUser.email },
+      process.env.JWT_SECRET_KEY,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "365d" }
+    );
+
+    return successResponse(res, "Vendor created successfully", 201, {
+      user: savedVendor,
+      token,
+      role: savedUser.role,
+    });
+
+  } catch (error) {
+    console.error("Vendor registration failed:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.VendorGetId = catchAsync(async (req, res) => {
@@ -721,7 +727,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
       stats: {
         total_sales: statsData.totalSales || 0,
         redeemed_offeres: statsData.redeemedCount || 0,
-        pending_offers: activeOffersCount || 0,
+        active_offers: activeOffersCount || 0,
         total_customers: statsData.users.length || 0,
       },
       last_7_days_sales: last7Days, // 👈 this replaces the number-only stat
@@ -824,72 +830,14 @@ exports.VendorOrder = catchAsync(async (req, res) => {
             }
 
             offerStats[offerId].total_revenue += purchase.final_amount || 0;
+            // offerStats[offerId].total_revenue += purchase.payment_id?.amount || 0;
             offerStats[offerId].total_customers += 1;
             total_customers += 1;
-
-            // const offerBuyData = {
-            //     id: purchase._id,
-            //     total_amount: purchase.total_amount || 0,
-            //     final_amount: purchase.final_amount || 0,
-            //     status: purchase.status || "active",
-            //     vendor_bill_status: purchase.vendor_bill_status || false,
-            // };
-
-            // offerStats[offerId].purchased_customers.push({
-            //     purchase_id: purchase._id,
-            //     customer: {
-            //         id: purchase.user?._id,
-            //         name: purchase.user?.name || "Unknown",
-            //         email: purchase.user?.email || "N/A",
-            //         phone: purchase.user?.phone || "N/A",
-            //     },
-            //     payment: {
-            //         id: purchase.payment_id?._id,
-            //         payment_id: purchase.payment_id?.payment_id || "",
-            //         method: purchase.payment_id?.payment_method || "",
-            //         amount: purchase.payment_id?.amount || 0,
-            //         currency: purchase.payment_id?.currency || "INR",
-            //         status: purchase.payment_id?.payment_status || "unknown",
-            //         date:
-            //             purchase.payment_id?.payment_date ||
-            //             purchase.createdAt ||
-            //             new Date(),
-            //     },
-            //     offerBuy:
-            //         purchase.user &&
-            //             purchase.vendor &&
-            //             purchase.offer &&
-            //             purchase.payment_id
-            //             ? offerBuyData
-            //             : null,
-            // });
         });
 
         const allOffers = Object.values(offerStats);
 
         const total_offers = allOffers.length;
-        // const totalPages = Math.ceil(total_offers / limit);
-        // const paginatedOffers = allOffers.slice(skip, skip + limit);
-
-        // paginatedOffers.forEach((offer) => {
-        //     const total_customer_records = offer.purchased_customers.length;
-        //     const total_customer_pages = Math.ceil(total_customer_records / customer_limit);
-
-        //     const paginated_customers = offer.purchased_customers.slice(
-        //         customer_skip,
-        //         customer_skip + customer_limit
-        //     );
-
-        //     offer.purchased_customers = {
-        //         total_records: total_customer_records,
-        //         current_page: customer_page,
-        //         per_page: customer_limit,
-        //         total_pages: total_customer_pages,
-        //         nextPage: customer_page < total_customer_pages ? customer_page + 1 : null,
-        //         previousPage: customer_page > 1 ? customer_page - 1 : null,
-        //         data: paginated_customers,
-        //     };
-        // });
 
         return successResponse(res, "Vendor purchase history fetched successfully", 200, {
             total_offers,
