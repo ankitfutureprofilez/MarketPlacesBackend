@@ -58,22 +58,29 @@ exports.Login = catchAsync(async (req, res) => {
 exports.UserGet = catchAsync(async (req, res) => {
   try {
     const { search = "" } = req.query;
-
-    console.log("req.query", req.query);
     let query = { role: "customer" };
-
     if (search && search.trim() !== "") {
       const regex = { $regex: search.trim(), $options: "i" };
       query.$or = [{ name: regex }, { email: regex }];
     }
-
-    const record = await User.find(query);
-
-    if (!record || record.length === 0) {
+    const customers = await User.find(query);
+    if (!customers || customers.length === 0) {
       return validationErrorResponse(res, "No Users found", 404);
     }
-
-    return successResponse(res, "Customers fetched successfully", 200, record);
+    const customerIds = customers.map((c) => c._id);
+    const purchaseCounts = await OfferBuy.aggregate([
+      { $match: { user: { $in: customerIds } } },
+      { $group: { _id: "$user", total: { $sum: 1 } } }
+    ]);
+    const countMap = {};
+    purchaseCounts.forEach((p) => {
+      countMap[p._id.toString()] = p.total;
+    });
+    const finalData = customers.map((cust) => ({
+      ...cust.toObject(),
+      purchases_count: countMap[cust._id.toString()] || 0
+    }));
+    return successResponse(res, "Customers fetched successfully", 200, finalData);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -193,7 +200,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       lat,
       long,
       address,
-      GST_no,
+      gst_number,
       opening_hours,
       weekly_off_day,
       business_register,
@@ -267,7 +274,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       lat,
       long,
       address,
-      gst_number: GST_no,
+      gst_number,
       opening_hours,
       weekly_off_day,
       business_register,
@@ -399,31 +406,53 @@ exports.adminGet = catchAsync(async (req, res) => {
 exports.VendorGetId = catchAsync(async (req, res) => {
   try {
     const id = req.params.id;
-    console.log("id", id);
+
     if (!id) {
       return errorResponse(res, "Vendor ID is required", 400);
     }
-    const record = await Vendor.findById({
-      _id: id,
-    })
+
+    // Fetch vendor details
+    const record = await Vendor.findById(id)
       .populate("user")
       .populate("category")
       .populate("subcategory");
+
     if (!record) {
       return validationErrorResponse(res, "Vendor not found", 404);
     }
-    const vendorid = record.user._id;
-    const offer = await Offer.find({ vendor: vendorid })
+
+    const vendorId = record.user._id;
+
+    const totalOffers = await Offer.countDocuments({ vendor: vendorId, status: "active" });
+
+    const vendorBillsTrue = await OfferBuy.countDocuments({
+      vendor: vendorId,
+      vendor_bill_status: true
+    });
+
+    const vendorBillsFalse = await OfferBuy.countDocuments({
+      vendor: vendorId,
+      vendor_bill_status: false
+    });
+
+    const uniqueUsers = await OfferBuy.distinct("user", { vendor: vendorId });
+    const totalUniqueUsers = uniqueUsers.length;
+
+    const offerList = await Offer.find({ vendor: vendorId })
       .populate("flat")
       .populate("percentage");
+
     return successResponse(res, "Vendor details fetched successfully", 200, {
       record,
-      offer,
-      coupon: 25,
-      redeem: 23,
-      purchased: 25,
-      pending: 55,
+      offer: offerList,
+      stats: {
+        total_offers: totalOffers,
+        vendor_bill_true: vendorBillsTrue,
+        vendor_bill_false: vendorBillsFalse,
+        unique_customers: totalUniqueUsers
+      }
     });
+
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -676,20 +705,30 @@ exports.EditAdmin = catchAsync(async (req, res) => {
   try {
     console.log(req.user);
     const id = req.user.id;
-    console.log("id", id);
-    const { name, email, phone, avatar, role, status } = req.body;
+    // console.log("id", id);
+    const { name, email, phone, role, status } = req.body;
 
     const user = await User.findById(id);
-    if (!user || user.deleted_at) {
-      return validationErrorResponse(res, "Admin  Person not found.", 404);
-    }
 
     if (name) user.name = name;
     if (email) user.email = email;
     if (phone) user.phone = phone;
-    if (avatar) user.avatar = avatar;
+    // if (avatar) user.avatar = avatar;
     if (role) user.role = role;
     if (status) user.status = status;
+
+    if (req.file && req.file.filename) {
+      if (user.avatar) {
+        try {
+          await deleteUploadedFiles([user.avatar]); // pass as array of URLs
+        } catch (err) {
+          console.log("Failed to delete old avatar:", err.message);
+        }
+      }
+
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      user.avatar = fileUrl;
+    }
 
     const updatedUser = await user.save();
 

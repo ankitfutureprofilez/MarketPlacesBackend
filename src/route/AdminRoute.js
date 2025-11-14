@@ -31,7 +31,7 @@ router.get("/admin/vendor_details/:id", VendorGetId);
 router.get("/admin/dashboard", AdminDashboard);
 router.get("/admin/payment_get", PaymentGet);
 router.post("/admin/assign-staff", AssignStaff);
-router.post("/admin/edit",verifyToken , EditAdmin);
+router.post("/admin/edit",verifyToken, upload.single("avatar"), EditAdmin);
 router.post("/admin/reset/password", resetpassword);
 
 
