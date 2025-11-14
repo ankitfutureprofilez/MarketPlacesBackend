@@ -10,6 +10,7 @@ const {
   validationErrorResponse,
 } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
+const deleteUploadedFiles = require("../utils/fileDeleter.js");
 
 exports.Login = catchAsync(async (req, res) => {
   try {
@@ -511,7 +512,7 @@ exports.AssignStaff = catchAsync(async (req, res) => {
 exports.AddSalesPersons = catchAsync(async (req, res) => {
   try {
     console.log("req.body", req.body);
-    const { phone, otp, role, name, email, avatar } = req.body;
+    const { phone, otp, role, name, email } = req.body;
     // Validate required fields
     if (!phone || !otp || !name || !email) {
       return validationErrorResponse(
@@ -537,6 +538,14 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
         200,
         { role: role }
       );
+    }
+    if (!req.file) {
+      return errorResponse(res, "Image is required", 400);
+    }
+    let avatar;
+    if (req.file && req.file.filename) {
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      avatar = fileUrl;
     }
 
     // Create new Sales Person
@@ -573,19 +582,31 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
 exports.EditSalesPerson = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, avatar, role, status } = req.body;
+    const { name, email, phone, role, status } = req.body;
 
     const user = await User.findById(id);
-    if (!user || user.deleted_at) {
-      return validationErrorResponse(res, "Sales Person not found.", 404);
-    }
+    // if (!user || user.deleted_at) {
+    //   return validationErrorResponse(res, "Sales Person not found.", 404);
+    // }
 
     if (name) user.name = name;
     if (email) user.email = email;
     if (phone) user.phone = phone;
-    if (avatar) user.avatar = avatar;
     if (role) user.role = role;
     if (status) user.status = status;
+
+    if (req.file && req.file.filename) {
+      if (user.avatar) {
+        try {
+          await deleteUploadedFiles([user.avatar]); // pass as array of URLs
+        } catch (err) {
+          console.log("Failed to delete old avatar:", err.message);
+        }
+      }
+
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      user.avatar = fileUrl;
+    }
 
     const updatedUser = await user.save();
 
@@ -614,11 +635,11 @@ exports.DeleteSalesPerson = catchAsync(async (req, res) => {
     if (user.deleted_at) {
       user.deleted_at = null; // undelete (restore)
       await user.save();
-      return successResponse(res, "Person restored successfully.", 200);
+      return successResponse(res, "Person blocked successfully.", 200);
     } else {
       user.deleted_at = new Date(); // soft delete
       await user.save();
-      return successResponse(res, "Person deleted successfully.", 200);
+      return successResponse(res, "Person unblocked successfully.", 200);
     }
   } catch (error) {
     console.error("DeleteSalesPerson error:", error);
