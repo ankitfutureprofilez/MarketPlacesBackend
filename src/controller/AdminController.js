@@ -10,6 +10,7 @@ const {
   validationErrorResponse,
 } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
+const mongoose = require('mongoose');
 const deleteUploadedFiles = require("../utils/fileDeleter.js");
 
 exports.Login = catchAsync(async (req, res) => {
@@ -92,12 +93,28 @@ exports.SalesGet = catchAsync(async (req, res) => {
 
     const record = await User.find(query);
 
-    console.log("record", record);
+    // console.log("record", record);
     if (!record || record.length === 0) {
       return validationErrorResponse(res, "No Users found", 404);
     }
 
     return successResponse(res, "Customers fetched successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.SalesList = catchAsync(async (req, res) => {
+  try {
+    const query = {
+      role: "sales",
+      $or: [{ deleted_at: null }, { deleted_at: { $exists: false } }],
+    };
+
+    const record = await User.find(query)
+      .sort({ createdAt: -1 });
+
+    return successResponse(res, "Sales team fetched successfully", 200, record);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -160,13 +177,13 @@ exports.AdminVendorGet = catchAsync(async (req, res) => {
 
 exports.VendorRegister = catchAsync(async (req, res) => {
   try {
+    // console.log("req.body", req.body);
     const adminid = req.user.id;
 
-    // ✅ Correct spelling for fields
-    const {
+    let {
       business_name,
       city,
-      categroy, // 🧠 matches request key spelling
+      categroy,   // original spelling maintained
       subcategory,
       state,
       pincode,
@@ -176,59 +193,72 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       lat,
       long,
       address,
-      aadhaar_front,
-      aadhaar_back,
-      pan_card_image,
-      gst_certificate,
       GST_no,
-      business_logo,
       opening_hours,
       weekly_off_day,
       business_register,
-      business_image,
       email,
       landmark,
     } = req.body;
 
-    // ✅ Step 1: Basic required field validation
+    // =============== VALIDATION ===============
     if (!name || !phone)
       return errorResponse(res, "Name and phone are required", 400);
 
-    if (
-      !business_name ||
-      !city ||
-      !categroy || // corrected field
-      !subcategory ||
-      !state ||
-      !pincode ||
-      !area
-    ) {
+    if (!business_name || !city || !categroy || !subcategory || !state || !pincode || !area) {
       return errorResponse(res, "All vendor details are required", 400);
     }
+    // console.log("Hello");
 
-    // ✅ Step 2: Phone uniqueness check
     const existingUser = await User.findOne({ phone });
     if (existingUser) {
       return errorResponse(res, "Phone number already exists", 400);
     }
 
-    // ✅ Step 3: Create User
-    const userdata = new User({ name, phone, role: "vendor" });
-    const savedUser = await userdata.save();
+    // =============== CREATE USER ===============
+    const user = new User({
+      name,
+      phone,
+      role: "vendor",
+      email,
+    });
 
+    const savedUser = await user.save();
     if (!savedUser) return errorResponse(res, "Failed to create user", 500);
 
-    // ✅ Step 4: Validate Opening Hours object (optional strict check)
+    // =============== FILE HANDLING ===============
+    const uploadedFiles = req.files || {};
+
+    const makeFileUrl = (field) => {
+      if (!uploadedFiles[field] || uploadedFiles[field].length === 0) return null;
+      const file = uploadedFiles[field][0];
+      return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+    };
+
+    // =============== VALID opening_hours TYPE ===============
+    if(opening_hours){
+      opening_hours= JSON.parse(opening_hours);
+    }
     if (opening_hours && typeof opening_hours !== "object") {
       return errorResponse(res, "Opening hours must be a valid object", 400);
     }
 
-    // ✅ Step 5: Create Vendor record
+    // =============== CONVERT CATEGORY IDs SAFELY ===============
+    const safeObjectId = (val) => {
+      if (!val) return null;
+      const trimmed = val.trim();
+      return mongoose.isValidObjectId(trimmed)
+        ? new mongoose.Types.ObjectId(trimmed)
+        : null;
+    };
+
+    // =============== CREATE VENDOR ===============
     const vendor = new Vendor({
       user: savedUser._id,
       business_name,
       city,
-      subcategory,
+      category: safeObjectId(categroy),
+      subcategory: safeObjectId(subcategory),
       state,
       pincode,
       area,
@@ -237,32 +267,29 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       lat,
       long,
       address,
-      aadhaar_front,
-      aadhaar_back,
-      pan_card_image,
-      gst_certificate,
-      gst_number: GST_no, // renamed correctly
-      business_logo,
+      gst_number: GST_no,
       opening_hours,
       weekly_off_day,
       business_register,
-      business_image,
       email,
       landmark,
       added_by: adminid,
-      category: categroy, // 🧠 Correct category field now saved properly
+
+      // FILES ↓↓↓ ONLY THESE
+      aadhaar_front: makeFileUrl("aadhaar_front"),
+      aadhaar_back: makeFileUrl("aadhaar_back"),
+      pan_card_image: makeFileUrl("pan_card_image"),
+      gst_certificate: makeFileUrl("gst_certificate"),
+      business_logo: makeFileUrl("business_logo"),
     });
 
     const savedVendor = await vendor.save();
+    if (!savedVendor) {
+      return errorResponse(res, "Failed to create vendor", 500);
+    }
 
-    if (!savedVendor) return errorResponse(res, "Failed to create vendor", 500);
+    return successResponse(res, "Vendor created successfully", 201, savedVendor);
 
-    return successResponse(
-      res,
-      "Vendor created successfully",
-      201,
-      savedVendor
-    );
   } catch (error) {
     console.error(error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -622,15 +649,13 @@ exports.EditSalesPerson = catchAsync(async (req, res) => {
   }
 });
 
-exports.DeleteSalesPerson = catchAsync(async (req, res) => {
+exports.DeleteUser = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-
     const user = await User.findById(id);
     if (!user) {
       return validationErrorResponse(res, "Person not found.", 404);
     }
-
     // Toggle delete/undelete
     if (user.deleted_at) {
       user.deleted_at = null; // undelete (restore)

@@ -3,3 +3,4 @@
 .env.local
 otpdemo-dc63b-firebase-adminsdk-fbsvc-bc859b783f.json
 /logs
+/public

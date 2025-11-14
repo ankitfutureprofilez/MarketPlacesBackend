@@ -29,13 +29,18 @@ router.post(
     { name: "pan_card_image", maxCount: 1 },
     { name: "gst_certificate", maxCount: 1 },
     { name: "business_logo", maxCount: 1 },
-  ]),
-  VendorRegister
-);
+  ]), VendorRegister);
 
 router.get("/vendor/get", VendorGet);
 router.get("/vendor/get_details", verifyToken, VendorGetId);
-router.post("/vendor/update", verifyToken, vendorUpdate);
+router.post("/vendor/update", verifyToken,
+  upload.fields([
+    { name: "aadhaar_front", maxCount: 1 },
+    { name: "aadhaar_back", maxCount: 1 },
+    { name: "pan_card_image", maxCount: 1 },
+    { name: "gst_certificate", maxCount: 1 },
+    { name: "business_logo", maxCount: 1 },
+  ]), vendorUpdate);
 router.get("/vendor/categroy", category);
 router.get("/vendor/sub_categroy/:id", subcategory);
 router.get("/vendor/order", verifyToken, VendorOrder);

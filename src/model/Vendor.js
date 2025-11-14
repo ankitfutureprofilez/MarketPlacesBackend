@@ -153,10 +153,6 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: "India"
         },
-        delete_At: {
-            type: Date,
-            default: null,
-        },
     },
     { timestamps: true }
 );

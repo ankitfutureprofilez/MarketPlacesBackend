@@ -227,92 +227,124 @@ exports.VendorGet = catchAsync(async (req, res) => {
 });
 
 exports.vendorUpdate = catchAsync(async (req, res) => {
-    try {
-        const vendor = req.user?.id || req.params.id;
-        // console.log("vendorId:", vendor);
-        const {
-            business_name,
-            city,
-            state,
-            category,
-            subcategory,
-            pincode,
-            area,
-            name,
-            phone,
-            lat,
-            long,
-            address,
-            aadhaar_front,
-            aadhaar_back,
-            pan_card_image,
-            gst_certificate,
-            gst_number,
-            business_logo,
-            opening_hours,
-            weekly_off_day,
-            business_register,
-            // business_image,
-            email, avatar
-        } = req.body;
-        const userData = await User.findByIdAndUpdate({ _id: vendor }, { email, name, avatar })
-        const vendordata = await Vendor.findOneAndUpdate(
-            { user: vendor },
-            {
-                business_name,
-                city,
-                state,
-                category,
-                subcategory,
-                pincode,
-                area,
-                name,
-                phone,
-                lat,
-                long,
-                address,
-                aadhaar_front,
-                aadhaar_back,
-                pan_card_image,
-                gst_certificate,
-                gst_number,
-                business_logo,
-                opening_hours,
-                weekly_off_day,
-                business_register,
-                // business_image,
-                email
-            },
-            { new: true, runValidators: true }
-        ).populate("user");
+  try {
+    const vendorId = req.user?.id || req.params.id;
 
-        // console.log("vendordata", vendordata)
-        if (!vendordata) {
-            return validationErrorResponse(res, "Vendor not found", 404);
-        }
-
-        return successResponse(res, "Vendor updated successfully", 200, { vendordata });
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+    if (!vendorId) {
+      return validationErrorResponse(res, "Vendor ID missing", 400);
     }
-});
 
-exports.vendorDelete = catchAsync(async (req, res) => {
-    try {
-        const vendorId = req.user?._id || req.params.id;
-        console.log("req", req.params.id)
-        const vendordata = await Vendor.findByIdAndUpdate(
-            vendorId,
-            { delete_At: new Date() },
-            { new: true }
-        );
-        if (!vendordata) {
-            return validationErrorResponse(res, "Vendor not found", 404);
-        }
-        return successResponse(res, "Vendor deleted successfully", 200, vendordata);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+    // -----------------------------
+    // 1) Handle uploaded files
+    // -----------------------------
+    const uploadedFiles = req.files || {};
+
+    const makeFileUrl = (fieldName) => {
+      if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0)
+        return undefined; // IMPORTANT → undefined means do not update field
+
+      const file = uploadedFiles[fieldName][0];
+      return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+    };
+
+    // -----------------------------
+    // 2) Parse body fields
+    // -----------------------------
+    const {
+      business_name,
+      city,
+      state,
+      category,
+      subcategory,
+      pincode,
+      area,
+      name,
+      phone,
+      lat,
+      long,
+      address,
+      gst_number,
+      opening_hours,
+      weekly_off_day,
+      business_register,
+      email,
+      avatar
+    } = req.body;
+
+    // -----------------------------
+    // 3) Safe ObjectId casting
+    // -----------------------------
+    const safeObjectId = (val) => {
+      if (!val) return undefined;
+      return mongoose.isValidObjectId(val.trim())
+        ? new mongoose.Types.ObjectId(val.trim())
+        : undefined;
+    };
+
+    // -----------------------------
+    // 4) Update User model
+    // -----------------------------
+    await User.findByIdAndUpdate(
+      vendorId,
+      { name, email, avatar },
+      { new: true }
+    );
+
+    // -----------------------------
+    // 5) Prepare vendor update payload
+    // -----------------------------
+    const vendorUpdateData = {
+      business_name,
+      city,
+      state,
+      category: safeObjectId(category),
+      subcategory: safeObjectId(subcategory),
+      pincode,
+      area,
+      name,
+      phone,
+      lat,
+      long,
+      address,
+      gst_number,
+      opening_hours,
+      weekly_off_day,
+      business_register,
+      email,
+
+      // Update only if new file uploaded
+      aadhaar_front: makeFileUrl("aadhaar_front"),
+      aadhaar_back: makeFileUrl("aadhaar_back"),
+      pan_card_image: makeFileUrl("pan_card_image"),
+      gst_certificate: makeFileUrl("gst_certificate"),
+      business_logo: makeFileUrl("business_logo"),
+    };
+
+    // Remove undefined fields (means frontend didn't send + no file uploaded)
+    Object.keys(vendorUpdateData).forEach((key) => {
+      if (vendorUpdateData[key] === undefined) delete vendorUpdateData[key];
+    });
+
+    // -----------------------------
+    // 6) Update Vendor model
+    // -----------------------------
+    const vendordata = await Vendor.findOneAndUpdate(
+      { user: vendorId },
+      vendorUpdateData,
+      { new: true, runValidators: true }
+    ).populate("user");
+
+    if (!vendordata) {
+      return validationErrorResponse(res, "Vendor not found", 404);
     }
+
+    return successResponse(res, "Vendor updated successfully", 200, {
+      vendordata,
+    });
+
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.VendorStatus = catchAsync(async (req, res) => {
