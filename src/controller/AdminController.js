@@ -3,6 +3,7 @@ const Payment = require("../model/Payment");
 const User = require("../model/User");
 const Vendor = require("../model/Vendor");
 const OfferBuy = require("../model/OfferBuy.js");
+const Categories = require("../model/categories.js");
 const catchAsync = require("../utils/catchAsync");
 const {
   errorResponse,
@@ -86,26 +87,69 @@ exports.UserGet = catchAsync(async (req, res) => {
   }
 });
 
+exports.CategoryGet = catchAsync(async (req, res) => {
+  try {
+    const data = await Categories.find();
+
+    if (!data || data.length === 0) {
+      return validationErrorResponse(res, "No sales users found", 404);
+    }
+
+    return successResponse(
+      res,
+      "Categories fetched successfully",
+      200,
+      data
+    );
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
 exports.SalesGet = catchAsync(async (req, res) => {
   try {
     const { search = "" } = req.query;
 
-    console.log("req.query", req.query);
     let query = { role: "sales" };
 
-    if (search && search.trim() !== "") {
+    if (search.trim() !== "") {
       const regex = { $regex: search.trim(), $options: "i" };
       query.$or = [{ name: regex }, { email: regex }];
     }
 
-    const record = await User.find(query);
+    // 1. Get all sales users
+    const salesUsers = await User.find(query).lean();
 
-    // console.log("record", record);
-    if (!record || record.length === 0) {
-      return validationErrorResponse(res, "No Users found", 404);
+    if (!salesUsers || salesUsers.length === 0) {
+      return validationErrorResponse(res, "No sales users found", 404);
     }
 
-    return successResponse(res, "Customers fetched successfully", 200, record);
+    // 2. Get all vendors with assign_staff
+    const vendors = await Vendor.find(
+      { assign_staff: { $ne: null } },
+      { assign_staff: 1 }
+    ).lean();
+
+    // 3. Build a map: staffId → count
+    const staffCountMap = {};
+
+    vendors.forEach((vendor) => {
+      const staffId = String(vendor.assign_staff);
+      staffCountMap[staffId] = (staffCountMap[staffId] || 0) + 1;
+    });
+
+    // 4. Attach count to each sales user
+    const finalData = salesUsers.map((user) => ({
+      ...user,
+      assigned_vendors: staffCountMap[String(user._id)] || 0,
+    }));
+
+    return successResponse(
+      res,
+      "Sales users fetched successfully",
+      200,
+      finalData
+    );
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }

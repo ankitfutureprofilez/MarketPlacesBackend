@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList } = require("../controller/AdminController");
+const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, CategoryGet } = require("../controller/AdminController");
 const { SalesPersonStatus } = require("../controller/SalesController");
 const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
@@ -8,6 +8,7 @@ const upload = require("../utils/uploader");
 router.post("/admin/login", Login);
 router.get("/admin/vendor_list", verifyToken, AdminVendorGet);
 router.get("/admin/sales_list", verifyToken, SalesGet);
+// router.get("/admin/category/get", CategoryGet);
 // Niche waala route vendor ko assign ke team call hota hai. Done due to lack of time and urgency, future mein shai karna hai.
 router.get("/admin/sales-get", verifyToken, SalesList);
 router.get("/admin/user_list", verifyToken, UserGet);
