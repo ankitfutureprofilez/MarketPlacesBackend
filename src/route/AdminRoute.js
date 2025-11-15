@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, CategoryGet } = require("../controller/AdminController");
+const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, CategoryGet, SalesAdminGetId } = require("../controller/AdminController");
 const { SalesPersonStatus } = require("../controller/SalesController");
 const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
@@ -20,11 +20,11 @@ router.post("/admin/sales/delete/:id", verifyToken, DeleteUser);
 router.get("/admin/profile-token", verifyToken, adminGet);
 router.post("/admin/vendor-add", verifyToken,
     upload.fields([
-    { name: "aadhaar_front", maxCount: 1 },
-    { name: "aadhaar_back", maxCount: 1 },
-    { name: "pan_card_image", maxCount: 1 },
-    { name: "gst_certificate", maxCount: 1 },
-    { name: "business_logo", maxCount: 1 },
+        { name: "aadhaar_front", maxCount: 1 },
+        { name: "aadhaar_back", maxCount: 1 },
+        { name: "pan_card_image", maxCount: 1 },
+        { name: "gst_certificate", maxCount: 1 },
+        { name: "business_logo", maxCount: 1 },
     ]), VendorRegister);
 router.post("/admin/vendor-Edit", verifyToken, vendorUpdate);
 router.get("/admin/subcatgroy/:id", AdminSubcaterites);
@@ -32,9 +32,9 @@ router.get("/admin/vendor_details/:id", VendorGetId);
 router.get("/admin/dashboard", AdminDashboard);
 router.get("/admin/payment_get", PaymentGet);
 router.post("/admin/assign-staff", AssignStaff);
-router.post("/admin/edit",verifyToken, upload.single("avatar"), EditAdmin);
+router.post("/admin/edit", verifyToken, upload.single("avatar"), EditAdmin);
 router.post("/admin/reset/password", resetpassword);
-
+router.get("/admin/sales_id/:id", SalesAdminGetId);
 
 
 module.exports = router;

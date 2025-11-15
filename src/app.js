@@ -210,6 +210,7 @@ app.use("/api", require("./route/UserRoute"));
 app.use("/api", require("./route/salesRoute"));
 app.use("/api", require("./route/AdminRoute"));
 app.use("/api", require("./route/customerRoutes"));
+app.use("/api", require("./route/categoryRoutes"));
 
 const server = app.listen(PORT, () =>
   console.log("Server is running at port : " + PORT)

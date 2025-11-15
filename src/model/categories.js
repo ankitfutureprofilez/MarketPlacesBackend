@@ -5,12 +5,16 @@ const categorySchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    id:{
+    id: {
         type: Number,
         required: true
     },
-    image:{
+    image: {
         type: String,
+        default: null
+    },
+    deleted_at: {
+        type: Date,
         default: null
     }
 });

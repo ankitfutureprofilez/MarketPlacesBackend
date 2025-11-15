@@ -6,11 +6,12 @@ const subCategorySchema = new mongoose.Schema({
     required: true
   },
   category_id: {
-    type: Number,
-    required: true
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Category"
   },
-  subcategory_id: {
-    type: Number,
+  deleted_at: {
+    type: Date,
+    default: null
   }
 });
 

@@ -287,8 +287,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     };
 
     // =============== VALID opening_hours TYPE ===============
-    if(opening_hours){
-      opening_hours= JSON.parse(opening_hours);
+    if (opening_hours) {
+      opening_hours = JSON.parse(opening_hours);
     }
     if (opening_hours && typeof opening_hours !== "object") {
       return errorResponse(res, "Opening hours must be a valid object", 400);
@@ -802,3 +802,56 @@ exports.resetpassword = catchAsync(async (req, res) => {
     res.status(500).json({ message: "Error resetting password", error });
   }
 });
+
+
+exports.SalesAdminGetId = catchAsync(async (req, res) => {
+  try {
+    const salesId = req.params.id;
+    const sales = await User.findById({ role: "sales", _id: salesId })
+
+    const vendors = await Vendor.find({ assign_staff: salesId });
+
+    if (!vendors || vendors.length === 0) {
+      return errorResponse(res, "Vendor not found", 404);
+    }
+
+    // We expect MULTIPLE vendors
+    const vendorIds = vendors.map(v => v.user);
+
+    console.log("vendorIds", vendorIds)
+    const offerStatusCount = await OfferBuy.aggregate([
+      { $match: { vendor: { $in: vendorIds } } },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    console.log("offerStatusCount", offerStatusCount)
+
+    const statusList = ["active", "expired", "redeemed", "under-dispute"];
+    const formattedStatus = {};
+
+    statusList.forEach(st => {
+      const found = offerStatusCount.find(x => x._id === st);
+      formattedStatus[st] = found ? found.count : 0;
+    });
+
+    console.log("formattedStatus", formattedStatus)
+    return successResponse(res, "Vendor details", 200, {
+      vendors,
+      offer_stats: formattedStatus,
+      sales
+    });
+
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, "Failed to fetch vendor details", 500);
+  }
+});
+
+
+
+
