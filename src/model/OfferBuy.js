@@ -39,6 +39,11 @@ const OfferBuySchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        // This key is used for storign the time when the offer is used by the vendor
+        used_time :{
+            type: Date,
+            default: null,
+        },
         description :{
             type: String
         },

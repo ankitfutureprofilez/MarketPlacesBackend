@@ -208,10 +208,19 @@ exports.VendorGet = catchAsync(async (req, res) => {
   try {
     const { category, name, type } = req.query;
 
-    let vendors = await Vendor.find({})
-      .populate("user")
-      .populate("category")
-      .populate("subcategory");
+    const vendorsWithActiveOffers = await Offer.distinct("vendor", {
+      status: "active",
+    });
+
+    let vendors = await Vendor.find({
+      user: { $in: vendorsWithActiveOffers },
+    })
+    .populate({
+      path: "user",
+      match: { deleted_at: null }
+    })
+    .populate("category")
+    .populate("subcategory");
 
     // console.log("vendors", vendors);
 
@@ -235,6 +244,7 @@ exports.VendorGet = catchAsync(async (req, res) => {
     if (!vendors || vendors.length === 0) {
       return errorResponse(res, "No vendors found", 404);
     }
+    // console.log("vendors", vendors);
     const vendorsWithOffers = await getVendorsWithMaxOffer(vendors);
 
     return successResponse(res, "Vendor retrieved successfully", 200, vendorsWithOffers);
@@ -628,6 +638,29 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
   }
 });
 
+const attachVendorLogos = async (records) => {
+  return Promise.all(
+    records.map(async (item) => {
+      const vendorUserId = item?.vendor?._id;
+
+      if (!vendorUserId) {
+        item.vendor_logo = null;
+        return item;
+      }
+      // console.log("item before", item);
+
+      // Find vendor entry in Vendor table
+      const vendorData = await Vendor.findOne({ user: vendorUserId }).lean();
+      // console.log("vendorData", vendorData?.business_logo);
+
+      item.vendor.business_logo = vendorData?.business_logo || null;
+      // console.log("item after", item);
+
+      return item;
+    })
+  );
+};
+
 exports.RedeemedOffers = catchAsync(async (req, res) => {
   try {
     const id = req?.user?.id;
@@ -638,7 +671,7 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
     }
     const skip = (page - 1) * limit;
 
-    const record = await OfferBuy.find({ user: id, vendor_bill_status: true })
+    let record = await OfferBuy.find({ user: id, vendor_bill_status: true })
       .populate("user")
       .populate("offer")
       .populate("vendor")
@@ -652,7 +685,10 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
       })
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+
+      record = await attachVendorLogos(record);
     
     // ✅ Count total records
     const total_records = await OfferBuy.countDocuments({ user: id, vendor_bill_status: true });

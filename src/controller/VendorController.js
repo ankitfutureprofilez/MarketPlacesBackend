@@ -712,7 +712,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
         },
       },
       { $sort: { count: -1 } },
-      { $limit: 3 },
+      // { $limit: 3 },
       {
         $lookup: {
           from: "offers",
@@ -1003,7 +1003,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
 
     const record = await OfferBuy.findByIdAndUpdate(
       id,
-      { total_amount   , vendor_bill_status },
+      { total_amount, vendor_bill_status: true, used_time: new Date() },
       { new: true }
     );
 
