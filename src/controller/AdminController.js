@@ -807,18 +807,21 @@ exports.resetpassword = catchAsync(async (req, res) => {
 exports.SalesAdminGetId = catchAsync(async (req, res) => {
   try {
     const salesId = req.params.id;
-    const sales = await User.findById({ role: "sales", _id: salesId })
+
+    const sales = await User.findOne({ _id: salesId, role: "sales" });
+
+    if (!sales) {
+      return errorResponse(res, "Sales user not found", 404);
+    }
 
     const vendors = await Vendor.find({ assign_staff: salesId });
 
     if (!vendors || vendors.length === 0) {
-      return errorResponse(res, "Vendor not found", 404);
+      return errorResponse(res, "No vendors assigned to this sales person", 404);
     }
 
-    // We expect MULTIPLE vendors
     const vendorIds = vendors.map(v => v.user);
 
-    console.log("vendorIds", vendorIds)
     const offerStatusCount = await OfferBuy.aggregate([
       { $match: { vendor: { $in: vendorIds } } },
       {
@@ -829,21 +832,45 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
       }
     ]);
 
-    console.log("offerStatusCount", offerStatusCount)
-
     const statusList = ["active", "expired", "redeemed", "under-dispute"];
-    const formattedStatus = {};
 
+    const total_stats = {};
     statusList.forEach(st => {
       const found = offerStatusCount.find(x => x._id === st);
-      formattedStatus[st] = found ? found.count : 0;
+      total_stats[st] = found ? found.count : 0;
     });
 
-    console.log("formattedStatus", formattedStatus)
-    return successResponse(res, "Vendor details", 200, {
-      vendors,
-      offer_stats: formattedStatus,
-      sales
+    const vendor_status_list = [];
+
+    for (let vendor of vendors) {
+      const stats = await OfferBuy.aggregate([
+        { $match: { vendor: vendor.user } },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      const formattedVendorStatus = {};
+      statusList.forEach(st => {
+        const f = stats.find(x => x._id === st);
+        formattedVendorStatus[st] = f ? f.count : 0;
+      });
+
+      vendor_status_list.push({
+        vendors: vendor,
+        // vendors: vendors,
+        status_count: formattedVendorStatus
+      });
+    }
+
+    return successResponse(res, "Sales & vendor status details", 200, {
+      sales,
+      // vendors,
+      total_offer_stats: total_stats,
+      vendors: vendor_status_list,
     });
 
   } catch (error) {
@@ -851,6 +878,8 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
     return errorResponse(res, "Failed to fetch vendor details", 500);
   }
 });
+
+
 
 
 
