@@ -575,12 +575,50 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
 
     const nearbyvendor = await getVendorsWithMaxOffer(nearbyVendorsPopulated);
 
-    const category = await categories.find({});
+    const categoryList = await categories.find({});
+
+    // Prepare category → vendor array structure
+    const categoryMap = {};
+    categoryList.forEach((cat) => {
+      categoryMap[cat._id.toString()] = {
+        ...cat._doc,
+        vendors: [],
+      };
+    });
+
+    // Combine all vendors (popular + nearby)
+    const combinedVendors = await Vendor.find({
+      user: { $in: vendorsWithActiveOffers },
+    })
+      .select(
+        "business_name address business_logo vendor category user subcategory city state area lat long"
+      )
+      .populate("category")
+      .populate("user")
+      .populate("subcategory");
+
+    // Run all vendors through getVendorsWithMaxOffer BEFORE grouping
+    const vendorsAfterOfferCalc = await getVendorsWithMaxOffer(combinedVendors);
+
+    // Now attach vendors to categories
+    vendorsAfterOfferCalc.forEach((item) => {
+      const v = item.vendor || item; // fallback
+      const catId = v?.category?._id?.toString();
+
+      if (catId && categoryMap[catId]) {
+        categoryMap[catId].vendors.push(item);
+      }
+    });
+
+    // Remove empty categories
+    const filteredCategories = Object.values(categoryMap).filter(
+      (cat) => cat.vendors.length > 0
+    );
 
     return successResponse(res, "Dashboard successfully", 200, {
       popularvendor: sortedPopularVendors,
       nearbyvendor,
-      category,
+      category:filteredCategories,
     });
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);

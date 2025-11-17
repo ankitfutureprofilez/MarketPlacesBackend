@@ -590,7 +590,7 @@ exports.EditOffer = catchAsync(async (req, res) => {
 // Category Management
 exports.category = catchAsync(async (req, res) => {
     try {
-        const record = await categories.find({});
+        const record = await categories.find({ deleted_at: null });
         if (!record) {
             return validationErrorResponse(res, "category not found", 404);
         }
@@ -606,7 +606,7 @@ exports.category = catchAsync(async (req, res) => {
 exports.subcategory = catchAsync(async (req, res) => {
     try {
         const category_id = req.params.id
-        const record = await SubCategory.find({ category_id });
+        const record = await SubCategory.find({ category_id, deleted_at: null });
         if (!record) {
             return validationErrorResponse(res, "SubCategory not found", 404);
         }
@@ -905,7 +905,7 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
             .populate("user", "name email phone")
             .populate({
                 path: "offer",
-                select: "title description discountPercentage", // only needed fields
+                // select: "title description discountPercentage", // only needed fields
                 populate: [
                     { path: "flat", select: "title discount" },
                     { path: "percentage", select: "title discount" },
@@ -913,13 +913,13 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
             })
             .populate({
                 path: "payment_id",
-                select: "payment_id method amount currency status createdAt",
+                // select: "payment_id method amount currency status createdAt",
             })
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit));
 
-        console.log("allPurchases", allPurchases)
+        // console.log("allPurchases", allPurchases)
         // ✅ Count total records
         const total_records = await OfferBuy.countDocuments(query);
         const total_pages = Math.ceil(total_records / limit);
@@ -929,35 +929,35 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
         }
 
         // ✅ Format response
-        const purchased_customers = allPurchases.map((purchase) => ({
-            offer_buy: {
-                purchase_id: purchase._id,
-                final_amount: purchase.final_amount,
-                status: purchase.status,
-                vendor_bill_status: purchase.vendor_bill_status,
-                description: purchase?.description || "",
-                createdAt: purchase?.createdAt || ""
-            },
-            customer: {
-                id: purchase.user?._id,
-                name: purchase.user?.name,
-                email: purchase.user?.email,
-                phone: purchase.user?.phone,
-            },
-            payment: {
-                id: purchase.payment_id?._id,
-                payment_id: purchase.payment_id?.payment_id,
-                method: purchase.payment_id?.method,
-                amount: purchase.payment_id?.amount,
-                currency: purchase.payment_id?.currency,
-                status: purchase.payment_id?.status,
-                date: purchase.payment_id?.createdAt,
-            },
-        }));
+        // const purchased_customers = allPurchases.map((purchase) => ({
+        //     offer_buy: {
+        //         purchase_id: purchase._id,
+        //         final_amount: purchase.final_amount,
+        //         status: purchase.status,
+        //         vendor_bill_status: purchase.vendor_bill_status,
+        //         description: purchase?.description || "",
+        //         createdAt: purchase?.createdAt || ""
+        //     },
+        //     customer: {
+        //         id: purchase.user?._id,
+        //         name: purchase.user?.name,
+        //         email: purchase.user?.email,
+        //         phone: purchase.user?.phone,
+        //     },
+        //     payment: {
+        //         id: purchase.payment_id?._id,
+        //         payment_id: purchase.payment_id?.payment_id,
+        //         method: purchase.payment_id?.method,
+        //         amount: purchase.payment_id?.amount,
+        //         currency: purchase.payment_id?.currency,
+        //         status: purchase.payment_id?.status,
+        //         date: purchase.payment_id?.createdAt,
+        //     },
+        // }));
 
 
         return successResponse(res, "Vendor amount updated successfully", 200, {
-            purchased_customers,
+            purchased_customers: allPurchases,
             total_records,
             current_page: Number(page),
             per_page: Number(limit),
@@ -991,8 +991,9 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
 
 exports.UpdateAmount = catchAsync(async (req, res) => {
   try {
-    const { id } = req.params; 
-    const { total_amount  ,vendor_bill_status} = req.body;
+    const { id } = req.params;
+    const { total_amount, vendor_bill_status } = req.body;
+
     if (!id) {
       return validationErrorResponse(res, "Missing offer ID", 400);
     }
@@ -1001,15 +1002,72 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Total amount is required", 400);
     }
 
-    const record = await OfferBuy.findByIdAndUpdate(
-      id,
-      { total_amount, vendor_bill_status: true, used_time: new Date() },
-      { new: true }
-    );
+    // Fetch record + offer details (same as Function 2)
+    const record = await OfferBuy.findById(id).populate({
+      path: "offer",
+      populate: [{ path: "flat" }, { path: "percentage" }]
+    });
 
     if (!record) {
       return validationErrorResponse(res, "Offer not found for this vendor", 404);
     }
+
+    let discount = record.discount || 0;
+    let final = total_amount;
+
+    // ----------------------------------------------
+    // ✔ APPLY OFFER LOGIC ONLY IF TOTAL AMOUNT CHANGED
+    // ----------------------------------------------
+    if (record.total_amount !== total_amount) {
+      if (record?.offer?.type === "percentage") {
+        const offerData = record.offer.percentage;
+
+        if (total_amount < offerData.minBillAmount) {
+          return validationErrorResponse(
+            res,
+            `Minimum bill amount should be ₹${offerData.minBillAmount} to apply this offer.`,
+            400
+          );
+        }
+
+        discount = Math.min(
+          offerData.maxDiscountCap,
+          (offerData.discountPercentage * total_amount) / 100
+        );
+
+        final = total_amount - discount;
+      }
+      else if (record?.offer?.type === "flat") {
+        const offerData = record.offer.flat;
+
+        if (total_amount < offerData.minBillAmount) {
+          return validationErrorResponse(
+            res,
+            `Minimum bill amount should be ₹${offerData.minBillAmount} to apply this offer.`,
+            400
+          );
+        }
+
+        discount = offerData.discountPercentage;
+        final = total_amount - discount;
+      }
+      else {
+        console.log("Invalid offer type");
+      }
+    }
+
+    // ----------------------------------------------
+    // ✔ Update the record (same as before)
+    // ----------------------------------------------
+    record.total_amount = total_amount;
+    record.vendor_bill_status = true;
+    record.used_time = new Date();
+
+    // Update calculated discount + final amount
+    record.discount = discount;
+    record.final_amount = final;
+
+    await record.save();
 
     return successResponse(res, "Vendor amount updated successfully", 200, record);
   } catch (error) {
