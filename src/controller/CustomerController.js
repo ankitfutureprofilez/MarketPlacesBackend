@@ -358,6 +358,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
 
     const businessObj = {
       business_name: record.business_name,
+      business_logo: record.business_logo,
       category: record.category,
       subcategory: record.subcategory,
       business_register: record.business_register,
