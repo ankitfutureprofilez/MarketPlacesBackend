@@ -57,6 +57,10 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: "pending"
         },
+        aadhaar_reasons: {
+            type: String,
+            default: null
+        },
         pan_card_image: {
             type: String,
             default: null,
@@ -65,6 +69,10 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: "pending"
         },
+        pan_card_reasons: {
+            type: String,
+            default: null
+        },
         gst_certificate: {
             type: String,
             default: null,
@@ -72,6 +80,10 @@ const vendorSchema = new mongoose.Schema(
         gst_certificate_verify: {
             type: String,
             default: "pending"
+        },
+        gst_certificate_reasons: {
+            type: String,
+            default: null
         },
         gst_number: {
             type: String,

@@ -206,24 +206,35 @@ const getVendorsWithMaxOffer = async (vendors) => {
 
 exports.VendorGet = catchAsync(async (req, res) => {
   try {
-    const { category, name, type } = req.query;
+    const { category, name, type, page = 1, limit = 25 } = req.query;
 
+    const skip = (page - 1) * limit;
+
+    // Find vendors who have active offers
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
     });
 
+    // Total count BEFORE pagination
+    let totalVendors = await Vendor.countDocuments({
+      user: { $in: vendorsWithActiveOffers },
+    });
+
+    // Fetch paginated vendors
     let vendors = await Vendor.find({
       user: { $in: vendorsWithActiveOffers },
     })
-    .populate({
-      path: "user",
-      match: { deleted_at: null }
-    })
-    .populate("category")
-    .populate("subcategory");
+      .populate({
+        path: "user",
+        match: { deleted_at: null },
+      })
+      .populate("category")
+      .populate("subcategory")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
-    // console.log("vendors", vendors);
-
+    // Apply filters (AFTER fetching)
     if (name || category) {
       const nameRegex = name ? new RegExp(name.trim(), "i") : null;
       const categoryRegex = category ? new RegExp(category.trim(), "i") : null;
@@ -232,33 +243,44 @@ exports.VendorGet = catchAsync(async (req, res) => {
         const businessName = item.business_name || "";
         const catName = item?.category?.name || "";
 
-        // only apply filters that exist
         const matchesName = nameRegex ? nameRegex.test(businessName) : true;
         const matchesCategory = categoryRegex
           ? categoryRegex.test(catName)
           : true;
+
         return matchesName && matchesCategory;
       });
+
+      // Update total after filter
+      totalVendors = vendors.length;
     }
 
     if (!vendors || vendors.length === 0) {
       return errorResponse(res, "No vendors found", 404);
     }
-    // console.log("vendors", vendors);
+
     const vendorsWithOffers = await getVendorsWithMaxOffer(vendors);
 
-    return successResponse(res, "Vendor retrieved successfully", 200, vendorsWithOffers);
+    return successResponse(res, "Vendor retrieved successfully", 200, {
+      data: vendorsWithOffers,
+      total: totalVendors,
+      page: page,
+      limit: limit,
+      totalPages: Math.ceil(totalVendors / limit),
+    });
+
   } catch (error) {
     console.log("error", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
 
+
 exports.getVendorById = catchAsync(async (req, res) => {
   try {
     const _id = req.params.id;
-    console.log("_id" ,_id)
-      if (!_id) {
+    console.log("_id", _id)
+    if (!_id) {
       return validationErrorResponse(res, "Vendor Id not found", 404);
     }
     const user_id = req.query.user_id
@@ -279,7 +301,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "No active offers found", 404);
     }
 
-    console.log("record" ,record)
+    console.log("record", record)
     const updatedOffers = await Promise.all(
       offers.map(async (offer) => {
         const existingBuy = await OfferBuy.findOne({
@@ -414,7 +436,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
     return successResponse(res, "Vendor details fetched successfully", 200, transformed);
 
   } catch (error) {
-    console.log("error" ,error)
+    console.log("error", error)
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 })
@@ -619,7 +641,7 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
     return successResponse(res, "Dashboard successfully", 200, {
       popularvendor: sortedPopularVendors,
       nearbyvendor,
-      category:filteredCategories,
+      category: filteredCategories,
     });
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -666,7 +688,7 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
           { path: "percentage" }
         ],
       });
-      console.log("record"  ,record)
+    console.log("record", record)
     if (!record) {
       return validationErrorResponse(res, " Brought Offer not found", 404);
     }
@@ -727,8 +749,8 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
-      record = await attachVendorLogos(record);
-    
+    record = await attachVendorLogos(record);
+
     // ✅ Count total records
     const total_records = await OfferBuy.countDocuments({ user: id, vendor_bill_status: true });
     const total_pages = Math.ceil(total_records / limit);
@@ -887,19 +909,19 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
 
       final = total_amount - discount;
     }
-    else if(record?.offer?.type === "flat"){
+    else if (record?.offer?.type === "flat") {
       const offerData = record.offer.flat;
-        if (total_amount < offerData.minBillAmount) {
-          return validationErrorResponse(
-            res,
-            `Minimum bill amount should be ₹${offerData.minBillAmount} to apply this offer.`,
-            400
-          );
-        }
-        discount = offerData?.discountPercentage;
-        final = total_amount - discount;
+      if (total_amount < offerData.minBillAmount) {
+        return validationErrorResponse(
+          res,
+          `Minimum bill amount should be ₹${offerData.minBillAmount} to apply this offer.`,
+          400
+        );
+      }
+      discount = offerData?.discountPercentage;
+      final = total_amount - discount;
     }
-    else{
+    else {
       console.log("invalid offer type");
     }
 
@@ -925,13 +947,13 @@ exports.CustomerAddBill = catchAsync(async (req, res) => {
     }
 
     const record = await OfferBuy.findById(id)
-    .populate({
-      path: "offer",
-      populate: [
-        { path: "flat" },
-        { path: "percentage" }
-      ]
-    });
+      .populate({
+        path: "offer",
+        populate: [
+          { path: "flat" },
+          { path: "percentage" }
+        ]
+      });
 
     if (!record) {
       return validationErrorResponse(res, "No offer found", 404);
@@ -962,15 +984,37 @@ exports.CustomerAddBill = catchAsync(async (req, res) => {
 });
 
 exports.getVendorGallery = catchAsync(async (req, res) => {
-    try {
-        const user = req.params.id;
-        const data = await Vendor.findOne({user: user}).select('business_image');
-        if (!data) {
-            return validationErrorResponse(res, "Vendor not found", 404);
-        }
-         return successResponse(res, "Gallery fetched successfully", 200, data);           
-    } catch (error) {
-        console.log("Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const user = req.params.id;
+    const data = await Vendor.findOne({ user: user }).select('business_image');
+    if (!data) {
+      return validationErrorResponse(res, "Vendor not found", 404);
     }
+    return successResponse(res, "Gallery fetched successfully", 200, data);
+  } catch (error) {
+    console.log("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+// customer phone number 
+exports.customerphoneUpdate = catchAsync(async (req, res) => {
+  try {
+    const vendorId = req.user?.id || req.params.id;
+    if (!vendorId) {
+      return validationErrorResponse(res, "Customer ID missing", 400);
+    }
+    const { phone } = req.body()
+    const vendordata = await User.findByIdAndUpdate(
+      vendorId,
+      { phone },
+      { new: true }
+    );
+    return successResponse(res, "Customer updated successfully", 200, {
+      vendordata,
+    });
+
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });

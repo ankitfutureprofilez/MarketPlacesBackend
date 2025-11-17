@@ -37,30 +37,22 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             business_logo,
             opening_hours,
             weekly_off_day,
-
         } = req.body;
-
         if (!name || !phone) {
             return errorResponse(res, "Name and phone are required", 400);
         }
-
         if (!business_name || !city || !category || !subcategory || !state || !pincode || !area) {
             return errorResponse(res, "All vendor details are required", 400);
         }
-
         const Users = await User.findOne({ phone: phone });
-
         if (Users) {
             return errorResponse(res, "Phone number already exists", 400,);
         }
-
-
         const userdata = new User({ name, phone, role: "vendor" });
         const savedUser = await userdata.save();
         if (!savedUser) {
             return errorResponse(res, "Failed to create user", 500);
         }
-
         const vendor = new Vendor({
             business_name,
             city,
@@ -83,13 +75,10 @@ exports.VendorRegister = catchAsync(async (req, res) => {
             weekly_off_day,
             sales: SalesId
         });
-
         const savedVendor = await vendor.save();
-
         if (!savedVendor) {
             return errorResponse(res, "Failed to create vendor", 500,);
         }
-
         return successResponse(res, "vendor details have been updated", 201, savedVendor); // 201 = Created
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);

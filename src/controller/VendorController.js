@@ -114,116 +114,114 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 });
 
 exports.VendorGetId = catchAsync(async (req, res) => {
-    try {
-        const _id = req.user.id;
-        console.log(req.params)
-        console.log
-        console.log("vendorId:", _id);
-        console.log("_id", _id)
-        let record = await Vendor.findOne({ user: _id })
-            .populate("user")
-            .populate("added_by")
-            .populate("category")
-            .populate("subcategory");
+  try {
+    const _id = req.user.id;
+    console.log("vendorId:", _id);
+    console.log("_id", _id)
+    let record = await Vendor.findOne({ user: _id })
+      .populate("user")
+      .populate("added_by")
+      .populate("category")
+      .populate("subcategory");
 
-        if (!record) {
-            return validationErrorResponse(res, "Vendor not found", 404);
-        }
-
-        const calcPercentage = (obj) => {
-            const keys = Object.keys(obj);
-            const total = keys.length;
-            let filled = 0;
-
-            keys.forEach((k) => {
-                if (obj[k] !== null && obj[k] !== undefined && obj[k] !== "") {
-                    filled++;
-                }
-            });
-
-            return total > 0 ? Math.round((filled / total) * 100) : 0;
-        };
-        const documentObj = {
-            business_logo: record.business_logo,
-            aadhaar_front: record.aadhaar_front,
-            aadhaar_back: record.aadhaar_back,
-            pan_card_image: record.pan_card_image,
-            gst_certificate: record.gst_certificate,
-            shop_license: record.shop_license,
-            aadhaar_verify: record.aadhaar_verify,
-            pan_card_verify: record.pan_card_verify,
-            gst_certificate_verify: record.gst_certificate_verify,
-        };
-
-        const businessObj = {
-            business_name: record.business_name,
-            category: record.category,
-            subcategory: record.subcategory,
-            business_register: record.business_register,
-            pan_card: record.pan_card,
-            gst_number: record.gst_number,
-            address: record.address,
-            city: record.city,
-            area: record.area,
-            pincode: record.pincode,
-            lat: record.lat,
-            long: record.long,
-            landmark: record.landmark,
-            business_image: record.business_image,
-            state: record.state,
-            email: record?.vendor?.email,
-            country: record?.country
-        };
-
-        const timingObj = {
-            opening_hours: record.opening_hours,
-            weekly_off_day: record.weekly_off_day,
-        };
-
-        const vendorObj = {
-            vendor: record.user,
-            sales: record.added_by,
-        };
-        const percentages = {
-            document: calcPercentage(documentObj),
-            business_details: calcPercentage(businessObj),
-            timing: calcPercentage(timingObj),
-            vendor_sales: calcPercentage(vendorObj),
-        };
-
-        console.log("vendorObj", vendorObj)
-        const transformed = {
-            _id: record._id,
-            uuid: record.uuid,
-            document: documentObj,
-            business_details: businessObj,
-            timing: timingObj,
-            vendor: record.user,
-            sales: record.added_by,
-            status: record.status,
-            Verify_status: record.Verify_status,
-            createdAt: record.createdAt,
-            updatedAt: record.updatedAt,
-            percentages
-        };
-
-        return successResponse(res, "Vendor details fetched successfully", 200, transformed);
-
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+    if (!record) {
+      return validationErrorResponse(res, "Vendor not found", 404);
     }
+
+    const calcPercentage = (obj) => {
+      const keys = Object.keys(obj);
+      const total = keys.length;
+      let filled = 0;
+
+      keys.forEach((k) => {
+        if (obj[k] !== null && obj[k] !== undefined && obj[k] !== "") {
+          filled++;
+        }
+      });
+
+      return total > 0 ? Math.round((filled / total) * 100) : 0;
+    };
+    const documentObj = {
+      business_logo: record.business_logo,
+      aadhaar_front: record.aadhaar_front,
+      aadhaar_back: record.aadhaar_back,
+      pan_card_image: record.pan_card_image,
+      gst_certificate: record.gst_certificate,
+      shop_license: record.shop_license,
+      aadhaar_verify: record.aadhaar_verify,
+      pan_card_verify: record.pan_card_verify,
+      gst_certificate_verify: record.gst_certificate_verify,
+    };
+
+    const businessObj = {
+      business_name: record.business_name,
+      category: record.category,
+      subcategory: record.subcategory,
+      business_register: record.business_register,
+      pan_card: record.pan_card,
+      gst_number: record.gst_number,
+      address: record.address,
+      city: record.city,
+      area: record.area,
+      pincode: record.pincode,
+      lat: record.lat,
+      long: record.long,
+      landmark: record.landmark,
+      business_image: record.business_image,
+      state: record.state,
+      email: record?.vendor?.email,
+      country: record?.country
+    };
+
+    const timingObj = {
+      opening_hours: record.opening_hours,
+      weekly_off_day: record.weekly_off_day,
+    };
+
+    const vendorObj = {
+      vendor: record.user,
+      sales: record.added_by,
+    };
+    const percentages = {
+      document: calcPercentage(documentObj),
+      business_details: calcPercentage(businessObj),
+      timing: calcPercentage(timingObj),
+      vendor_sales: calcPercentage(vendorObj),
+    };
+
+    console.log("vendorObj", vendorObj)
+    const transformed = {
+      _id: record._id,
+      uuid: record.uuid,
+      document: documentObj,
+      business_details: businessObj,
+      timing: timingObj,
+      vendor: record.user,
+      sales: record.added_by,
+      status: record.status,
+      Verify_status: record.Verify_status,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      percentages
+    };
+
+    return successResponse(res, "Vendor details fetched successfully", 200, transformed);
+
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.VendorGet = catchAsync(async (req, res) => {
-    try {
-        const vendors = await Vendor.find(query).populate("user");
-        if (!vendors || vendors.length === 0) {
-            return validationErrorResponse(res, "No vendors found", 404);
-        }
-        return successResponse(res, "Vendors fetched successfully", vendors);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const vendors = await Vendor.find(query).populate("user");
+    if (!vendors || vendors.length === 0) {
+      return validationErrorResponse(res, "No vendors found", 404);
     }
+    return successResponse(res, "Vendors fetched successfully", vendors);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.vendorUpdate = catchAsync(async (req, res) => {
@@ -348,190 +346,190 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 });
 
 exports.VendorStatus = catchAsync(async (req, res) => {
-    try {
-        console.log(req.params)
-        const offerId = req.params.id;
-        const status = req.params.status;
-        const records = await Vendor.findByIdAndUpdate(
-            offerId,
-            { Verify_status: status },
-            { new: true }
-        );
-        const record = await User.findByIdAndUpdate(
-            records?.vendor,
-            { status: status === "unverify" ? "active" : "inactive" },
-            { new: true }
-        );
-        if (!records) {
-            return validationErrorResponse(res, "Status not found", 404);
-        }
-        return successResponse(res, "vendor status updated successfully", 201, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    console.log(req.params)
+    const offerId = req.params.id;
+    const status = req.params.status;
+    const records = await Vendor.findByIdAndUpdate(
+      offerId,
+      { Verify_status: status },
+      { new: true }
+    );
+    const record = await User.findByIdAndUpdate(
+      records?.vendor,
+      { status: status === "unverify" ? "active" : "inactive" },
+      { new: true }
+    );
+    if (!records) {
+      return validationErrorResponse(res, "Status not found", 404);
     }
+    return successResponse(res, "vendor status updated successfully", 201, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 // Offer Management 
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
-    try {
-        const userId = req.user?.id;
-        if (!userId) {
-            return validationErrorResponse(res, "UserId Not Found", 500);
-        }
-
-        const {
-            title,
-            description,
-            expiryDate,
-            discountPercentage,
-            maxDiscountCap,
-            minBillAmount,
-            amount,
-            type
-        } = req.body;
-
-        // ✅ Check if file is present
-        if (!req.file || !req.file.filename) {
-        return validationErrorResponse(res, "Image file is required", 400);
-        }
-
-        // ✅ Construct the public file URL (same pattern as CustomerAddBill)
-        const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-
-        // ✅ Create offer based on type
-        let offerRecord;
-
-        if (type === "flat") {
-            const newOffer = new FlatOffer({
-                title,
-                description,
-                expiryDate,
-                amount, // flat amount
-                minBillAmount,
-                offer_image: fileUrl,
-                status: "active",
-                maxDiscountCap, 
-                discountPercentage
-            });
-            offerRecord = await newOffer.save();
-        } else if (type === "percentage") {
-            const newOffer = new PercentageOffer({
-                title,
-                description,
-                expiryDate,
-                amount,
-                discountPercentage,
-                maxDiscountCap,
-                minBillAmount,
-                offer_image: fileUrl,
-                status: "active"
-            });
-            offerRecord = await newOffer.save();
-        } else {
-            return validationErrorResponse(res, "Invalid offer type", 400);
-        }
-
-        const combinedOffer = new Offer({
-            flat: type === "flat" ? offerRecord._id : null,
-            percentage: type === "percentage" ? offerRecord._id : null,
-            vendor: userId,
-            type: type
-        });
-
-        const data = await combinedOffer.save();
-
-        return successResponse(res, "Offer created successfully", 200, data);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return validationErrorResponse(res, "UserId Not Found", 500);
     }
+
+    const {
+      title,
+      description,
+      expiryDate,
+      discountPercentage,
+      maxDiscountCap,
+      minBillAmount,
+      amount,
+      type
+    } = req.body;
+
+    // ✅ Check if file is present
+    if (!req.file || !req.file.filename) {
+      return validationErrorResponse(res, "Image file is required", 400);
+    }
+
+    // ✅ Construct the public file URL (same pattern as CustomerAddBill)
+    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+
+    // ✅ Create offer based on type
+    let offerRecord;
+
+    if (type === "flat") {
+      const newOffer = new FlatOffer({
+        title,
+        description,
+        expiryDate,
+        amount, // flat amount
+        minBillAmount,
+        offer_image: fileUrl,
+        status: "active",
+        maxDiscountCap,
+        discountPercentage
+      });
+      offerRecord = await newOffer.save();
+    } else if (type === "percentage") {
+      const newOffer = new PercentageOffer({
+        title,
+        description,
+        expiryDate,
+        amount,
+        discountPercentage,
+        maxDiscountCap,
+        minBillAmount,
+        offer_image: fileUrl,
+        status: "active"
+      });
+      offerRecord = await newOffer.save();
+    } else {
+      return validationErrorResponse(res, "Invalid offer type", 400);
+    }
+
+    const combinedOffer = new Offer({
+      flat: type === "flat" ? offerRecord._id : null,
+      percentage: type === "percentage" ? offerRecord._id : null,
+      vendor: userId,
+      type: type
+    });
+
+    const data = await combinedOffer.save();
+
+    return successResponse(res, "Offer created successfully", 200, data);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 // Get Offer Id 
 exports.GetOfferId = catchAsync(async (req, res) => {
-    try {
-        const offerId = req.params.id;
-        const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
-        console.log("record", record)
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-        return successResponse(res, "Offer Get Details successfully", 200, {
-            record: record,
-            redeem: 35,
-            purchase: 15,
-            pending: 20
-        });
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const offerId = req.params.id;
+    const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
+    console.log("record", record)
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found", 404);
     }
+    return successResponse(res, "Offer Get Details successfully", 200, {
+      record: record,
+      redeem: 35,
+      purchase: 15,
+      pending: 20
+    });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 // Offer Get 
 exports.GetOffer = catchAsync(async (req, res) => {
-    try {
-        const userId = req.user?.id;
-        const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage");
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-        return successResponse(res, "Offer details fetched successfully", 200, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const userId = req.user?.id;
+    const record = await Offer.find({ vendor: userId }).populate("flat").populate("percentage");
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found", 404);
     }
+    return successResponse(res, "Offer details fetched successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 // Offer Status 
 exports.OfferStatus = catchAsync(async (req, res) => {
-    try {
-        console.log(req.params)
-        const offerId = req.params.id;
-        const status = req.params.status;
-        const record = await Offer.findByIdAndUpdate(
-            offerId,
-            { status },
-            { new: true }
-        );
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-        return successResponse(res, "Offer status updated successfully", 201, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    console.log(req.params)
+    const offerId = req.params.id;
+    const status = req.params.status;
+    const record = await Offer.findByIdAndUpdate(
+      offerId,
+      { status },
+      { new: true }
+    );
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found", 404);
     }
+    return successResponse(res, "Offer status updated successfully", 201, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 // Offer Delete  
 exports.OfferDelete = catchAsync(async (req, res) => {
-    try {
-        const offerId = req.params.id;
-        console.log("Offer ID:", offerId);
+  try {
+    const offerId = req.params.id;
+    console.log("Offer ID:", offerId);
 
-        // Find the offer first
-        const offer = await Offer.findById(offerId);
-        console.log("Offer found:", offer);
+    // Find the offer first
+    const offer = await Offer.findById(offerId);
+    console.log("Offer found:", offer);
 
-        if (!offer) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-
-        if (offer.type === "flat") {
-            if (offer.flat) {
-                await FlatOffer.findByIdAndDelete(offer.flat);
-            }
-        } else if (offer.type === "percentage") {
-            if (offer.percentage) {
-                await PercentageOffer.findByIdAndDelete(offer.percentage);
-            }
-        }
-
-        // Delete the offer itself
-        const deletedOffer = await Offer.findByIdAndDelete(offerId);
-
-        return successResponse(res, "Offer deleted successfully", 200, deletedOffer);
-    } catch (error) {
-        console.error(error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+    if (!offer) {
+      return validationErrorResponse(res, "Offer not found", 404);
     }
+
+    if (offer.type === "flat") {
+      if (offer.flat) {
+        await FlatOffer.findByIdAndDelete(offer.flat);
+      }
+    } else if (offer.type === "percentage") {
+      if (offer.percentage) {
+        await PercentageOffer.findByIdAndDelete(offer.percentage);
+      }
+    }
+
+    // Delete the offer itself
+    const deletedOffer = await Offer.findByIdAndDelete(offerId);
+
+    return successResponse(res, "Offer deleted successfully", 200, deletedOffer);
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 // Edit Offer 
@@ -589,32 +587,32 @@ exports.EditOffer = catchAsync(async (req, res) => {
 
 // Category Management
 exports.category = catchAsync(async (req, res) => {
-    try {
-        const record = await categories.find({ deleted_at: null });
-        if (!record) {
-            return validationErrorResponse(res, "category not found", 404);
-        }
-        return successResponse(res, "category fetched successfully", 200, record);
-    } catch (error) {
-        console.log("error", error)
-        return errorResponse(res, error.message || "Internal Server Error", 500);
-
+  try {
+    const record = await categories.find({ deleted_at: null });
+    if (!record) {
+      return validationErrorResponse(res, "category not found", 404);
     }
+    return successResponse(res, "category fetched successfully", 200, record);
+  } catch (error) {
+    console.log("error", error)
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+
+  }
 });
 
 // Sub Category 
 exports.subcategory = catchAsync(async (req, res) => {
-    try {
-        const category_id = req.params.id
-        const record = await SubCategory.find({ category_id, deleted_at: null });
-        if (!record) {
-            return validationErrorResponse(res, "SubCategory not found", 404);
-        }
-        return successResponse(res, "SubCategory fetched successfully", 200, record);
-    } catch (error) {
-        console.log("error", error)
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const category_id = req.params.id
+    const record = await SubCategory.find({ category_id, deleted_at: null });
+    if (!record) {
+      return validationErrorResponse(res, "SubCategory not found", 404);
     }
+    return successResponse(res, "SubCategory fetched successfully", 200, record);
+  } catch (error) {
+    console.log("error", error)
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.Dashboard = catchAsync(async (req, res) => {
@@ -774,219 +772,219 @@ exports.Dashboard = catchAsync(async (req, res) => {
 });
 
 exports.AdminSubcaterites = catchAsync(async (req, res) => {
-    try {
-        const category_id = req.params.id
-        console.log(category_id)
-        const records = await categories.findOne({ _id: category_id });
-        console.log("records", records)
-        const Id = records.id
-        const record = await SubCategory.find({ category_id: Id });
-        if (!record) {
-            return validationErrorResponse(res, "SubCategory not found", 404);
-        }
-        return successResponse(res, "SubCategory fetched successfully", 200, record);
-    } catch (error) {
-        console.log("error", error)
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const category_id = req.params.id
+    console.log(category_id)
+    const records = await categories.findOne({ _id: category_id });
+    console.log("records", records)
+    const Id = records.id
+    const record = await SubCategory.find({ category_id: Id });
+    if (!record) {
+      return validationErrorResponse(res, "SubCategory not found", 404);
     }
+    return successResponse(res, "SubCategory fetched successfully", 200, record);
+  } catch (error) {
+    console.log("error", error)
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.MarkOfferAsUsed = catchAsync(async (req, res) => {
-    try {
-        const offerId = req.params.id;
-        const record = await OfferBuy.findByIdAndUpdate(
-            offerId,
-            { status: "redeemed" },
-            { new: true }
-        );
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-        return successResponse(res, "Offer status updated successfully", 201, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const offerId = req.params.id;
+    const record = await OfferBuy.findByIdAndUpdate(
+      offerId,
+      { status: "redeemed" },
+      { new: true }
+    );
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found", 404);
     }
+    return successResponse(res, "Offer status updated successfully", 201, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.VendorOrder = catchAsync(async (req, res) => {
-    try {
-        const vendorId = req?.user?.id;
+  try {
+    const vendorId = req?.user?.id;
 
-        if (!vendorId) {
-            return validationErrorResponse(res, "Vendor not authenticated", 401);
-        }
-        const allPurchases = await OfferBuy.find({ vendor: vendorId })
-            .populate("user", "name email phone")
-            .populate({
-                path: "offer",
-                populate: [{ path: "flat" }, { path: "percentage" }],
-            })
-            .populate("payment_id")
-            .sort({ createdAt: -1 });
-
-        if (!allPurchases || allPurchases.length === 0) {
-            return validationErrorResponse(res, "No purchases found for this vendor", 404);
-        }
-
-        const offerStats = {};
-        let total_customers = 0;
-
-        allPurchases.forEach((purchase) => {
-            const offer = purchase.offer;
-            if (!offer) return;
-
-            const offerId = offer._id.toString();
-
-            if (!offerStats[offerId]) {
-                offerStats[offerId] = {
-                    offer_id: offer._id,
-                    offer_title:
-                        offer.percentage?.title ||
-                        offer.flat?.title ||
-                        offer.title ||
-                        "Untitled Offer",
-                    offer_type: offer.type || "General",
-                    offer_status: purchase.status || "active",
-                    isExpired:
-                        new Date() >
-                        new Date(
-                            offer.percentage?.expiryDate ||
-                            offer.flat?.expiryDate ||
-                            offer.expiry_date ||
-                            Date.now()
-                        ),
-                    total_revenue: 0,
-                    total_customers: 0,
-                    purchased_customers: [],
-                };
-            }
-
-            offerStats[offerId].total_revenue += purchase.final_amount || 0;
-            // offerStats[offerId].total_revenue += purchase.payment_id?.amount || 0;
-            offerStats[offerId].total_customers += 1;
-            total_customers += 1;
-        });
-
-        const allOffers = Object.values(offerStats);
-
-        const total_offers = allOffers.length;
-
-        return successResponse(res, "Vendor purchase history fetched successfully", 200, {
-            total_offers,
-            total_customers,
-            data: allOffers,
-        });
-    } catch (error) {
-        console.error("VendorOrder error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+    if (!vendorId) {
+      return validationErrorResponse(res, "Vendor not authenticated", 401);
     }
+    const allPurchases = await OfferBuy.find({ vendor: vendorId })
+      .populate("user", "name email phone")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .populate("payment_id")
+      .sort({ createdAt: -1 });
+
+    if (!allPurchases || allPurchases.length === 0) {
+      return validationErrorResponse(res, "No purchases found for this vendor", 404);
+    }
+
+    const offerStats = {};
+    let total_customers = 0;
+
+    allPurchases.forEach((purchase) => {
+      const offer = purchase.offer;
+      if (!offer) return;
+
+      const offerId = offer._id.toString();
+
+      if (!offerStats[offerId]) {
+        offerStats[offerId] = {
+          offer_id: offer._id,
+          offer_title:
+            offer.percentage?.title ||
+            offer.flat?.title ||
+            offer.title ||
+            "Untitled Offer",
+          offer_type: offer.type || "General",
+          offer_status: purchase.status || "active",
+          isExpired:
+            new Date() >
+            new Date(
+              offer.percentage?.expiryDate ||
+              offer.flat?.expiryDate ||
+              offer.expiry_date ||
+              Date.now()
+            ),
+          total_revenue: 0,
+          total_customers: 0,
+          purchased_customers: [],
+        };
+      }
+
+      offerStats[offerId].total_revenue += purchase.final_amount || 0;
+      // offerStats[offerId].total_revenue += purchase.payment_id?.amount || 0;
+      offerStats[offerId].total_customers += 1;
+      total_customers += 1;
+    });
+
+    const allOffers = Object.values(offerStats);
+
+    const total_offers = allOffers.length;
+
+    return successResponse(res, "Vendor purchase history fetched successfully", 200, {
+      total_offers,
+      total_customers,
+      data: allOffers,
+    });
+  } catch (error) {
+    console.error("VendorOrder error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.getPurchasedCustomers = catchAsync(async (req, res) => {
-    try {
-        const vendorId = req.user.id;
-        const { offerId, page = 1, limit = 20 } = req.query;
-        // ✅ Validate inputs
-        if (!vendorId || !offerId) {
-            return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
-        }
-
-        // ✅ Build query
-        const query = {
-            vendor: new mongoose.Types.ObjectId(vendorId),
-            offer: new mongoose.Types.ObjectId(offerId),
-        };
-        console.log("query", query)
-        // ✅ Pagination
-        const skip = (page - 1) * limit;
-
-        // ✅ Fetch records
-        const allPurchases = await OfferBuy.find(query)
-            .populate("user", "name email phone")
-            .populate({
-                path: "offer",
-                // select: "title description discountPercentage", // only needed fields
-                populate: [
-                    { path: "flat", select: "title discount" },
-                    { path: "percentage", select: "title discount" },
-                ],
-            })
-            .populate({
-                path: "payment_id",
-                // select: "payment_id method amount currency status createdAt",
-            })
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(parseInt(limit));
-
-        // console.log("allPurchases", allPurchases)
-        // ✅ Count total records
-        const total_records = await OfferBuy.countDocuments(query);
-        const total_pages = Math.ceil(total_records / limit);
-
-        if (!allPurchases.length) {
-            return validationErrorResponse(res, "No purchase found", 404);
-        }
-
-        // ✅ Format response
-        // const purchased_customers = allPurchases.map((purchase) => ({
-        //     offer_buy: {
-        //         purchase_id: purchase._id,
-        //         final_amount: purchase.final_amount,
-        //         status: purchase.status,
-        //         vendor_bill_status: purchase.vendor_bill_status,
-        //         description: purchase?.description || "",
-        //         createdAt: purchase?.createdAt || ""
-        //     },
-        //     customer: {
-        //         id: purchase.user?._id,
-        //         name: purchase.user?.name,
-        //         email: purchase.user?.email,
-        //         phone: purchase.user?.phone,
-        //     },
-        //     payment: {
-        //         id: purchase.payment_id?._id,
-        //         payment_id: purchase.payment_id?.payment_id,
-        //         method: purchase.payment_id?.method,
-        //         amount: purchase.payment_id?.amount,
-        //         currency: purchase.payment_id?.currency,
-        //         status: purchase.payment_id?.status,
-        //         date: purchase.payment_id?.createdAt,
-        //     },
-        // }));
-
-
-        return successResponse(res, "Vendor amount updated successfully", 200, {
-            purchased_customers: allPurchases,
-            total_records,
-            current_page: Number(page),
-            per_page: Number(limit),
-            total_pages,
-            nextPage: page < total_pages ? Number(page) + 1 : null,
-            previousPage: page > 1 ? Number(page) - 1 : null,
-        });
-    } catch (error) {
-        console.error("Error fetching purchased customers:", error);
-        return res.status(500).json({ message: "Server error", error: error.message });
+  try {
+    const vendorId = req.user.id;
+    const { offerId, page = 1, limit = 20 } = req.query;
+    // ✅ Validate inputs
+    if (!vendorId || !offerId) {
+      return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
     }
+
+    // ✅ Build query
+    const query = {
+      vendor: new mongoose.Types.ObjectId(vendorId),
+      offer: new mongoose.Types.ObjectId(offerId),
+    };
+    console.log("query", query)
+    // ✅ Pagination
+    const skip = (page - 1) * limit;
+
+    // ✅ Fetch records
+    const allPurchases = await OfferBuy.find(query)
+      .populate("user", "name email phone")
+      .populate({
+        path: "offer",
+        // select: "title description discountPercentage", // only needed fields
+        populate: [
+          { path: "flat", select: "title discount" },
+          { path: "percentage", select: "title discount" },
+        ],
+      })
+      .populate({
+        path: "payment_id",
+        // select: "payment_id method amount currency status createdAt",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // console.log("allPurchases", allPurchases)
+    // ✅ Count total records
+    const total_records = await OfferBuy.countDocuments(query);
+    const total_pages = Math.ceil(total_records / limit);
+
+    if (!allPurchases.length) {
+      return validationErrorResponse(res, "No purchase found", 404);
+    }
+
+    // ✅ Format response
+    // const purchased_customers = allPurchases.map((purchase) => ({
+    //     offer_buy: {
+    //         purchase_id: purchase._id,
+    //         final_amount: purchase.final_amount,
+    //         status: purchase.status,
+    //         vendor_bill_status: purchase.vendor_bill_status,
+    //         description: purchase?.description || "",
+    //         createdAt: purchase?.createdAt || ""
+    //     },
+    //     customer: {
+    //         id: purchase.user?._id,
+    //         name: purchase.user?.name,
+    //         email: purchase.user?.email,
+    //         phone: purchase.user?.phone,
+    //     },
+    //     payment: {
+    //         id: purchase.payment_id?._id,
+    //         payment_id: purchase.payment_id?.payment_id,
+    //         method: purchase.payment_id?.method,
+    //         amount: purchase.payment_id?.amount,
+    //         currency: purchase.payment_id?.currency,
+    //         status: purchase.payment_id?.status,
+    //         date: purchase.payment_id?.createdAt,
+    //     },
+    // }));
+
+
+    return successResponse(res, "Vendor amount updated successfully", 200, {
+      purchased_customers: allPurchases,
+      total_records,
+      current_page: Number(page),
+      per_page: Number(limit),
+      total_pages,
+      nextPage: page < total_pages ? Number(page) + 1 : null,
+      previousPage: page > 1 ? Number(page) - 1 : null,
+    });
+  } catch (error) {
+    console.error("Error fetching purchased customers:", error);
+    return res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
 
 exports.Paymentvendor = catchAsync(async (req, res) => {
-    try {
-        const userid = req.user.id
-        const offerId = req.params.id;
-        const record = await Payment.findByIdAndUpdate(
-            offerId, userid,
-            { status: "redeemed" },
-            { new: true }
-        );
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-        return successResponse(res, "Offer status updated successfully", 201, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const userid = req.user.id
+    const offerId = req.params.id;
+    const record = await Payment.findByIdAndUpdate(
+      offerId, userid,
+      { status: "redeemed" },
+      { new: true }
+    );
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found", 404);
     }
+    return successResponse(res, "Offer status updated successfully", 201, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.UpdateAmount = catchAsync(async (req, res) => {
@@ -1078,94 +1076,94 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
 
 // updatekarna hai 
 exports.PaymentDetails = catchAsync(async (req, res) => {
-    try {
-        const vendor = req.user.id;
-        const { final_amount, vendor_bill_status, offer, user } = req.body;
-        console.log(req.body, vendor)
-        const record = await OfferBuy.findOneAndUpdate(
-            { offer: offer, vendor: vendor, user: user },
-            {
-                final_amount,
-                vendor_bill_status,
-            },
-            { new: true }
-        );
+  try {
+    const vendor = req.user.id;
+    const { final_amount, vendor_bill_status, offer, user } = req.body;
+    console.log(req.body, vendor)
+    const record = await OfferBuy.findOneAndUpdate(
+      { offer: offer, vendor: vendor, user: user },
+      {
+        final_amount,
+        vendor_bill_status,
+      },
+      { new: true }
+    );
 
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found for this vendor", 404);
-        }
-
-        return successResponse(res, "Vendor amount updated successfully", 200, record);
-    } catch (error) {
-        console.log("Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found for this vendor", 404);
     }
+
+    return successResponse(res, "Vendor amount updated successfully", 200, record);
+  } catch (error) {
+    console.log("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.getPayments = catchAsync(async (req, res) => {
-    try {
-        const vendor = req.user.id;
-        const {id} = req.params;
-        const record = await OfferBuy.findById(id)
-        .populate('user').populate({
-                path: "offer",
-                populate: [
-                    { path: "flat",  },
-                    { path: "percentage", },
-                ],
-            }).populate('vendor').populate('payment_id');
-        if (!record) {
-            return validationErrorResponse(res, "Payment not found", 404);
-        }
-        return successResponse(res, "Payments fetched successfully", 200, record);
-    } catch (error) {
-        console.log("Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const vendor = req.user.id;
+    const { id } = req.params;
+    const record = await OfferBuy.findById(id)
+      .populate('user').populate({
+        path: "offer",
+        populate: [
+          { path: "flat", },
+          { path: "percentage", },
+        ],
+      }).populate('vendor').populate('payment_id');
+    if (!record) {
+      return validationErrorResponse(res, "Payment not found", 404);
     }
+    return successResponse(res, "Payments fetched successfully", 200, record);
+  } catch (error) {
+    console.log("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.uploadGallery = catchAsync(async (req, res) => {
-    try {
-        const user = req.user.id;
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ message: "No files uploaded" });
-        }
-        const fileUrls = req.files.map(
-            (file) => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
-        );
-        const vendor = await Vendor.findOne({user: user});
-        if (!vendor) {
-            return validationErrorResponse(res, "Vendor not found", 404);
-        }
-        // ✅ Ensure vendor.gallery exists and is an array
-        if (!Array.isArray(vendor.business_image)) {
-         vendor.business_image = [];
-        }
-        vendor.business_image = vendor.business_image.concat(fileUrls);
-        await vendor.save();
-        res.json({
-            message: "Files uploaded successfully",
-            count: req.files.length,
-            data: fileUrls,
-        });             
-    } catch (error) {
-        console.log("Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const user = req.user.id;
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "No files uploaded" });
     }
+    const fileUrls = req.files.map(
+      (file) => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
+    );
+    const vendor = await Vendor.findOne({ user: user });
+    if (!vendor) {
+      return validationErrorResponse(res, "Vendor not found", 404);
+    }
+    // ✅ Ensure vendor.gallery exists and is an array
+    if (!Array.isArray(vendor.business_image)) {
+      vendor.business_image = [];
+    }
+    vendor.business_image = vendor.business_image.concat(fileUrls);
+    await vendor.save();
+    res.json({
+      message: "Files uploaded successfully",
+      count: req.files.length,
+      data: fileUrls,
+    });
+  } catch (error) {
+    console.log("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.getGallery = catchAsync(async (req, res) => {
-    try {
-        const user = req.user.id;
-        const data = await Vendor.findOne({user: user}).select('business_image');
-        if (!data) {
-            return validationErrorResponse(res, "Vendor not found", 404);
-        }
-         return successResponse(res, "Gallery fetched successfully", 200, data);           
-    } catch (error) {
-        console.log("Error:", error);
-        return errorResponse(res, error.message || "Internal Server Error", 500);
+  try {
+    const user = req.user.id;
+    const data = await Vendor.findOne({ user: user }).select('business_image');
+    if (!data) {
+      return validationErrorResponse(res, "Vendor not found", 404);
     }
+    return successResponse(res, "Gallery fetched successfully", 200, data);
+  } catch (error) {
+    console.log("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
 });
 
 exports.deleteGallery = catchAsync(async (req, res) => {
@@ -1204,6 +1202,33 @@ exports.deleteGallery = catchAsync(async (req, res) => {
     });
   } catch (error) {
     console.error("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+
+exports.vendorphoneUpdate = catchAsync(async (req, res) => {
+  try {
+    const vendorId = req.user?.id || req.params.id;
+
+    if (!vendorId) {
+      return validationErrorResponse(res, "Vendor ID missing", 400);
+    }
+
+    const { phone } = req.body()
+    const vendordata = await User.findByIdAndUpdate(
+      vendorId,
+      { phone },
+      { new: true }
+    );
+
+
+
+    return successResponse(res, "Vendor updated successfully", 200, {
+      vendordata,
+    });
+
+  } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });

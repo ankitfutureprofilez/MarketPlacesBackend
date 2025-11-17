@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { CustomerRegister, VendorGet, CustomerGet, VendorOfferGet, GetOfferById, CustomerDashboard, OfferBrought, PaymentGetByUser, AddPayment, getVendorById, EditCustomerPerson ,UpdateCustomerAmount, getVendorGallery, OfferBroughtById, RedeemedOffers, CustomerAddBill } = require("../controller/CustomerController");
+const { CustomerRegister, VendorGet, CustomerGet, VendorOfferGet, GetOfferById, CustomerDashboard, OfferBrought, PaymentGetByUser, AddPayment, getVendorById, EditCustomerPerson ,UpdateCustomerAmount, getVendorGallery, OfferBroughtById, RedeemedOffers, CustomerAddBill, customerphoneUpdate } = require("../controller/CustomerController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -19,5 +19,8 @@ router.post("/customer/update",verifyToken, upload.single("avatar"), EditCustome
 router.post("/customer/payment/update/:id", UpdateCustomerAmount);
 router.post("/customer/bill-add/:id",verifyToken, upload.single("bill"), CustomerAddBill);
 router.get("/customer/vendor-gallery/:id", getVendorGallery);
+
+router.post("/customer/phone-update", verifyToken, customerphoneUpdate);
+
 
 module.exports = router;
