@@ -151,6 +151,10 @@ exports.VendorGetId = catchAsync(async (req, res) => {
       aadhaar_verify: record.aadhaar_verify,
       pan_card_verify: record.pan_card_verify,
       gst_certificate_verify: record.gst_certificate_verify,
+      aadhaar_reasons : record.aadhaar_reasons ,
+      pan_card_reasons :record.pan_card_reasons , 
+      gst_certificate_reasons : record.gst_certificate_reasons , 
+      
     };
 
     const businessObj = {
