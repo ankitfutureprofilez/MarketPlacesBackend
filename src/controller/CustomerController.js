@@ -5,7 +5,11 @@ const Vendor = require("../model/Vendor");
 const Offer = require("../model/Offer.js");
 const OfferBuy = require("../model/OfferBuy.js");
 const catchAsync = require("../utils/catchAsync");
-const { successResponse, errorResponse, validationErrorResponse } = require("../utils/ErrorHandling.js");
+const {
+  successResponse,
+  errorResponse,
+  validationErrorResponse,
+} = require("../utils/ErrorHandling.js");
 const categories = require("../model/categories.js");
 const Razorpay = require("razorpay");
 const Payment = require("../model/Payment.js");
@@ -66,8 +70,8 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
     // Correct way to get :id from route
     const vendorid = req.params.id;
     console.log("userId:", vendorid);
-    const user_id = req.user.id
-    console.log("user_id", user_id)
+    const user_id = req.user.id;
+    console.log("user_id", user_id);
     const record = await Offer.find({ vendor: vendorid })
       .populate("flat")
       .populate("percentage");
@@ -83,7 +87,7 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
       })
     );
 
-    console.log("updatedOffers", updatedOffers)
+    console.log("updatedOffers", updatedOffers);
 
     if (!record || record.length === 0) {
       return validationErrorResponse(res, "Offer not found", 404);
@@ -102,7 +106,7 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
 
 exports.GetOfferById = catchAsync(async (req, res) => {
   try {
-    const userId = req.query?.user_id
+    const userId = req.query?.user_id;
     const offerId = req.params.id.trim();
 
     const record = await Offer.findById(offerId)
@@ -119,7 +123,7 @@ exports.GetOfferById = catchAsync(async (req, res) => {
       user: userId,
     });
 
-    console.log("existingBuy", existingBuy)
+    console.log("existingBuy", existingBuy);
 
     const userOfferStatus = existingBuy ? true : false;
 
@@ -130,9 +134,9 @@ exports.GetOfferById = catchAsync(async (req, res) => {
       .populate("offer");
 
     const totalBuys = offerBuys.length;
-    const redeemCount = offerBuys.filter(b => b.status === "redeemed").length;
-    const pendingCount = offerBuys.filter(b => b.status === "active").length;
-    const expiredCount = offerBuys.filter(b => b.status === "expired").length;
+    const redeemCount = offerBuys.filter((b) => b.status === "redeemed").length;
+    const pendingCount = offerBuys.filter((b) => b.status === "active").length;
+    const expiredCount = offerBuys.filter((b) => b.status === "expired").length;
 
     // ✅ 6. Send unified response
     return successResponse(res, "Offer details fetched successfully", 200, {
@@ -146,7 +150,6 @@ exports.GetOfferById = catchAsync(async (req, res) => {
       },
       offerBuys,
     });
-
   } catch (error) {
     console.error("Error fetching offer details:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -268,22 +271,20 @@ exports.VendorGet = catchAsync(async (req, res) => {
       limit: limit,
       totalPages: Math.ceil(totalVendors / limit),
     });
-
   } catch (error) {
     console.log("error", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
 
-
 exports.getVendorById = catchAsync(async (req, res) => {
   try {
     const _id = req.params.id;
-    console.log("_id", _id)
+    console.log("_id", _id);
     if (!_id) {
       return validationErrorResponse(res, "Vendor Id not found", 404);
     }
-    const user_id = req.query.user_id
+    const user_id = req.query.user_id;
     let record = await Vendor.findOne({ user: _id })
       .populate("user")
       .populate("added_by")
@@ -301,7 +302,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "No active offers found", 404);
     }
 
-    console.log("record", record)
+    console.log("record", record);
     const updatedOffers = await Promise.all(
       offers.map(async (offer) => {
         const existingBuy = await OfferBuy.findOne({
@@ -318,11 +319,17 @@ exports.getVendorById = catchAsync(async (req, res) => {
       status: "active",
     });
 
-    const similar = await Vendor.find({ category: record?.category?._id, user: { $in: vendorsWithActiveOffers } })
-      .select("state area city business_name business_image address business_logo vendor category user subcategory lat long")
+    const similar = await Vendor.find({
+      category: record?.category?._id,
+      user: { $in: vendorsWithActiveOffers },
+    })
+      .select(
+        "state area city business_name business_image address business_logo vendor category user subcategory lat long"
+      )
       .populate("user")
       .populate("category")
-      .populate("subcategory").limit(5);
+      .populate("subcategory")
+      .limit(5);
     const similarVendor = await getVendorsWithMaxOffer(similar);
     // console.log("similarVendor", similarVendor);
     // After fetching similar vendors
@@ -338,8 +345,8 @@ exports.getVendorById = catchAsync(async (req, res) => {
         let arg =
           Math.sin(toRad(record.lat)) * Math.sin(toRad(vendorLat)) +
           Math.cos(toRad(record.lat)) *
-          Math.cos(toRad(vendorLat)) *
-          Math.cos(toRad(vendorLong) - toRad(record.long));
+            Math.cos(toRad(vendorLat)) *
+            Math.cos(toRad(vendorLong) - toRad(record.long));
         arg = Math.min(1, Math.max(-1, arg));
         distance = R * Math.acos(arg);
         distance = Math.round(distance * 100) / 100;
@@ -396,7 +403,7 @@ exports.getVendorById = catchAsync(async (req, res) => {
       business_image: record.business_image,
       state: record.state,
       email: record?.vendor?.email,
-      country: record?.country
+      country: record?.country,
     };
 
     const timingObj = {
@@ -430,21 +437,27 @@ exports.getVendorById = catchAsync(async (req, res) => {
       Verify_status: record.Verify_status,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
-      percentages
+      percentages,
     };
 
-    return successResponse(res, "Vendor details fetched successfully", 200, transformed);
-
+    return successResponse(
+      res,
+      "Vendor details fetched successfully",
+      200,
+      transformed
+    );
   } catch (error) {
-    console.log("error", error)
+    console.log("error", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
-})
+});
 
 exports.CustomerDashboard = catchAsync(async (req, res) => {
   try {
     const lat = req.params.lat ? parseFloat(req.params.lat) : 26.93018694624354;
-    const long = req.params.long ? parseFloat(req.params.long) : 75.78562232566131;
+    const long = req.params.long
+      ? parseFloat(req.params.long)
+      : 75.78562232566131;
 
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
@@ -493,9 +506,9 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
           R *
           Math.acos(
             Math.sin(toRad(lat)) * Math.sin(toRad(vendorLat)) +
-            Math.cos(toRad(lat)) *
-            Math.cos(toRad(vendorLat)) *
-            Math.cos(toRad(vendorLong) - toRad(long))
+              Math.cos(toRad(lat)) *
+                Math.cos(toRad(vendorLat)) *
+                Math.cos(toRad(vendorLong) - toRad(long))
           );
 
         distance = Math.round(d * 100) / 100; // 2 decimal places
@@ -507,7 +520,6 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
         distance,
       };
     });
-
 
     // Sort only by popularity (offer count)
     const sortedPopularVendors = popularWithDistance.sort((a, b) => {
@@ -658,18 +670,19 @@ exports.OfferBrought = catchAsync(async (req, res) => {
       .populate("payment_id")
       .populate({
         path: "offer",
-        populate: [
-          { path: "flat" },
-          { path: "percentage" }
-        ],
+        populate: [{ path: "flat" }, { path: "percentage" }],
       });
     if (!record) {
       return validationErrorResponse(res, "Offers not found", 404);
     }
-    return successResponse(res, "Brought offers fetched successfully", 200, record);
+    return successResponse(
+      res,
+      "Brought offers fetched successfully",
+      200,
+      record
+    );
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
-
   }
 });
 
@@ -683,19 +696,20 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
       .populate("payment_id")
       .populate({
         path: "offer",
-        populate: [
-          { path: "flat" },
-          { path: "percentage" }
-        ],
+        populate: [{ path: "flat" }, { path: "percentage" }],
       });
-    console.log("record", record)
+    console.log("record", record);
     if (!record) {
       return validationErrorResponse(res, " Brought Offer not found", 404);
     }
-    return successResponse(res, "Brought Offer Detail fetched successfully", 200, record);
+    return successResponse(
+      res,
+      "Brought Offer Detail fetched successfully",
+      200,
+      record
+    );
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
-
   }
 });
 
@@ -739,10 +753,7 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
       .populate("payment_id")
       .populate({
         path: "offer",
-        populate: [
-          { path: "flat" },
-          { path: "percentage" }
-        ],
+        populate: [{ path: "flat" }, { path: "percentage" }],
       })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -752,7 +763,10 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
     record = await attachVendorLogos(record);
 
     // ✅ Count total records
-    const total_records = await OfferBuy.countDocuments({ user: id, vendor_bill_status: true });
+    const total_records = await OfferBuy.countDocuments({
+      user: id,
+      vendor_bill_status: true,
+    });
     const total_pages = Math.ceil(total_records / limit);
 
     if (!record) {
@@ -770,14 +784,13 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
     });
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
-
   }
 });
 
 exports.PaymentGetByUser = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log("userId", userId)
+    console.log("userId", userId);
     const record = await Payment.find({ user: userId });
     if (!record || record.length === 0) {
       return validationErrorResponse(res, "No Users found", 404);
@@ -793,7 +806,7 @@ exports.AddPayment = catchAsync(async (req, res) => {
     const userid = req.user.id;
     const { amount, currency, offer_id, vendor_id } = req.body;
 
-    console.log("req.body", req.body)
+    console.log("req.body", req.body);
 
     const razorpay = new Razorpay({
       key_id: "rzp_test_RQ3O3IWq0ayjsg",
@@ -805,7 +818,8 @@ exports.AddPayment = catchAsync(async (req, res) => {
       amount: amount * 100,
       currency: currency || "INR",
       receipt: "rcpt_" + Math.random().toString(36).substring(7),
-      notes: {  // ✅ Notes yahan add karen
+      notes: {
+        // ✅ Notes yahan add karen
         offer_id: offer_id,
         vendor_id: vendor_id,
         userid: userid,
@@ -846,13 +860,20 @@ exports.EditCustomerPerson = catchAsync(async (req, res) => {
         }
       }
 
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
+        req.file.filename
+      }`;
       user.avatar = fileUrl;
     }
 
     const updatedUser = await user.save();
 
-    return successResponse(res, "Customer updated successfully.", 200, updatedUser);
+    return successResponse(
+      res,
+      "Customer updated successfully.",
+      200,
+      updatedUser
+    );
   } catch (error) {
     console.error("Customer update error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -872,14 +893,10 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Total amount is required", 400);
     }
 
-    const record = await OfferBuy.findById(id)
-      .populate({
-        path: "offer",
-        populate: [
-          { path: "flat" },
-          { path: "percentage" }
-        ]
-      });
+    const record = await OfferBuy.findById(id).populate({
+      path: "offer",
+      populate: [{ path: "flat" }, { path: "percentage" }],
+    });
 
     if (!record) {
       return validationErrorResponse(res, "No offer found", 404);
@@ -887,7 +904,8 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
 
     // return successResponse(res, "Vendor amount updated successfully", 200, record);
 
-    let discount = 0, final = total_amount;
+    let discount = 0,
+      final = total_amount;
 
     if (record?.offer?.percentage && record?.offer?.type === "percentage") {
       const offerData = record.offer.percentage;
@@ -908,8 +926,7 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
       );
 
       final = total_amount - discount;
-    }
-    else if (record?.offer?.type === "flat") {
+    } else if (record?.offer?.type === "flat") {
       const offerData = record.offer.flat;
       if (total_amount < offerData.minBillAmount) {
         return validationErrorResponse(
@@ -920,8 +937,7 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
       }
       discount = offerData?.discountPercentage;
       final = total_amount - discount;
-    }
-    else {
+    } else {
       console.log("invalid offer type");
     }
 
@@ -931,7 +947,12 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
     record.final_amount = final;
     await record.save();
 
-    return successResponse(res, "Vendor amount updated successfully", 200, record);
+    return successResponse(
+      res,
+      "Vendor amount updated successfully",
+      200,
+      record
+    );
   } catch (error) {
     console.error("Error updating amount:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -946,14 +967,10 @@ exports.CustomerAddBill = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "ID is required", 400);
     }
 
-    const record = await OfferBuy.findById(id)
-      .populate({
-        path: "offer",
-        populate: [
-          { path: "flat" },
-          { path: "percentage" }
-        ]
-      });
+    const record = await OfferBuy.findById(id).populate({
+      path: "offer",
+      populate: [{ path: "flat" }, { path: "percentage" }],
+    });
 
     if (!record) {
       return validationErrorResponse(res, "No offer found", 404);
@@ -971,12 +988,19 @@ exports.CustomerAddBill = catchAsync(async (req, res) => {
       }
     }
 
-    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
+      req.file.filename
+    }`;
     record.bill = fileUrl;
 
     await record.save();
 
-    return successResponse(res, "Vendor amount updated successfully", 200, record);
+    return successResponse(
+      res,
+      "Vendor amount updated successfully",
+      200,
+      record
+    );
   } catch (error) {
     console.error("Error updating amount:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -986,7 +1010,7 @@ exports.CustomerAddBill = catchAsync(async (req, res) => {
 exports.getVendorGallery = catchAsync(async (req, res) => {
   try {
     const user = req.params.id;
-    const data = await Vendor.findOne({ user: user }).select('business_image');
+    const data = await Vendor.findOne({ user: user }).select("business_image");
     if (!data) {
       return validationErrorResponse(res, "Vendor not found", 404);
     }
@@ -997,14 +1021,20 @@ exports.getVendorGallery = catchAsync(async (req, res) => {
   }
 });
 
-// customer phone number 
+// customer phone number
 exports.customerphoneUpdate = catchAsync(async (req, res) => {
   try {
     const vendorId = req.user?.id || req.params.id;
     if (!vendorId) {
       return validationErrorResponse(res, "Customer ID missing", 400);
     }
-    const { phone } = req.body()
+    const { phone, otp } = req.body;
+    if (!otp) {
+      return validationErrorResponse(res, "Phone number is required", 401);
+    }
+    if (otp !== "123456") {
+      return validationErrorResponse(res, "Invalid OTP", 400);
+    }
     const vendordata = await User.findByIdAndUpdate(
       vendorId,
       { phone },
@@ -1013,7 +1043,6 @@ exports.customerphoneUpdate = catchAsync(async (req, res) => {
     return successResponse(res, "Customer updated successfully", 200, {
       vendordata,
     });
-
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }

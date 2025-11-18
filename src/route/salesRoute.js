@@ -1,11 +1,45 @@
-const { VendorGetAll, VendorStatus, VendorRegister, SalesGetId, AddSalesPersons } = require("../controller/SalesController");
+const { VendorGetAll, VendorStatus, VendorRegister, SalesGetId, AddSalesPersons, SalesphoneUpdate, EditSalesPerson, OTPVerify, vendorUpdate, VendorSalesGetId } = require("../controller/SalesController");
 const { verifyToken } = require("../utils/tokenVerify");
+const upload = require("../utils/uploader");
 
 const router = require("express").Router();
 
-router.post("/sales/vendor/:id", VendorGetAll);
+router.get("/sales/vendor/:id", VendorGetAll);
 router.post("/sales/vendor_status", VendorStatus);
-router.post("/sales/vendor_add", verifyToken, VendorRegister);
+
+router.post("/sales/vendor-add", verifyToken,
+    upload.fields([
+        { name: "aadhaar_front", maxCount: 1 },
+        { name: "aadhaar_back", maxCount: 1 },
+        { name: "pan_card_image", maxCount: 1 },
+        { name: "gst_certificate", maxCount: 1 },
+        { name: "business_logo", maxCount: 1 },
+    ]), VendorRegister);
+
+
+router.post("/sales/update", verifyToken,
+    upload.fields([
+        { name: "aadhaar_front", maxCount: 1 },
+        { name: "aadhaar_back", maxCount: 1 },
+        { name: "pan_card_image", maxCount: 1 },
+        { name: "gst_certificate", maxCount: 1 },
+        { name: "business_logo", maxCount: 1 },
+    ]), vendorUpdate);
+
 router.get("/sales/sales_id/:id", SalesGetId);
+
+
+router.post("/sales/phone-update", verifyToken, SalesphoneUpdate);
+
+router.post("/sales/update", verifyToken, EditSalesPerson);
+
+router.post("/sales/otp", OTPVerify);
+
+router.get("/admin/vendor_details/:id", VendorSalesGetId);
+
+
+
+
+
 
 module.exports = router; 

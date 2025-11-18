@@ -57,7 +57,7 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: "pending"
         },
-        aadhaar_reasons: {
+        aadhaar_reason: {
             type: String,
             default: null
         },
@@ -69,7 +69,7 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: "pending"
         },
-        pan_card_reasons: {
+        pan_card_reason: {
             type: String,
             default: null
         },
@@ -81,7 +81,7 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: "pending"
         },
-        gst_certificate_reasons: {
+        gst_certificate_reason: {
             type: String,
             default: null
         },

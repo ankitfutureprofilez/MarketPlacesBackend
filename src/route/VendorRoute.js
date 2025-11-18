@@ -33,9 +33,9 @@ router.post(
   ]), VendorRegister);
 
 router.get("/vendor/get", VendorGet);
-
 //this Api work 
 router.get("/vendor/get_details", verifyToken, VendorGetId);
+
 router.post("/vendor/update", verifyToken,
   upload.fields([
     { name: "aadhaar_front", maxCount: 1 },
@@ -60,10 +60,6 @@ router.post(
 );
 router.get("/vendor/gallery/get", verifyToken, getGallery);
 router.post("/vendor/gallery/delete", verifyToken, deleteGallery);
-
 router.post("/vendor/phone-update", verifyToken, vendorphoneUpdate);
-
-
-
 
 module.exports = router;

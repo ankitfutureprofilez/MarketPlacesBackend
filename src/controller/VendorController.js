@@ -116,8 +116,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 exports.VendorGetId = catchAsync(async (req, res) => {
   try {
     const _id = req.user.id;
-    console.log("vendorId:", _id);
-    console.log("_id", _id)
+    // console.log("vendorId:", _id);
+    // console.log("_id", _id)
     let record = await Vendor.findOne({ user: _id })
       .populate("user")
       .populate("added_by")
@@ -127,6 +127,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     if (!record) {
       return validationErrorResponse(res, "Vendor not found", 404);
     }
+    // console.log("record", record);
 
     const calcPercentage = (obj) => {
       const keys = Object.keys(obj);
@@ -151,10 +152,9 @@ exports.VendorGetId = catchAsync(async (req, res) => {
       aadhaar_verify: record.aadhaar_verify,
       pan_card_verify: record.pan_card_verify,
       gst_certificate_verify: record.gst_certificate_verify,
-      aadhaar_reasons : record.aadhaar_reasons ,
-      pan_card_reasons :record.pan_card_reasons , 
-      gst_certificate_reasons : record.gst_certificate_reasons , 
-      
+      aadhaar_reason: record?.aadhaar_reason,
+      gst_certificate_reason: record?.gst_certificate_reason,
+      pan_card_reason: record?.pan_card_reason,
     };
 
     const businessObj = {
@@ -1219,7 +1219,13 @@ exports.vendorphoneUpdate = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Vendor ID missing", 400);
     }
 
-    const { phone } = req.body()
+   const { phone, otp } = req.body;
+   if (!otp) {
+     return validationErrorResponse(res, "Phone number is required", 401);
+   }
+   if(otp !== "123456"){
+      return validationErrorResponse(res, "Invalid OTP", 400);
+   }
     const vendordata = await User.findByIdAndUpdate(
       vendorId,
       { phone },
