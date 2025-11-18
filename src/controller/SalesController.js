@@ -1,4 +1,9 @@
 const User = require("../model/User");
+const Offer = require("../model/Offer");
+const OfferBuy = require("../model/OfferBuy");
+
+
+
 const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
@@ -412,6 +417,7 @@ exports.VendorSalesGetId = catchAsync(async (req, res) => {
     const vendorId = record.user._id;
 
     const totalOffers = await Offer.countDocuments({ vendor: vendorId, status: "active" });
+
 
     const vendorBillsTrue = await OfferBuy.countDocuments({
       vendor: vendorId,
