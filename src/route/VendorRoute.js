@@ -64,6 +64,4 @@ router.post("/vendor/gallery/delete", verifyToken, deleteGallery);
 router.post("/vendor/phone-update", verifyToken, vendorphoneUpdate);
 
 
-
-
 module.exports = router;
