@@ -399,7 +399,6 @@ exports.VendorSalesGetId = catchAsync(async (req, res) => {
     if (!id) {
       return errorResponse(res, "Vendor ID is required", 400);
     }
-
     // Fetch vendor details
     const record = await Vendor.findById(id)
       .populate("user")

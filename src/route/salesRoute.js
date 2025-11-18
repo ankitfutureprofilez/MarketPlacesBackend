@@ -35,7 +35,7 @@ router.post("/sales/update", verifyToken, EditSalesPerson);
 
 router.post("/sales/otp", OTPVerify);
 
-router.get("/admin/vendor_details/:id", VendorSalesGetId);
+router.get("/sales/vendor_details/:id", VendorSalesGetId);
 
 
 
