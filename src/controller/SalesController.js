@@ -1,12 +1,11 @@
 const User = require("../model/User");
 const Offer = require("../model/Offer");
 const OfferBuy = require("../model/OfferBuy");
-
-
-
 const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
+const { default: mongoose } = require("mongoose");
+
 
 exports.SalesGetId = catchAsync(async (req, res) => {
     try {
@@ -20,7 +19,6 @@ exports.SalesGetId = catchAsync(async (req, res) => {
 })
 
 exports.VendorRegister = catchAsync(async (req, res) => {
-    
   try {
     const StaffID =  req.user.id;
     const {
@@ -123,9 +121,6 @@ exports.VendorRegister = catchAsync(async (req, res) => {
   }
 });
 
-
-
-
 exports.VendorStatus = catchAsync(async (req, res) => {
     try {
         const { Verify_status, vendorId } = req.body;
@@ -142,18 +137,43 @@ exports.VendorStatus = catchAsync(async (req, res) => {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
 });
+
 exports.VendorGetAll = catchAsync(async (req, res) => {
     try {
         const sales = req.params.id;
-        const vendorget = await Vendor.find({ assign_staff: sales }).populate("user").populate("category").populate("subcategory").populate("assign_staff");
-        if (!vendorget) {
-            return validationErrorResponse(res, "Vendor not found", 404);
-        }
-        return successResponse(res, "Vendor status updated successfully", 200,vendorget);
+
+        let { page = 1, limit = 25 } = req.query;
+        page = Number(page);
+        limit = Number(limit);
+
+        const skip = (page - 1) * limit;
+
+        // Count all vendors for this staff
+        const total = await Vendor.countDocuments({ assign_staff: sales });
+
+        const vendors = await Vendor.find({ assign_staff: sales })
+            .populate("user")
+            .populate("category")
+            .populate("subcategory")
+            .populate("assign_staff")
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 });
+
+        return successResponse(res, "Vendors fetched successfully", 200, {
+            total,
+            currentPage: page,               
+            perPage: limit,
+            totalPages: Math.ceil(total / limit),
+            data: vendors
+        });
+
     } catch (error) {
         return errorResponse(res, error.message || "Internal Server Error", 500);
     }
-})
+});
+
+
 exports.SalesPersonStatus = catchAsync(async (req, res) => {
     try {
         console.log(req.params)
@@ -204,7 +224,8 @@ exports.SalesphoneUpdate = catchAsync(async (req, res) => {
 exports.EditSalesPerson = catchAsync(async (req, res) => {
   try {
     const id = req.user.id;
-    const { name, email } = req.body;
+    const { name, email   } = req.body;
+    console.log("req.body" ,req.body)
     const user = await User.findById(id);
     if (!user || user.deleted_at) {
       return validationErrorResponse(res, "Sales not found.", 404);
@@ -253,9 +274,7 @@ exports.OTPVerify = catchAsync(async (req, res) => {
     if (otp !== "123456") {
         return validationErrorResponse(res, "Invalid or expired OTP", 400);
     }
-       return successResponse(res, "OTP verified", 200, {
-        role: role,
-       });
+       return successResponse(res, "OTP verified", 200 );
 
     // Verify OTP with Twilio
     // const verificationCheck = await client.verify.v2
@@ -394,9 +413,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
   }
 });
 
-
 //vendore Details : 
-
 exports.VendorSalesGetId = catchAsync(async (req, res) => {
   try {
     const id = req.params.id;

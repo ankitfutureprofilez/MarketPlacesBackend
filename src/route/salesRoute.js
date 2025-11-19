@@ -31,7 +31,7 @@ router.get("/sales/sales_id/:id", SalesGetId);
 
 router.post("/sales/phone-update", verifyToken, SalesphoneUpdate);
 
-router.post("/sales/update", verifyToken, EditSalesPerson);
+router.post("/sales/update", verifyToken, upload.single("avatar"), EditSalesPerson);
 
 router.post("/sales/otp", OTPVerify);
 
