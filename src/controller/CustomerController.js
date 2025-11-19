@@ -213,20 +213,31 @@ exports.VendorGet = catchAsync(async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    // Find vendors who have active offers
+    // Step 1: Find vendors who have active offers
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
     });
 
-    // Total count BEFORE pagination
-    let totalVendors = await Vendor.countDocuments({
+    // Step 2: Build base query
+    let query = {
       user: { $in: vendorsWithActiveOffers },
-    });
+    };
 
-    // Fetch paginated vendors
-    let vendors = await Vendor.find({
-      user: { $in: vendorsWithActiveOffers },
-    })
+    // Step 3: Apply filters in DB (NOT after fetching)
+    if (name) {
+      query.business_name = new RegExp(name.trim(), "i");
+    }
+
+    if (category) {
+      // category is the _id, or name?
+      query.category = new RegExp(category.trim(), "i");
+    }
+
+    // Step 4: Count total before pagination
+    const totalVendors = await Vendor.countDocuments(query);
+
+    // Step 5: Fetch paginated results
+    let vendors = await Vendor.find(query)
       .populate({
         path: "user",
         match: { deleted_at: null },
@@ -237,39 +248,32 @@ exports.VendorGet = catchAsync(async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Apply filters (AFTER fetching)
-    if (name || category) {
-      const nameRegex = name ? new RegExp(name.trim(), "i") : null;
-      const categoryRegex = category ? new RegExp(category.trim(), "i") : null;
-
-      vendors = vendors.filter((item) => {
-        const businessName = item.business_name || "";
-        const catName = item?.category?.name || "";
-
-        const matchesName = nameRegex ? nameRegex.test(businessName) : true;
-        const matchesCategory = categoryRegex
-          ? categoryRegex.test(catName)
-          : true;
-
-        return matchesName && matchesCategory;
-      });
-
-      // Update total after filter
-      totalVendors = vendors.length;
-    }
-
+    // Step 6: If no data found for the page, return empty list (NOT 404)
     if (!vendors || vendors.length === 0) {
-      return errorResponse(res, "No vendors found", 404);
+      return successResponse(res, "No vendors found", 200, {
+        data: [],
+        total_records: 0,
+        current_page: Number(page),
+        per_page: Number(limit),
+        total_pages: 0,
+        nextPage: null,
+        previousPage: null,
+      });
     }
 
+    // Step 7: Get offers for each vendor
     const vendorsWithOffers = await getVendorsWithMaxOffer(vendors);
 
-    return successResponse(res, "Vendor retrieved successfully", 200, {
+    const totalPages = Math.ceil(totalVendors / limit);
+
+    return successResponse(res, "Vendors retrieved successfully", 200, {
       data: vendorsWithOffers,
-      total: totalVendors,
-      page: page,
-      limit: limit,
-      totalPages: Math.ceil(totalVendors / limit),
+      total_records: totalVendors,
+      current_page: Number(page),
+      per_page: Number(limit),
+      total_pages: totalPages,
+      nextPage: page < totalPages ? Number(page) + 1 : null,
+      previousPage: page > 1 ? Number(page) - 1 : null,
     });
   } catch (error) {
     console.log("error", error);
@@ -663,7 +667,20 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
 exports.OfferBrought = catchAsync(async (req, res) => {
   try {
     const id = req?.user?.id;
-    const record = await OfferBuy.find({ user: id })
+
+    // Pagination inputs
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Total records
+    const total_records = await OfferBuy.countDocuments({ user: id });
+
+    // Calculate total pages
+    const total_pages = Math.ceil(total_records / limit);
+
+    // Fetch paginated records
+    const allPurchases = await OfferBuy.find({ user: id })
       .populate("user")
       .populate("offer")
       .populate("vendor")
@@ -671,16 +688,21 @@ exports.OfferBrought = catchAsync(async (req, res) => {
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
-      });
-    if (!record) {
-      return validationErrorResponse(res, "Offers not found", 404);
-    }
-    return successResponse(
-      res,
-      "Brought offers fetched successfully",
-      200,
-      record
-    );
+      })
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    // Always return 200, even if no data for this page
+    return successResponse(res, "Brought offers fetched successfully", 200, {
+      purchased_customers: allPurchases,
+      total_records,
+      current_page: page,
+      per_page: limit,
+      total_pages,
+      nextPage: page < total_pages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    });
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
