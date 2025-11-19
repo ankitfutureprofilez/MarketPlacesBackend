@@ -17,7 +17,7 @@ router.post("/sales/vendor-add", verifyToken,
     ]), VendorRegister);
 
 
-router.post("/sales/update", verifyToken,
+router.post("/sales/update/:id", verifyToken,
     upload.fields([
         { name: "aadhaar_front", maxCount: 1 },
         { name: "aadhaar_back", maxCount: 1 },
