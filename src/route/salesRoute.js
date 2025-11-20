@@ -1,4 +1,4 @@
-const { VendorGetAll, VendorStatus, VendorRegister, SalesGetId, AddSalesPersons, SalesphoneUpdate, EditSalesPerson, OTPVerify, vendorUpdate, VendorSalesGetId } = require("../controller/SalesController");
+const { VendorGetAll, VendorStatus, VendorRegister, SalesGetId, AddSalesPersons, SalesphoneUpdate, EditSalesPerson, OTPVerify, vendorUpdate, VendorSalesGetId, SalesPersonGet } = require("../controller/SalesController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 
@@ -37,6 +37,8 @@ router.post("/sales/otp", OTPVerify);
 
 router.get("/sales/vendor_details/:id", VendorSalesGetId);
 
+
+router.get("/sales/profile", verifyToken, SalesPersonGet);
 
 
 

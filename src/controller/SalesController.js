@@ -468,3 +468,26 @@ exports.VendorSalesGetId = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
+
+exports.SalesPersonGet = catchAsync(async (req, res) => {
+  try {
+    const salesId = req.user?.id;
+    if (!salesId) {
+      return validationErrorResponse(res, "Sales ID is missing", 400);
+    }
+    const salesperson = await User.findById(salesId).select("-password");
+
+    if (!salesperson) {
+      return validationErrorResponse(res, "Salesperson not found", 404);
+    }
+
+    return successResponse(
+      res,
+      "Salesperson fetched successfully",
+      200,
+      salesperson
+    );
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
