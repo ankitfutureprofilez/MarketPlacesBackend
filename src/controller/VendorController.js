@@ -130,18 +130,27 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     // console.log("record", record);
 
     const calcPercentage = (obj) => {
+      if (!obj || typeof obj !== "object") return 0;
       const keys = Object.keys(obj);
       const total = keys.length;
+      if (total === 0) return 0;
       let filled = 0;
-
-      keys.forEach((k) => {
-        if (obj[k] !== null && obj[k] !== undefined && obj[k] !== "") {
-          filled++;
+      keys.forEach((key) => {
+        const value = obj[key];
+        if (value === null || value === undefined || value === "") return;
+        if (Array.isArray(value)) {
+          if (value.length > 0) filled++;
+          return;
         }
+        if (typeof value === "object") {
+          if (Object.keys(value).length > 0) filled++;
+          return;
+        }
+        filled++;
       });
-
-      return total > 0 ? Math.round((filled / total) * 100) : 0;
+      return Math.round((filled / total) * 100);
     };
+
     const documentObj = {
       business_logo: record.business_logo,
       aadhaar_front: record.aadhaar_front,
