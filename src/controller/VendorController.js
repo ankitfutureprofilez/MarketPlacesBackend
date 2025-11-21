@@ -129,7 +129,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     }
     // console.log("record", record);
 
-    const calcPercentage = (obj) => {
+   const calcPercentage = (obj) => {
       if (!obj || typeof obj !== "object") return 0;
       const keys = Object.keys(obj);
       const total = keys.length;
@@ -138,16 +138,26 @@ exports.VendorGetId = catchAsync(async (req, res) => {
       keys.forEach((key) => {
         const value = obj[key];
         if (value === null || value === undefined || value === "") return;
+        if (value instanceof Date && !isNaN(value)) {
+          filled++;
+          return;
+        }
+        if (value?._bsontype === "ObjectID") {
+          filled++;
+          return;
+        }
         if (Array.isArray(value)) {
           if (value.length > 0) filled++;
           return;
         }
+        if (typeof value === "function") return;
         if (typeof value === "object") {
           if (Object.keys(value).length > 0) filled++;
           return;
         }
         filled++;
       });
+
       return Math.round((filled / total) * 100);
     };
 
