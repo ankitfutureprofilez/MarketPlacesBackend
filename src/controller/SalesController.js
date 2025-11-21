@@ -102,21 +102,16 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       return errorResponse(res, "Failed to create vendor", 500);
     }
 
-    // 🔹 Generate JWT token
-    const token = jwt.sign(
-      { id: savedUser._id, role: savedUser.role, email: savedUser.email },
-      process.env.JWT_SECRET_KEY,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "365d" }
-    );
-
     return successResponse(res, "Vendor created successfully", 201, {
       user: savedVendor,
-      token,
       role: savedUser.role,
     });
 
   } catch (error) {
     console.error("Vendor registration failed:", error);
+    if (savedUser && savedUser._id) {
+      await User.findByIdAndDelete(savedUser._id);
+    }
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });

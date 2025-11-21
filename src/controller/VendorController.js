@@ -607,14 +607,20 @@ exports.category = catchAsync(async (req, res) => {
 // Sub Category 
 exports.subcategory = catchAsync(async (req, res) => {
   try {
-    const category_id = req.params.id
-    const record = await SubCategory.find({ category_id, deleted_at: null });
-    if (!record) {
-      return validationErrorResponse(res, "SubCategory not found", 404);
+    const category_id = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(category_id)) {
+      return validationErrorResponse(res, "Invalid Category ID", 400);
+    }
+    const record = await SubCategory.find({
+      category_id,
+      deleted_at: null
+    });
+    if (!record || record.length === 0) {
+      return validationErrorResponse(res, "SubCategory not found", 200);
     }
     return successResponse(res, "SubCategory fetched successfully", 200, record);
   } catch (error) {
-    console.log("error", error)
+    console.log("error", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
@@ -777,18 +783,20 @@ exports.Dashboard = catchAsync(async (req, res) => {
 
 exports.AdminSubcaterites = catchAsync(async (req, res) => {
   try {
-    const category_id = req.params.id
-    console.log(category_id)
-    const records = await categories.findOne({ _id: category_id });
-    console.log("records", records)
-    const Id = records.id
-    const record = await SubCategory.find({ category_id: Id });
-    if (!record) {
+    const category_id = req.params.id;
+
+    const record = await SubCategory.find({
+      category_id: category_id,
+      deleted_at: null
+    });
+
+    if (!record || record.length === 0) {
       return validationErrorResponse(res, "SubCategory not found", 404);
     }
+
     return successResponse(res, "SubCategory fetched successfully", 200, record);
   } catch (error) {
-    console.log("error", error)
+    console.log("error", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
