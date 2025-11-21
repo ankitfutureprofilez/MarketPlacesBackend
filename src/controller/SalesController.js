@@ -212,9 +212,7 @@ exports.SalesphoneUpdate = catchAsync(async (req, res) => {
       { phone },
       { new: true }
     );
-    return successResponse(res, "Sales updated successfully", 200, {
-      vendordata,
-    });
+    return successResponse(res, "Sales updated successfully", 200, vendordata);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -225,7 +223,7 @@ exports.EditSalesPerson = catchAsync(async (req, res) => {
   try {
     const id = req.user.id;
     const { name, email   } = req.body;
-    console.log("req.body" ,req.body)
+    // console.log("req.body" ,req.body)
     const user = await User.findById(id);
     if (!user || user.deleted_at) {
       return validationErrorResponse(res, "Sales not found.", 404);
