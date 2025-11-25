@@ -1021,14 +1021,14 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
 exports.UpdateAmount = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-    const { total_amount, vendor_bill_status } = req.body;
+    let { total_amount } = req.body;
 
     if (!id) {
       return validationErrorResponse(res, "Missing offer ID", 400);
     }
 
-    if (total_amount === undefined || total_amount === null) {
-      return validationErrorResponse(res, "Total amount is required", 400);
+    if (isNaN(total_amount)) {
+      return validationErrorResponse(res, "Total amount must be a valid number", 400);
     }
 
     // Fetch record + offer details (same as Function 2)

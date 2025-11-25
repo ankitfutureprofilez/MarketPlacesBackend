@@ -905,14 +905,16 @@ exports.EditCustomerPerson = catchAsync(async (req, res) => {
 exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-    const { total_amount } = req.body;
+    let { total_amount } = req.body;
+    total_amount = Number(total_amount);
 
     if (!id) {
       return validationErrorResponse(res, "Missing offer ID", 400);
     }
 
-    if (!total_amount && total_amount !== 0) {
-      return validationErrorResponse(res, "Total amount is required", 400);
+    // ❗ Validate number
+    if (isNaN(total_amount)) {
+      return validationErrorResponse(res, "Total amount must be a valid number", 400);
     }
 
     const record = await OfferBuy.findById(id).populate({
