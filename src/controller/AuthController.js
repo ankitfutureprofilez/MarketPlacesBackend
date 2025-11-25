@@ -56,12 +56,17 @@ exports.Login = catchAsync(async (req, res) => {
         role: role,
        });
     }
+    
+    if(user?.role !== role){
+      return errorResponse(res, "Invalid role selected", 401);
+    }
+
     const token = jwt.sign(
       { id: user._id, role: user.role, email: user.email },
       process.env.JWT_SECRET_KEY,
       { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
     );
-    console.log("token" ,token)
+    // console.log("token" ,token)
     return successResponse(res, "OTP verified successfully", 200, {
         user:user,
         token:token,

@@ -472,17 +472,34 @@ exports.AddOffer = catchAsync(async (req, res) => {
 exports.GetOfferId = catchAsync(async (req, res) => {
   try {
     const offerId = req.params.id;
-    const record = await Offer.findById({ _id: offerId }).populate("vendor").populate("flat").populate("percentage");
-    console.log("record", record)
+
+    const record = await Offer.findById(offerId)
+      .populate("vendor")
+      .populate("flat")
+      .populate("percentage");
+
     if (!record) {
       return validationErrorResponse(res, "Offer not found", 404);
     }
-    return successResponse(res, "Offer Get Details successfully", 200, {
-      record: record,
-      redeem: 35,
-      purchase: 15,
-      pending: 20
+
+    // ---- STATS FROM OfferBuy ----
+    const [
+      totalPurchases,
+      billedCount,
+      unbilledCount
+    ] = await Promise.all([
+      OfferBuy.countDocuments({ offer: offerId }),
+      OfferBuy.countDocuments({ offer: offerId, vendor_bill_status: true }),
+      OfferBuy.countDocuments({ offer: offerId, vendor_bill_status: false })
+    ]);
+
+    return successResponse(res, "Offer details retrieved successfully", 200, {
+      record,
+      redeem: billedCount,
+      purchase: totalPurchases,
+      pending: unbilledCount
     });
+
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -659,7 +676,15 @@ exports.Dashboard = catchAsync(async (req, res) => {
       {
         $group: {
           _id: null,
-          totalSales: { $sum: "$final_amount" },
+          totalSales: {
+            $sum: {
+              $cond: [
+                { $eq: ["$vendor_bill_status", true] },
+                "$final_amount",
+                0
+              ]
+            }
+          },
           users: { $addToSet: "$user" },
           redeemedCount: {
             $sum: { $cond: [{ $eq: ["$vendor_bill_status", true] }, 1, 0] },
@@ -854,8 +879,10 @@ exports.VendorOrder = catchAsync(async (req, res) => {
       .sort({ createdAt: -1 });
 
     if (!allPurchases || allPurchases.length === 0) {
-      return validationErrorResponse(res, "No purchases found for this vendor", 404);
+      return validationErrorResponse(res, "No purchases found for this vendor", 200);
     }
+
+    // console.log("allPurchases", allPurchases);
 
     const offerStats = {};
     let total_customers = 0;
@@ -890,7 +917,7 @@ exports.VendorOrder = catchAsync(async (req, res) => {
         };
       }
 
-      offerStats[offerId].total_revenue += purchase.final_amount || 0;
+      offerStats[offerId].total_revenue += purchase.vendor_bill_status ? (purchase.final_amount || 0) : 0;
       // offerStats[offerId].total_revenue += purchase.payment_id?.amount || 0;
       offerStats[offerId].total_customers += 1;
       total_customers += 1;

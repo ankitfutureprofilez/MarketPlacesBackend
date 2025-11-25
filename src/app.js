@@ -111,7 +111,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
           logger.info("💰 Payment captured or order paid event");
 
           const records = new Payment({
-            amount: paymentEntity.amount,
+            amount: paymentEntity.amount/100,
             currency: paymentEntity.currency,
             offer_id: notes.offer_id,
             user: notes.userid,
@@ -153,7 +153,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
 
           const newPayment = new Payment({
             order_id: orderId || "standalone",
-            amount: paymentEntity.amount,
+            amount: paymentEntity.amount/100,
             currency: paymentEntity.currency,
             payment_status: paymentEntity.status,
             payment_id: paymentEntity.id,

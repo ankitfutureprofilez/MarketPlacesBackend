@@ -284,7 +284,7 @@ exports.VendorGet = catchAsync(async (req, res) => {
 exports.getVendorById = catchAsync(async (req, res) => {
   try {
     const _id = req.params.id;
-    console.log("_id", _id);
+    // console.log("_id", _id);
     if (!_id) {
       return validationErrorResponse(res, "Vendor Id not found", 404);
     }
@@ -751,6 +751,7 @@ const attachVendorLogos = async (records) => {
       // console.log("vendorData", vendorData?.business_logo);
 
       item.vendor.business_logo = vendorData?.business_logo || null;
+      item.vendor.business_name = vendorData?.business_name || null;
       // console.log("item after", item);
 
       return item;
@@ -1021,7 +1022,7 @@ exports.CustomerAddBill = catchAsync(async (req, res) => {
 
     return successResponse(
       res,
-      "Vendor amount updated successfully",
+      "Bill added successfully",
       200,
       record
     );
