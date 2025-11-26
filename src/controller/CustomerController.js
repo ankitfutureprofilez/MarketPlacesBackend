@@ -228,9 +228,8 @@ exports.VendorGet = catchAsync(async (req, res) => {
       query.business_name = new RegExp(name.trim(), "i");
     }
 
-    if (category) {
-      // category is the _id, or name?
-      query.category = new RegExp(category.trim(), "i");
+    if (category && mongoose.Types.ObjectId.isValid(category.trim())) {
+      query.category = category.trim();
     }
 
     // Step 4: Count total before pagination
