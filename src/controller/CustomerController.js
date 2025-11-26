@@ -52,7 +52,7 @@ exports.CustomerGet = catchAsync(async (req, res) => {
     const userId = req.user.id;
     const customer = await User.findById(userId);
     if (!customer) {
-      return errorResponse(res, "No customers found", 404);
+      return errorResponse(res, "No customers found", 200);
     }
     return successResponse(
       res,
@@ -90,7 +90,7 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
     console.log("updatedOffers", updatedOffers);
 
     if (!record || record.length === 0) {
-      return validationErrorResponse(res, "Offer not found", 404);
+      return validationErrorResponse(res, "Offer not found", 200);
     }
 
     return successResponse(
@@ -792,7 +792,7 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
     const total_pages = Math.ceil(total_records / limit);
 
     if (!record) {
-      return validationErrorResponse(res, "Offers not found", 404);
+      return validationErrorResponse(res, "Offers not found", 200);
     }
 
     return successResponse(res, "Brought offers fetched successfully", 200, {
@@ -1036,7 +1036,7 @@ exports.getVendorGallery = catchAsync(async (req, res) => {
     const user = req.params.id;
     const data = await Vendor.findOne({ user: user }).select("business_image");
     if (!data) {
-      return validationErrorResponse(res, "Vendor not found", 404);
+      return validationErrorResponse(res, "Vendor not found", 200);
     }
     return successResponse(res, "Gallery fetched successfully", 200, data);
   } catch (error) {
