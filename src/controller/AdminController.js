@@ -630,7 +630,7 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
         vendors,
         last7Days,
         stats: {
-          total_vendors: total_vendors,
+          total_vendors: count,
           total_sales,
           active_offers,
           total_offer_buys,
