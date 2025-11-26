@@ -561,7 +561,32 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
     });
 
     const total_offer_buys = await OfferBuy.countDocuments();
-    const total_vendors = await Vendor.countDocuments();
+    const total_vendors = await Vendor.aggregate([
+    {
+      $match: {
+        status: "active",
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "user",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    { $unwind: "$user" },
+    {
+      $match: {
+        "user.deleted_at": null,
+      },
+    },
+    {
+      $count: "total_vendors",
+    },
+  ]);
+
+  const count = total_vendors.length ? total_vendors[0].total_vendors : 0;
 
     const now = new Date();
     const sevenDaysAgo = new Date();
