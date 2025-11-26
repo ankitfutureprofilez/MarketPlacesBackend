@@ -239,7 +239,7 @@ exports.VendorGet = catchAsync(async (req, res) => {
   try {
     const vendors = await Vendor.find(query).populate("user");
     if (!vendors || vendors.length === 0) {
-      return validationErrorResponse(res, "No vendors found", 404);
+      return validationErrorResponse(res, "No vendors found", 200);
     }
     return successResponse(res, "Vendors fetched successfully", vendors);
   } catch (error) {
@@ -630,7 +630,7 @@ exports.category = catchAsync(async (req, res) => {
   try {
     const record = await categories.find({ deleted_at: null });
     if (!record) {
-      return validationErrorResponse(res, "category not found", 404);
+      return validationErrorResponse(res, "category not found", 200);
     }
     return successResponse(res, "category fetched successfully", 200, record);
   } catch (error) {
@@ -665,7 +665,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
   try {
     const userId = req.user.id;
     if (!userId) {
-      return validationErrorResponse(res, "Please provide id", 404);
+      return validationErrorResponse(res, "Please provide id", 200);
     }
 
     const Vendors = await Vendor.findOne({ user: userId });
@@ -981,7 +981,7 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
     const total_pages = Math.ceil(total_records / limit);
 
     if (!allPurchases.length) {
-      return validationErrorResponse(res, "No purchase found", 404);
+      return validationErrorResponse(res, "No purchase found", 200);
     }
 
     // ✅ Format response
@@ -1215,7 +1215,7 @@ exports.getGallery = catchAsync(async (req, res) => {
     const user = req.user.id;
     const data = await Vendor.findOne({ user: user }).select('business_image');
     if (!data) {
-      return validationErrorResponse(res, "Vendor not found", 404);
+      return validationErrorResponse(res, "Vendor not found", 200);
     }
     return successResponse(res, "Gallery fetched successfully", 200, data);
   } catch (error) {
