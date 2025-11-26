@@ -350,13 +350,26 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 exports.vendorUpdate = catchAsync(async (req, res) => {
   try {
     const adminid = req.user.id;
-    const {
-      _id,
+    const id = req.params.id;
+
+    const vendor = await Vendor.findById(id);
+    if (!vendor) {
+      return validationErrorResponse(res, "Vendor not found", 404);
+    }
+
+    const uploadedFiles = req.files || {};
+    const makeFileUrl = (field) => {
+      if (!uploadedFiles[field] || uploadedFiles[field].length === 0) return vendor[field];
+      const file = uploadedFiles[field][0];
+      return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
+    };
+
+    let {
       business_name,
       city,
-      state,
       category,
       subcategory,
+      state,
       pincode,
       area,
       name,
@@ -364,65 +377,90 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       lat,
       long,
       address,
-      aadhaar_front,
-      aadhaar_back,
-      pan_card_image,
-      gst_certificate,
       gst_number,
-      business_logo,
       opening_hours,
       weekly_off_day,
       business_register,
-      business_image,
       email,
-      avatar,
+      landmark,
     } = req.body;
-    const userData = await User.findByIdAndUpdate(
-      { _id: _id },
-      { email, name, avatar }
-    );
-    const vendordata = await Vendor.findOneAndUpdate(
-      { user: _id },
-      {
-        business_name,
-        city,
-        state,
-        category,
-        subcategory,
-        pincode,
-        area,
-        name,
-        phone,
-        lat,
-        long,
-        address,
-        aadhaar_front,
-        aadhaar_back,
-        pan_card_image,
-        gst_certificate,
-        gst_number,
-        business_logo,
-        opening_hours,
-        weekly_off_day,
-        business_register,
-        business_image,
-        email,
-        added_by: adminid,
-      },
-      { new: true, runValidators: true }
-    ).populate("user");
 
-    if (!vendordata) {
-      return validationErrorResponse(res, "Vendor not found", 404);
+    // Parse opening hours
+    if (opening_hours) {
+      try {
+        opening_hours = JSON.parse(opening_hours);
+      } catch {}
     }
 
-    return successResponse(
-      res,
-      "Admin Vendor updated successfully",
-      200,
-      vendordata
+    // Convert Category IDs safely
+    const safeObjectId = (val) => {
+      if (!val) return undefined;
+      const trimmed = val.trim();
+      return mongoose.isValidObjectId(trimmed)
+        ? new mongoose.Types.ObjectId(trimmed)
+        : undefined;
+    };
+
+    // === Update User only if provided ===
+    if (phone || name || email) {
+      await User.findByIdAndUpdate(
+        vendor.user,
+        { name, phone, email },
+        { new: true }
+      );
+    }
+
+    // === Prepare update object only with provided fields ===
+    const updateFields = {
+      business_name,
+      city,
+      state,
+      pincode,
+      area,
+      name,
+      phone,
+      lat,
+      long,
+      address,
+      gst_number,
+      opening_hours,
+      weekly_off_day,
+      business_register,
+      email,
+      landmark,
+      added_by: adminid,
+
+      // FILES HANDLED SAFELY
+      aadhaar_front: makeFileUrl("aadhaar_front"),
+      aadhaar_back: makeFileUrl("aadhaar_back"),
+      pan_card_image: makeFileUrl("pan_card_image"),
+      gst_certificate: makeFileUrl("gst_certificate"),
+      business_logo: makeFileUrl("business_logo"),
+    };
+
+    // Handle category separately
+    const convertedCategory = safeObjectId(category);
+    if (convertedCategory !== undefined)
+      updateFields.category = convertedCategory;
+
+    const convertedSubCat = safeObjectId(subcategory);
+    if (convertedSubCat !== undefined)
+      updateFields.subcategory = convertedSubCat;
+
+    // Remove undefined so it doesn’t overwrite existing DB fields
+    Object.keys(updateFields).forEach(
+      (key) => updateFields[key] === undefined && delete updateFields[key]
     );
+
+    const vendordata = await Vendor.findByIdAndUpdate(
+      id,
+      updateFields,
+      { new: true }
+    ).populate("user");
+
+    return successResponse(res, "Vendor updated successfully", 200, vendordata);
   } catch (error) {
+    console.error(error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
@@ -611,7 +649,7 @@ exports.AssignStaff = catchAsync(async (req, res) => {
 
 exports.AddSalesPersons = catchAsync(async (req, res) => {
   try {
-    console.log("req.body", req.body);
+    // console.log("req.body", req.body);
     const { phone, otp, role, name, email } = req.body;
     // Validate required fields
     if (!phone || !otp || !name || !email) {
@@ -803,7 +841,6 @@ exports.resetpassword = catchAsync(async (req, res) => {
   }
 });
 
-
 exports.SalesAdminGetId = catchAsync(async (req, res) => {
   try {
     const salesId = req.params.id;
@@ -879,8 +916,36 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
   }
 });
 
-
-
-
-
-
+exports.BroughtOffers = catchAsync(async (req, res) => {
+  try {
+    const id = req?.user?.id;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const total_records = await OfferBuy.countDocuments({ user: id });
+    const total_pages = Math.ceil(total_records / limit);
+    const allPurchases = await OfferBuy.find()
+      .populate("user")
+      .populate("offer")
+      .populate("vendor")
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+    return successResponse(res, "Brought offers fetched successfully", 200, {
+      purchased: allPurchases,
+      total_records,
+      current_page: page,
+      per_page: limit,
+      total_pages,
+      nextPage: page < total_pages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});

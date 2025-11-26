@@ -16,8 +16,6 @@ const flatoffer = new mongoose.Schema(
         discountPercentage: {
             type: Number,
             required: [true, "Discount percentage is required"],
-            min: [0, "Discount cannot be less than 0%"],
-            max: [100, "Discount cannot be more than 100%"],
         },
         maxDiscountCap: {
             type: Number,
