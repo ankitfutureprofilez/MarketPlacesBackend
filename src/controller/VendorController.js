@@ -370,7 +370,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 
 exports.VendorStatus = catchAsync(async (req, res) => {
   try {
-    console.log(req.params)
+    // console.log(req.params)
     const offerId = req.params.id;
     const status = req.params.status;
     const records = await Vendor.findByIdAndUpdate(
@@ -1048,7 +1048,7 @@ exports.Paymentvendor = catchAsync(async (req, res) => {
 exports.UpdateAmount = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-    let { total_amount } = req.body;
+    let { total_amount, vendor_bill_status } = req.body;
 
     if (!id) {
       return validationErrorResponse(res, "Missing offer ID", 400);
@@ -1116,7 +1116,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
     // ✔ Update the record (same as before)
     // ----------------------------------------------
     record.total_amount = total_amount;
-    record.vendor_bill_status = true;
+    record.vendor_bill_status = vendor_bill_status;
     record.used_time = new Date();
 
     // Update calculated discount + final amount

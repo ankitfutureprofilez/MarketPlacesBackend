@@ -1,6 +1,5 @@
 const router = require("express").Router();
-const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, CategoryGet, SalesAdminGetId, BroughtOffers } = require("../controller/AdminController");
-const { SalesPersonStatus } = require("../controller/SalesController");
+const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, SalesAdminGetId, BroughtOffers, AdminGetCategories } = require("../controller/AdminController");
 const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
@@ -8,12 +7,11 @@ const upload = require("../utils/uploader");
 router.post("/admin/login", Login);
 router.get("/admin/vendor_list", verifyToken, AdminVendorGet);
 router.get("/admin/sales_list", verifyToken, SalesGet);
-// router.get("/admin/category/get", CategoryGet);
 // Niche waala route vendor ko assign ke team call hota hai. Done due to lack of time and urgency, future mein shai karna hai.
 router.get("/admin/sales-get", verifyToken, SalesList);
 router.get("/admin/user_list", verifyToken, UserGet);
 router.get("/admin/vendor_status/:id/:status", verifyToken, VendorStatus);
-router.get("/admin/sales_status/:id/:status", verifyToken, SalesPersonStatus);
+// router.get("/admin/sales_status/:id/:status", verifyToken, SalesPersonStatus);
 router.post("/admin/sales_add", verifyToken, upload.single("avatar"), verifyToken, AddSalesPersons);
 router.post("/admin/sales/edit/:id", verifyToken, upload.single("avatar"), EditSalesPerson);
 router.post("/admin/sales/delete/:id", verifyToken, DeleteUser);
@@ -43,6 +41,6 @@ router.post("/admin/edit", verifyToken, upload.single("avatar"), EditAdmin);
 router.post("/admin/reset/password", resetpassword);
 router.get("/admin/sales_id/:id", SalesAdminGetId);
 router.get("/admin/brought-offer",verifyToken, BroughtOffers);
-
+router.get("/admin/category/get", AdminGetCategories);
 
 module.exports = router;

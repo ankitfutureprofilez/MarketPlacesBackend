@@ -10,16 +10,16 @@ async function generateNextId() {
     return lastCategory ? lastCategory.id + 1 : 1;
 }
 
-async function generateSubCategoryNextId(categoryid) {
-    categoryid = categoryid;
-    const lastSub = await SubCategory.findOne({ categoryid })
-        .sort({ subcategory_id: -1 });
+// async function generateSubCategoryNextId(categoryid) {
+//     categoryid = categoryid;
+//     const lastSub = await SubCategory.findOne({ categoryid })
+//         .sort({ subcategory_id: -1 });
 
-    if (lastSub) {
-        return lastSub.subcategory_id + 1;
-    }
-    return categoryid * 1000 + 1;
-}
+//     if (lastSub) {
+//         return lastSub.subcategory_id + 1;
+//     }
+//     return categoryid * 1000 + 1;
+// }
 
 
 
@@ -47,7 +47,7 @@ exports.addCategory = catchAsync(async (req, res) => {
 
 exports.getCategories = catchAsync(async (req, res) => {
     try {
-        const categories = await Category.find().sort({ id: 1 });
+        const categories = await Category.find({ deleted_at: null }).sort({ id: 1 });
         return successResponse(res, "Category show", 201, categories);
 
     } catch (error) {
@@ -58,7 +58,7 @@ exports.getCategories = catchAsync(async (req, res) => {
 
 exports.getCategoryById = catchAsync(async (req, res) => {
     try {
-        const category = await Category.findOne({ id: req.params.id });
+        const category = await Category.findOne({ id: req.params.id, deleted_at: null });
         if (!category) {
             return errorResponse(res, "Category not found", 404);
         }
@@ -130,7 +130,7 @@ exports.deleteCategory = async (req, res) => {
 
 exports.getSubCategories = catchAsync(async (req, res) => {
     try {
-        const categories = await SubCategory.find()
+        const categories = await SubCategory.find({ deleted_at: null })
             .populate("category_id") // 👈 this joins with Category table
             .sort({ subcategory_id: 1 });
 
@@ -145,7 +145,7 @@ exports.getSubCategories = catchAsync(async (req, res) => {
 exports.addSubCategory = catchAsync(async (req, res) => {
     try {
         const { name, category_id } = req.body;
-        console.log("Body:", req.body);
+        // console.log("Body:", req.body);
         const subcategory = new SubCategory({
             name,
             category_id: category_id,

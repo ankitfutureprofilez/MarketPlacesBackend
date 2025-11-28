@@ -45,12 +45,12 @@ const UserSchema = new mongoose.Schema({
         type: String,
         maxlength: [6, "OTP must be at most 6 digits"],
     },
-    status: {
-        type: String,
-        values: ["active", "inactive"],
-        enums: ["active", "inactive"],
-        default: "active",
-    },
+    // status: {
+    //     type: String,
+    //     values: ["active", "inactive"],
+    //     enums: ["active", "inactive"],
+    //     default: "active",
+    // },
     role: {
         type: String,
         enum: {

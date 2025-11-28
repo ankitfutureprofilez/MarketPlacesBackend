@@ -3,7 +3,8 @@ const Payment = require("../model/Payment");
 const User = require("../model/User");
 const Vendor = require("../model/Vendor");
 const OfferBuy = require("../model/OfferBuy.js");
-const Categories = require("../model/categories.js");
+const Category = require("../model/categories");
+const SubCategory = require("../model/SubCategory");
 const catchAsync = require("../utils/catchAsync");
 const {
   errorResponse,
@@ -82,25 +83,6 @@ exports.UserGet = catchAsync(async (req, res) => {
       purchases_count: countMap[cust._id.toString()] || 0
     }));
     return successResponse(res, "Customers fetched successfully", 200, finalData);
-  } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
-  }
-});
-
-exports.CategoryGet = catchAsync(async (req, res) => {
-  try {
-    const data = await Categories.find();
-
-    if (!data || data.length === 0) {
-      return validationErrorResponse(res, "No sales users found", 404);
-    }
-
-    return successResponse(
-      res,
-      "Categories fetched successfully",
-      200,
-      data
-    );
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -970,6 +952,42 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
       nextPage: page < total_pages ? page + 1 : null,
       previousPage: page > 1 ? page - 1 : null,
     });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.AdminGetCategories = catchAsync(async (req, res) => {
+  try {
+    const categories = await Category.aggregate([
+      {
+        $lookup: {
+          from: "subcategories",
+          localField: "_id",
+          foreignField: "category_id",
+          as: "subcategories"
+        }
+      },
+      {
+        $addFields: {
+          subcategoriesTotalCount: { $size: "$subcategories" },
+          subcategoriesActiveCount: {
+            $size: {
+              $filter: {
+                input: "$subcategories",
+                as: "sub",
+                cond: { $eq: ["$$sub.deleted_at", null] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $sort: { id: 1 }
+      }
+    ]);
+
+    return successResponse(res, "Category show", 201, categories);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }

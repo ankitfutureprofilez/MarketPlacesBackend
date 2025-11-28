@@ -169,24 +169,24 @@ exports.VendorGetAll = catchAsync(async (req, res) => {
 });
 
 
-exports.SalesPersonStatus = catchAsync(async (req, res) => {
-    try {
-        console.log(req.params)
-        const offerId = req.params.id;
-        const status = req.params.status;
-        const record = await User.findByIdAndUpdate(
-            offerId,
-            { status },
-            { new: true }
-        );
-        if (!record) {
-            return validationErrorResponse(res, "Offer not found", 404);
-        }
-        return successResponse(res, "Offer status updated successfully", 201, record);
-    } catch (error) {
-        return errorResponse(res, error.message || "Internal Server Error", 500);
-    }
-});
+// exports.SalesPersonStatus = catchAsync(async (req, res) => {
+//     try {
+//         console.log(req.params)
+//         const offerId = req.params.id;
+//         const status = req.params.status;
+//         const record = await User.findByIdAndUpdate(
+//             offerId,
+//             { status },
+//             { new: true }
+//         );
+//         if (!record) {
+//             return validationErrorResponse(res, "Offer not found", 404);
+//         }
+//         return successResponse(res, "Offer status updated successfully", 201, record);
+//     } catch (error) {
+//         return errorResponse(res, error.message || "Internal Server Error", 500);
+//     }
+// });
 
 // Sales phone number
 exports.SalesphoneUpdate = catchAsync(async (req, res) => {
