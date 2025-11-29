@@ -19,6 +19,14 @@ exports.SendOtp = catchAsync(async (req, res) => {
     if (!phone) {
       return validationErrorResponse(res, "Phone number is required", 401);
     }
+    const user = await User.findOne({phone: phone});
+    if (user) {
+      if (user?.deleted_at != null) {
+        return errorResponse(res, "This account is blocked", 200);
+      }
+    }
+
+
     return successResponse(res, "OTP sent successfully", 200);
 
     const verification = await client.verify.v2
@@ -59,6 +67,10 @@ exports.Login = catchAsync(async (req, res) => {
     
     if(user?.role !== role){
       return errorResponse(res, "Invalid role selected", 401);
+    }
+
+    if (user?.deleted_at != null) {
+      return errorResponse(res, "This account is blocked", 200);
     }
 
     const token = jwt.sign(

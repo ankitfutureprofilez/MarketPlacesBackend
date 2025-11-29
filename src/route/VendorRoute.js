@@ -1,23 +1,4 @@
-const {
-  VendorGet,
-  VendorGetId,
-  vendorDelete,
-  vendorUpdate,
-  VendorRegister,
-  category,
-  subcategory,
-  Dashboard,
-  MarkOfferAsUsed,
-  VendorOrder,
-  UpdateAmount,
-  VendorSecondOrder,
-  getPurchasedCustomers,
-  getPayments,
-  uploadGallery,
-  deleteGallery,
-  getGallery,
-  vendorphoneUpdate,
-} = require("../controller/VendorController");
+const { VendorGet, VendorGetId, vendorDelete, vendorUpdate, VendorRegister, category, subcategory, Dashboard, MarkOfferAsUsed, VendorOrder, UpdateAmount, VendorSecondOrder, getPurchasedCustomers, getPayments, uploadGallery, deleteGallery, getGallery, vendorphoneUpdate} = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
 const router = require("express").Router();

@@ -201,18 +201,24 @@ exports.VendorGetId = catchAsync(async (req, res) => {
       weekly_off_day: record.weekly_off_day,
     };
 
-    const vendorObj = {
-      vendor: record.user,
-      sales: record.added_by,
-    };
+    // const vendorObj = {
+    //   vendor: record.user,
+    //   sales: record.added_by,
+    // };
+
+    const docPercentage = (documentObj?.business_logo === "" || documentObj?.business_logo == null) ? 20 : 25;
+    const timingPercentage = timingObj?.opening_hours && Object.keys(timingObj.opening_hours).length > 1 ? 25 : 0;
+    const imageCount = businessObj?.business_image?.length || 0;
+    const imagePercentage = imageCount > 4 ? 25 : Math.round((imageCount / 4) * 25);
+    
     const percentages = {
-      document: calcPercentage(documentObj),
-      business_details: calcPercentage(businessObj),
-      timing: calcPercentage(timingObj),
-      vendor_sales: calcPercentage(vendorObj),
+      business_details: 25,
+      document: docPercentage,
+      timing: timingPercentage,
+      business_images: imagePercentage,
     };
 
-    console.log("vendorObj", vendorObj)
+    // console.log("vendorObj", vendorObj)
     const transformed = {
       _id: record._id,
       uuid: record.uuid,
