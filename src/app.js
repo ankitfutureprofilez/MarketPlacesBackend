@@ -199,7 +199,7 @@ app.use(express.static(path.join(__dirname, "../public")));
 const PORT = process.env.PORT || 5000;
 app.get("/", (req, res) => {
   res.json({
-    msg: "Hello marketplae",
+    msg: "Hello world",
     status: 200,
   });
 });
