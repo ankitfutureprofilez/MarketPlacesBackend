@@ -12,7 +12,7 @@ exports.createEnquiry = catchAsync(async (req, res) => {
         }
 
         if(!firstName || !lastName || !email || !phone || !message || !role){
-            errorResponse(res, "Fields are required", 400);
+            return errorResponse(res, "Fields are required", 400);
         }
 
         const enquiry = new Enquiry({
@@ -35,7 +35,7 @@ exports.getEnquiry = catchAsync(async (req, res) => {
     try {
         const enquiries = await Enquiry.find();
         if (!enquiries) {
-            errorResponse(res, "Failed to fetch enquiries.")
+            return errorResponse(res, "Failed to fetch enquiries.")
         }
         return successResponse(res, "All Enquiries fetched successfully", 200, enquiries)
     } catch (error) {
