@@ -1,10 +1,9 @@
 const { VendorGetAll, VendorStatus, VendorRegister, SalesGetId, AddSalesPersons, SalesphoneUpdate, EditSalesPerson, OTPVerify, vendorUpdate, VendorSalesGetId, SalesPersonGet } = require("../controller/SalesController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
-
 const router = require("express").Router();
 
-router.get("/sales/vendor/:id", VendorGetAll);
+router.get("/sales/vendor", verifyToken, VendorGetAll);
 router.post("/sales/vendor_status", VendorStatus);
 
 router.post("/sales/vendor-add", verifyToken,

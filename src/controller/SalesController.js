@@ -135,7 +135,8 @@ exports.VendorStatus = catchAsync(async (req, res) => {
 
 exports.VendorGetAll = catchAsync(async (req, res) => {
     try {
-        const sales = req.params.id;
+        // console.log("req.user", req.user);
+        const sales = req.user.id;
 
         let { page = 1, limit = 25 } = req.query;
         page = Number(page);

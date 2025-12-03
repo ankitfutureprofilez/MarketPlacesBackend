@@ -487,7 +487,43 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 
     const vendorId = record.user._id;
 
-    const totalOffers = await Offer.countDocuments({ vendor: vendorId, status: "active" });
+    const data = await Offer.aggregate([
+    {
+      $match: {
+        vendor: vendorId,
+        status: "active",
+      },
+    },
+    {
+      $lookup: {
+        from: "flats",
+        localField: "flat",
+        foreignField: "_id",
+        as: "flatData",
+      },
+    },
+    {
+      $lookup: {
+        from: "percentageoffers",
+        localField: "percentage",
+        foreignField: "_id",
+        as: "percentageData",
+      },
+    },
+    {
+      $match: {
+        $or: [
+          { flatData: { $elemMatch: { isExpired: false } } },
+          { percentageData: { $elemMatch: { isExpired: false } } },
+        ],
+      },
+    },
+    {
+      $count: "totalOffers",
+    },
+  ]);
+
+    const totalOffers = data?.[0]?.totalOffers || 0;
 
     const vendorBillsTrue = await OfferBuy.countDocuments({
       vendor: vendorId,
