@@ -56,7 +56,7 @@ exports.Login = catchAsync(async (req, res) => {
       );
     }
     if (otp !== "123456") {
-        return validationErrorResponse(res, "Invalid or expired OTP", 400);
+        return validationErrorResponse(res, "Invalid or expired OTP", 403);
     }
     const user = await User.findOne({phone: phone});
     if (!user) {
@@ -66,7 +66,7 @@ exports.Login = catchAsync(async (req, res) => {
     }
     
     if(user?.role !== role){
-      return errorResponse(res, "Invalid role selected", 401);
+      return errorResponse(res, "Invalid role selected", 403);
     }
 
     if (user?.deleted_at != null) {
@@ -75,7 +75,7 @@ exports.Login = catchAsync(async (req, res) => {
 
     const token = jwt.sign(
       { id: user._id, role: user.role, email: user.email },
-      process.env.JWT_SECRET_KEY,
+      process.env.JWT_SECRET_KEY, 
       { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
     );
     // console.log("token" ,token)

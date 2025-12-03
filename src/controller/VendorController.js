@@ -404,7 +404,13 @@ exports.AddOffer = catchAsync(async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return validationErrorResponse(res, "UserId Not Found", 500);
+      return validationErrorResponse(res, "UserId Not Found", 400);
+    }
+
+    const user = await User.findById(userId);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 400);
     }
 
     const {
@@ -548,11 +554,17 @@ exports.OfferStatus = catchAsync(async (req, res) => {
 exports.OfferDelete = catchAsync(async (req, res) => {
   try {
     const offerId = req.params.id;
-    console.log("Offer ID:", offerId);
+    // console.log("Offer ID:", offerId);
+
+    const user = await User.findById(req.user.id);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 400);
+    }
 
     // Find the offer first
     const offer = await Offer.findById(offerId);
-    console.log("Offer found:", offer);
+    // console.log("Offer found:", offer);
 
     if (!offer) {
       return validationErrorResponse(res, "Offer not found", 404);
