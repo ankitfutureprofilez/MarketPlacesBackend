@@ -261,6 +261,12 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Vendor ID missing", 400);
     }
 
+    const user = await User.findById(vendorId);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
+
     // -----------------------------
     // 1) Handle uploaded files
     // -----------------------------
@@ -410,7 +416,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
     const user = await User.findById(userId);
 
     if(user?.deleted_at){
-      return validationErrorResponse(res, "Your account is blocked", 400);
+      return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
     const {
@@ -533,9 +539,14 @@ exports.GetOffer = catchAsync(async (req, res) => {
 // Offer Status 
 exports.OfferStatus = catchAsync(async (req, res) => {
   try {
-    console.log(req.params)
+    // console.log(req.params)
     const offerId = req.params.id;
     const status = req.params.status;
+    const user = await User.findById(req.user.id);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
     const record = await Offer.findByIdAndUpdate(
       offerId,
       { status },
@@ -559,7 +570,7 @@ exports.OfferDelete = catchAsync(async (req, res) => {
     const user = await User.findById(req.user.id);
 
     if(user?.deleted_at){
-      return validationErrorResponse(res, "Your account is blocked", 400);
+      return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
     // Find the offer first
@@ -603,6 +614,12 @@ exports.EditOffer = catchAsync(async (req, res) => {
       minBillAmount,
       amount,
     } = req.body;
+
+    const user = await User.findById(Id);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
 
     const record = await Offer.findById(Id);
     if (!record) {
@@ -1074,6 +1091,12 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
 
     if (isNaN(total_amount)) {
       return validationErrorResponse(res, "Total amount must be a valid number", 400);
+    }
+
+    const user = await User.findById(req.user.id);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
     // Fetch record + offer details (same as Function 2)
