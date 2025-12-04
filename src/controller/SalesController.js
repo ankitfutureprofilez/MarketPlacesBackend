@@ -169,6 +169,68 @@ exports.VendorGetAll = catchAsync(async (req, res) => {
     }
 });
 
+exports.Dashboard = catchAsync(async (req, res) => {
+  try {
+    const sales = req.user.id;
+
+    const totalVendors = await Vendor.countDocuments({ 
+      assign_staff: sales 
+    });
+
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const totalVendorsThisMonth = await Vendor.countDocuments({ 
+      assign_staff: sales,
+      createdAt: { $gte: startOfMonth }
+    });
+
+    const pendingVerification = await Vendor.countDocuments({
+      assign_staff: sales,
+      Verify_status: "pending"
+    });
+
+    const vendors = await Vendor.find(
+      { assign_staff: sales },
+      { user: 1 } 
+    );
+    const vendorUsers = vendors.map(v => v.user).filter(Boolean);
+    let totalSales = 0;
+    if (vendorUsers.length > 0) {
+      const revenueData = await OfferBuy.aggregate([
+        {
+          $match: {
+            vendor: { $in: vendorUsers }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: "$final_amount" }
+          }
+        }
+      ]);
+      totalSales = revenueData[0]?.totalRevenue || 0;
+    }
+
+    const recentVendors = await Vendor.find({assign_staff: sales})
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .populate("user")
+    .select("business_name createdAt city area Verify_status user Verify_status");
+
+    return successResponse(res, "Dashboard counts fetched successfully", 200, {
+      stats:{
+        totalVendors,
+        totalVendorsThisMonth,
+        pendingVerification,
+        totalSales
+      },
+      vendors: recentVendors,
+    });
+
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
 
 // exports.SalesPersonStatus = catchAsync(async (req, res) => {
 //     try {
