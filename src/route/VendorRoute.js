@@ -31,7 +31,7 @@ router.get("/vendor/order", verifyToken, VendorOrder);
 router.get("/vendor/second-order", verifyToken, getPurchasedCustomers);
 router.get("/vendor/dashboard", verifyToken, Dashboard);
 router.get("/vendor/offer/used/:id", verifyToken, MarkOfferAsUsed);
-router.post("/vendor/payment/approve/:id", UpdateAmount);
+router.post("/vendor/payment/approve/:id",verifyToken, UpdateAmount);
 router.get("/vendor/payment/:id", verifyToken, getPayments);
 router.post(
   "/vendor/gallery/upload",
