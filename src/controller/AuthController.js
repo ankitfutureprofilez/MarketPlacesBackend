@@ -15,14 +15,18 @@ const client = twilio(
 
 exports.SendOtp = catchAsync(async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, role } = req.body;
     if (!phone) {
       return validationErrorResponse(res, "Phone number is required", 401);
     }
+
     const user = await User.findOne({phone: phone});
+    if(role == "sales" && !user){
+        return errorResponse(res, "Account does not exist", 403);
+    }
     if (user) {
       if (user?.deleted_at != null) {
-        return errorResponse(res, "This account is blocked", 200);
+        return errorResponse(res, "This account is blocked", 403);
       }
     }
 
@@ -70,7 +74,7 @@ exports.Login = catchAsync(async (req, res) => {
     }
 
     if (user?.deleted_at != null) {
-      return errorResponse(res, "This account is blocked", 200);
+      return errorResponse(res, "This account is blocked", 403);
     }
 
     const token = jwt.sign(
