@@ -22,10 +22,10 @@ exports.SendOtp = catchAsync(async (req, res) => {
 
     const user = await User.findOne({phone: phone});
     if(role == "sales" && !user){
-        return errorResponse(res, "Account does not exist", 403);
+      return errorResponse(res, "Account does not exist", 404);
     }
     if (user) {
-      if (user?.deleted_at != null) {
+      if (user?.deleted_at != null && role != "customer") {
         return errorResponse(res, "This account is blocked", 403);
       }
     }
