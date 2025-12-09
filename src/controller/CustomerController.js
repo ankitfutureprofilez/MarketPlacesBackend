@@ -307,16 +307,20 @@ exports.getVendorById = catchAsync(async (req, res) => {
 
     console.log("record", record);
     const updatedOffers = await Promise.all(
-      offers.map(async (offer) => {
-        const existingBuy = await OfferBuy.findOne({
-          offer: offer._id,
-          user: user_id,
-        });
+  offers.map(async (offer) => {
+    const query = { offer: offer._id };
 
-        const purchase_status = existingBuy ? true : false;
-        return { ...offer.toObject(), purchase_status };
-      })
-    );
+    // only add user to query if user_id exists
+    if (user_id) {
+      query.user = user_id;
+    }
+
+    const existingBuy = await OfferBuy.findOne(query);
+
+    const purchase_status = existingBuy ? true : false;
+    return { ...offer.toObject(), purchase_status };
+  })
+);
 
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
