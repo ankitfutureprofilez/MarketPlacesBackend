@@ -106,7 +106,7 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
 
 exports.GetOfferById = catchAsync(async (req, res) => {
   try {
-    const userId = req.query?.user_id;
+    const userId = req.query?.user_id; // optional
     const offerId = req.params.id.trim();
 
     const record = await Offer.findById(offerId)
@@ -118,12 +118,13 @@ exports.GetOfferById = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Offer not found", 404);
     }
 
-    const existingBuy = await OfferBuy.findOne({
-      offer: offerId,
-      user: userId,
-    });
+    // Conditionally add user filter only if userId exists
+    const query = { offer: offerId };
+    if (userId) {
+      query.user = userId;
+    }
 
-    console.log("existingBuy", existingBuy);
+    const existingBuy = await OfferBuy.findOne(query);
 
     const userOfferStatus = existingBuy ? true : false;
 
@@ -138,7 +139,6 @@ exports.GetOfferById = catchAsync(async (req, res) => {
     const pendingCount = offerBuys.filter((b) => b.status === "active").length;
     const expiredCount = offerBuys.filter((b) => b.status === "expired").length;
 
-    // ✅ 6. Send unified response
     return successResponse(res, "Offer details fetched successfully", 200, {
       record,
       purchase_status: userOfferStatus,
