@@ -574,71 +574,26 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
         select: "name email phone role deleted_at",
       });
 
-    const active_offers = await Offer.countDocuments({
-      status: "active",
-    });
+    const active_offers = await Offer.countDocuments({ status: "active" });
 
     const total_offer_buys = await OfferBuy.countDocuments();
+
     const total_vendors = await Vendor.aggregate([
-    {
-      $match: {
-        status: "active",
-      },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "user",
-        foreignField: "_id",
-        as: "user",
-      },
-    },
-    { $unwind: "$user" },
-    {
-      $match: {
-        "user.deleted_at": null,
-      },
-    },
-    {
-      $count: "total_vendors",
-    },
-  ]);
-
-  const count = total_vendors.length ? total_vendors[0].total_vendors : 0;
-
-    const now = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(now.getDate() - 6);
-
-    const dailySales = await OfferBuy.aggregate([
+      { $match: { status: "active" } },
       {
-        $match: {
-          //   vendor: new mongoose.Types.ObjectId(userId),
-          createdAt: { $gte: sevenDaysAgo, $lte: now },
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
         },
       },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
-          },
-          offers_sold: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
+      { $unwind: "$user" },
+      { $match: { "user.deleted_at": null } },
+      { $count: "total_vendors" },
     ]);
 
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      const dayKey = d.toISOString().split("T")[0];
-      const match = dailySales.find((x) => x._id === dayKey);
-      last7Days.push({
-        date: dayKey,
-        offers_sold: match ? match.offers_sold : 0,
-      });
-    }
+    const count = total_vendors.length ? total_vendors[0].total_vendors : 0;
 
     return successResponse(
       res,
@@ -646,7 +601,6 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
       200,
       {
         vendors,
-        last7Days,
         stats: {
           total_vendors: count,
           total_sales,
@@ -657,6 +611,65 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
     );
   } catch (error) {
     console.error("AdminDashboard error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.AdminSalesStats = catchAsync(async (req, res) => {
+  try {
+    let { start, end } = req.query;
+    const now = new Date();
+
+    let startDate, endDate;
+
+    // Treat empty strings as undefined
+    start = start?.trim() || null;
+    end = end?.trim() || null;
+
+    if (start && end) {
+      startDate = new Date(start);
+      endDate = new Date(end);
+    } else {
+      // Default: last 30 days
+      endDate = now;
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 29);
+    }
+
+    // Aggregate daily sales
+    const dailySales = await OfferBuy.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          offers_sold: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Fill missing dates
+    const dateArray = [];
+    for (
+      let d = new Date(startDate);
+      d <= endDate;
+      d.setDate(d.getDate() + 1)
+    ) {
+      const dayKey = d.toISOString().split("T")[0];
+      const match = dailySales.find((x) => x._id === dayKey);
+      dateArray.push({
+        date: dayKey,
+        offers_sold: match ? match.offers_sold : 0,
+      });
+    }
+
+    return successResponse(res, "Admin sales stats fetched successfully", 200, dateArray);
+  } catch (error) {
+    console.error("adminSalesStats error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
