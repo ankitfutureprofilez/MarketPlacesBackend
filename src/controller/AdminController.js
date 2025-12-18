@@ -18,7 +18,7 @@ const deleteUploadedFiles = require("../utils/fileDeleter.js");
 exports.Login = catchAsync(async (req, res) => {
   try {
     const { email, password, role } = req.body;
-    console.log(req.body);
+    // console.log(req.body);
     if (!email || !password || !role) {
       return validationErrorResponse(
         res,
@@ -716,7 +716,7 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
       );
     }
     // OTP validation
-    if (otp !== "111111") {
+    if (otp !== "123456") {
       return validationErrorResponse(
         res,
         "Invalid or expired OTP. Please try again.",
@@ -776,16 +776,18 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
 exports.EditSalesPerson = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, role, status } = req.body;
+    const { name, email, phone, role, status, otp } = req.body;
 
     const user = await User.findById(id);
-    // if (!user || user.deleted_at) {
-    //   return validationErrorResponse(res, "Sales Person not found.", 404);
-    // }
+    if (phone && phone != user.phone) {
+      if (!otp || otp !== "123456") {
+        return validationErrorResponse(res, "Invalid or expired OTP. Please try again.", 400);
+      }
+      user.phone = phone;
+    }
 
     if (name) user.name = name;
     if (email) user.email = email;
-    if (phone) user.phone = phone;
     if (role) user.role = role;
     if (status) user.status = status;
 
