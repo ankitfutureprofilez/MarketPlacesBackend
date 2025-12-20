@@ -88,6 +88,24 @@ exports.UserGet = catchAsync(async (req, res) => {
   }
 });
 
+exports.CustomerGetId = catchAsync(async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return errorResponse(res, "Vendor ID is required", 400);
+    }
+    const record = await User.findById(id);
+    if (!record) {
+      return validationErrorResponse(res, "Vendor not found", 404);
+    }
+    return successResponse(res, "Vendor details fetched successfully", 200, {
+      record,
+    });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
 exports.SalesGet = catchAsync(async (req, res) => {
   try {
     const { search = "" } = req.query;
@@ -728,8 +746,8 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
     if (existingUser) {
       return errorResponse(
         res,
-        "A Sales Person with this phone number already exists.",
-        200,
+        "An account with this phone number already exists.",
+        409,
         { role: role }
       );
     }
@@ -754,7 +772,7 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
     const record = await newUser.save();
 
     // Success response
-    return successResponse(res, "Sales Person registered successfully.", 200, {
+    return successResponse(res, "Account created successfully.", 200, {
       record,
     });
 
@@ -808,7 +826,7 @@ exports.EditSalesPerson = catchAsync(async (req, res) => {
 
     return successResponse(
       res,
-      "Sales Person updated successfully.",
+      `Profile updated successfully.`,
       200,
       updatedUser
     );
