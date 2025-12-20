@@ -91,15 +91,75 @@ exports.UserGet = catchAsync(async (req, res) => {
 exports.CustomerGetId = catchAsync(async (req, res) => {
   try {
     const id = req.params.id;
+    const userObjectId = new mongoose.Types.ObjectId(id);
     if (!id) {
       return errorResponse(res, "Vendor ID is required", 400);
     }
     const record = await User.findById(id);
     if (!record) {
-      return validationErrorResponse(res, "Vendor not found", 404);
+      return validationErrorResponse(res, "User not found", 200);
     }
+
+    const offerBuys = await OfferBuy.find({ user: id })
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .populate("vendor")
+      .populate("payment_id")
+      .sort({ createdAt: -1 });
+
+      // console.log("id", id);
+
+    const stats = await OfferBuy.aggregate([
+      {
+        $match: {
+          user: userObjectId,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+
+          vendorBillTrueCount: {
+            $sum: {
+              $cond: [{ $eq: ["$vendor_bill_status", true] }, 1, 0],
+            },
+          },
+
+          vendorBillFalseCount: {
+            $sum: {
+              $cond: [{ $eq: ["$vendor_bill_status", false] }, 1, 0],
+            },
+          },
+
+          totalFinalAmountPaid: {
+            $sum: {
+              $cond: [
+                { $eq: ["$vendor_bill_status", true] },
+                { $ifNull: ["$final_amount", 0] },
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    // console.log("stats", stats);
+
+    const summary = stats[0] || {
+      totalCount: 0,
+      vendorBillTrueCount: 0,
+      vendorBillFalseCount: 0,
+      totalFinalAmountPaid: 0,
+    };
+
     return successResponse(res, "Vendor details fetched successfully", 200, {
       record,
+      offerBuys,
+      stats: summary
     });
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
