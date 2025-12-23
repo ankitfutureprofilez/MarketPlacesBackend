@@ -41,6 +41,24 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       return errorResponse(res, "Phone number already exists", 400);
     }
 
+    // Normalize weekly_off_day
+    if (weekly_off_day) {
+      if (typeof weekly_off_day === "string") {
+        try {
+          weekly_off_day = JSON.parse(weekly_off_day);
+        } catch (err) {
+          return errorResponse(res, "Invalid weekly_off_day format", 400);
+        }
+      }
+      if (!Array.isArray(weekly_off_day)) {
+        return errorResponse(res, "weekly_off_day must be an array", 400);
+      }
+      weekly_off_day = weekly_off_day
+        .map(d => new Date(d))
+        .filter(d => !isNaN(d.getTime())); // remove invalid dates
+    }
+
+
     // 🔹 Uploaded files handling
     const uploadedFiles = req.files || {};
     const makeFileUrl = (fieldName) => {
@@ -305,6 +323,49 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     } = req.body;
 
     // -----------------------------
+    // 2.1) Normalize weekly_off_day
+    // -----------------------------
+    let normalizedWeeklyOffDay;
+
+    if (weekly_off_day !== undefined) {
+      let parsedValue = weekly_off_day;
+
+      // If multipart/form-data sends it as string
+      if (typeof parsedValue === "string") {
+        try {
+          parsedValue = JSON.parse(parsedValue);
+        } catch (err) {
+          return validationErrorResponse(
+            res,
+            "Invalid weekly_off_day format. Must be an array of dates",
+            400
+          );
+        }
+      }
+
+      if (!Array.isArray(parsedValue)) {
+        return validationErrorResponse(
+          res,
+          "weekly_off_day must be an array",
+          400
+        );
+      }
+
+      normalizedWeeklyOffDay = parsedValue
+        .map((d) => new Date(d))
+        .filter((d) => !isNaN(d.getTime()));
+
+      // Optional: strict mode (reject if any invalid date was sent)
+      if (normalizedWeeklyOffDay.length !== parsedValue.length) {
+        return validationErrorResponse(
+          res,
+          "weekly_off_day contains invalid date values",
+          400
+        );
+      }
+    }
+
+    // -----------------------------
     // 3) Safe ObjectId casting
     // -----------------------------
     const safeObjectId = (val) => {
@@ -341,7 +402,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       address,
       gst_number,
       opening_hours,
-      weekly_off_day,
+      weekly_off_day: normalizedWeeklyOffDay,
       business_register,
       email,
 
@@ -703,6 +764,25 @@ exports.Dashboard = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Please provide id", 200);
     }
 
+    let { start, end } = req.query;
+    const now = new Date();
+
+    let startDate, endDate;
+
+    // Treat empty strings as undefined
+    start = start?.trim() || null;
+    end = end?.trim() || null;
+
+    if (start && end) {
+      startDate = new Date(start);
+      endDate = new Date(end);
+    } else {
+      // Default: last 7 days
+      endDate = now;
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 6);
+    }
+
     const Vendors = await Vendor.findOne({ user: userId });
 
     // ✅ Aggregation for overall stats
@@ -739,16 +819,11 @@ exports.Dashboard = catchAsync(async (req, res) => {
       status: "active",
     });
 
-    const now = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(now.getDate() - 6);
-
-    // ✅ Fetch offer sales grouped by day (last 7 days)
     const dailySales = await OfferBuy.aggregate([
       {
         $match: {
           vendor: new mongoose.Types.ObjectId(userId),
-          createdAt: { $gte: sevenDaysAgo, $lte: now },
+          createdAt: { $gte: startDate, $lte: endDate },
         },
       },
       {
@@ -759,17 +834,21 @@ exports.Dashboard = catchAsync(async (req, res) => {
           offers_sold: { $sum: 1 },
         },
       },
-      { $sort: { "_id": 1 } },
+      { $sort: { _id: 1 } },
     ]);
 
-    // ✅ Ensure all 7 days are present even if 0 sales
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
+    // console.log("dailySales", dailySales);
+
+    const salesByDate = [];
+    for (
+      let d = new Date(startDate);
+      d <= endDate;
+      d.setDate(d.getDate() + 1)
+    ) {
       const dayKey = d.toISOString().split("T")[0];
       const match = dailySales.find((x) => x._id === dayKey);
-      last7Days.push({
+
+      salesByDate.push({
         date: dayKey,
         offers_sold: match ? match.offers_sold : 0,
       });
@@ -849,7 +928,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
         active_offers: activeOffersCount || 0,
         total_customers: statsData.users.length || 0,
       },
-      last_7_days_sales: last7Days, // 👈 this replaces the number-only stat
+      last_7_days_sales: salesByDate, // 👈 this replaces the number-only stat
       vendors: Vendors,
       last_five_purchases: lastFivePurchases,
       top_offers: topOffers,

@@ -134,8 +134,10 @@ const vendorSchema = new mongoose.Schema(
                 active: { type: Boolean, default: false },
             },
         },
+        // It is actually holidays array but named wrongly
         weekly_off_day: {
-            type: Date,
+            type: [Date],
+            default: [],
         },
         user: {
             type: mongoose.Schema.Types.ObjectId,
