@@ -465,7 +465,18 @@ exports.VendorStatus = catchAsync(async (req, res) => {
   }
 });
 
-// Offer Management 
+const safeJsonParse = (value) => {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (err) {
+      throw new Error("Invalid JSON format for inclusion/exclusion");
+    }
+  }
+  return value; // already an object/array
+};
+
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
   try {
@@ -480,7 +491,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
-    const {
+    let {
       title,
       description,
       expiryDate,
@@ -488,8 +499,13 @@ exports.AddOffer = catchAsync(async (req, res) => {
       maxDiscountCap,
       minBillAmount,
       amount,
-      type
+      type,
+      inclusion,
+      exclusion,
     } = req.body;
+
+    inclusion = safeJsonParse(inclusion);
+    exclusion = safeJsonParse(exclusion);
 
     // ✅ Check if file is present
     if (!req.file || !req.file.filename) {
@@ -536,7 +552,9 @@ exports.AddOffer = catchAsync(async (req, res) => {
       flat: type === "flat" ? offerRecord._id : null,
       percentage: type === "percentage" ? offerRecord._id : null,
       vendor: userId,
-      type: type
+      type: type,
+      inclusion,
+      exclusion
     });
 
     const data = await combinedOffer.save();
@@ -662,11 +680,11 @@ exports.OfferDelete = catchAsync(async (req, res) => {
   }
 });
 
-// Edit Offer 
 exports.EditOffer = catchAsync(async (req, res) => {
   try {
     const Id = req.params.id;
-    const {
+
+    let {
       title,
       description,
       expiryDate,
@@ -674,11 +692,16 @@ exports.EditOffer = catchAsync(async (req, res) => {
       maxDiscountCap,
       minBillAmount,
       amount,
+      inclusion,
+      exclusion,
     } = req.body;
 
-    const user = await User.findById(Id);
+    // ✅ Safely parse inclusion & exclusion if received
+    inclusion = safeJsonParse(inclusion);
+    exclusion = safeJsonParse(exclusion);
 
-    if(user?.deleted_at){
+    const user = await User.findById(Id);
+    if (user?.deleted_at) {
       return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
@@ -687,6 +710,7 @@ exports.EditOffer = catchAsync(async (req, res) => {
       return errorResponse(res, "Offer not found", 404);
     }
 
+    // ✅ Update offer-specific data (flat / percentage)
     const updateData = {
       title,
       description,
@@ -704,15 +728,26 @@ exports.EditOffer = catchAsync(async (req, res) => {
 
     let updatedOffer;
     if (record.type === "flat") {
-      updatedOffer = await FlatOffer.findByIdAndUpdate(record.flat, updateData, {
-        new: true,
-      });
+      updatedOffer = await FlatOffer.findByIdAndUpdate(
+        record.flat,
+        updateData,
+        { new: true }
+      );
     } else {
       updatedOffer = await PercentageOffer.findByIdAndUpdate(
         record.percentage,
         updateData,
         { new: true }
       );
+    }
+
+    // ✅ Update inclusion & exclusion on main Offer document
+    const offerUpdate = {};
+    if (inclusion !== undefined) offerUpdate.inclusion = inclusion;
+    if (exclusion !== undefined) offerUpdate.exclusion = exclusion;
+
+    if (Object.keys(offerUpdate).length) {
+      await Offer.findByIdAndUpdate(record._id, offerUpdate);
     }
 
     return successResponse(res, "Offer updated successfully", 200, updatedOffer);
@@ -1383,7 +1418,6 @@ exports.deleteGallery = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
-
 
 exports.vendorphoneUpdate = catchAsync(async (req, res) => {
   try {

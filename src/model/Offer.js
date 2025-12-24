@@ -23,11 +23,14 @@ const OfferSchema = new mongoose.Schema(
             enum: ["active", "inactive"],
             default: "active",
         },
-        uuid : {
-            type: String,
-            
-        }
-
+        inclusion: {
+            type: [String],
+            default: [],
+        },
+        exclusion: {
+            type: [String],
+            default: []
+        },
     },
     { timestamps: true }
 );
