@@ -13,9 +13,24 @@ const Payment = require("../model/Payment.js");
 const { default: mongoose } = require("mongoose");
 const deleteUploadedFiles = require("../utils/fileDeleter.js");
 
+const ADDRESS_PROOFS = [
+  "aadhaar_front",
+  "aadhaar_back",
+  "pan_card_image",
+  "driving_license",
+  "passport",
+];
+
+const BUSINESS_PROOFS = [
+  "gst_certificate",
+  "udhyam",
+  "trade_license",
+  "shop_license",
+];
+
 exports.VendorRegister = catchAsync(async (req, res) => {
   try {
-    const {
+    let {
       business_name,
       city,
       category,
@@ -61,6 +76,27 @@ exports.VendorRegister = catchAsync(async (req, res) => {
 
     // 🔹 Uploaded files handling
     const uploadedFiles = req.files || {};
+
+    // 🔹 Validate document uploads
+    const hasAtLeastOneFile = (keys) =>
+      keys.some(
+        (key) =>
+          uploadedFiles[key] &&
+          Array.isArray(uploadedFiles[key]) &&
+          uploadedFiles[key].length > 0
+      );
+
+    const hasAddressProof = hasAtLeastOneFile(ADDRESS_PROOFS);
+    const hasBusinessProof = hasAtLeastOneFile(BUSINESS_PROOFS);
+
+    if (!hasAddressProof) {
+      return errorResponse(res, "At least one address proof document is required", 400);
+    }
+
+    if (!hasBusinessProof) {
+      return errorResponse(res, "At least one business proof document is required",400);
+    }
+
     const makeFileUrl = (fieldName) => {
       if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0) return null;
       const file = uploadedFiles[fieldName][0];
@@ -100,10 +136,18 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       opening_hours,
       weekly_off_day,
       business_register,
+      // Address proofs
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
+      driving_license: makeFileUrl("driving_license"),
+      passport: makeFileUrl("passport"),
+      // Business proofs
       gst_certificate: makeFileUrl("gst_certificate"),
+      udhyam: makeFileUrl("udhyam"),
+      trade_license: makeFileUrl("trade_license"),
+      shop_license: makeFileUrl("shop_license"),
+      // Business logo
       business_logo: makeFileUrl("business_logo"),
     });
 
@@ -285,10 +329,38 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
-    // -----------------------------
-    // 1) Handle uploaded files
-    // -----------------------------
     const uploadedFiles = req.files || {};
+
+    const existingVendor = await Vendor.findOne({ user: vendorId });
+    if (!existingVendor) {
+      return validationErrorResponse(res, "Vendor not found", 204);
+    }
+    const hasProofAfterUpdate = (keys) => {
+      return keys.some((key) => {
+        // new upload in this request
+        if (
+          uploadedFiles[key] &&
+          Array.isArray(uploadedFiles[key]) &&
+          uploadedFiles[key].length > 0
+        ) {
+          return true;
+        }
+
+        // already exists in DB
+        return !!existingVendor[key];
+      });
+    };
+
+    const hasAddressProof = hasProofAfterUpdate(ADDRESS_PROOFS);
+    const hasBusinessProof = hasProofAfterUpdate(BUSINESS_PROOFS);
+
+    if (!hasAddressProof) {
+      return validationErrorResponse(res,"At least one address proof document must be available",400);
+    }
+
+    if (!hasBusinessProof) {
+      return validationErrorResponse(res,"At least one business proof document must be available",400);
+    }
 
     const makeFileUrl = (fieldName) => {
       if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0)
@@ -298,9 +370,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
     };
 
-    // -----------------------------
-    // 2) Parse body fields
-    // -----------------------------
     const {
       business_name,
       city,
@@ -322,9 +391,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       avatar
     } = req.body;
 
-    // -----------------------------
-    // 2.1) Normalize weekly_off_day
-    // -----------------------------
     let normalizedWeeklyOffDay;
 
     if (weekly_off_day !== undefined) {
@@ -365,9 +431,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       }
     }
 
-    // -----------------------------
-    // 3) Safe ObjectId casting
-    // -----------------------------
     const safeObjectId = (val) => {
       if (!val) return undefined;
       return mongoose.isValidObjectId(val.trim())
@@ -375,18 +438,12 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
         : undefined;
     };
 
-    // -----------------------------
-    // 4) Update User model
-    // -----------------------------
     await User.findByIdAndUpdate(
       vendorId,
       { name, email, avatar },
       { new: true }
     );
 
-    // -----------------------------
-    // 5) Prepare vendor update payload
-    // -----------------------------
     const vendorUpdateData = {
       business_name,
       city,
@@ -407,10 +464,18 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       email,
 
       // Update only if new file uploaded
+      // Address proofs
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
+      driving_license: makeFileUrl("driving_license"),
+      passport: makeFileUrl("passport"),
+
+      // Business proofs
       gst_certificate: makeFileUrl("gst_certificate"),
+      udhyam: makeFileUrl("udhyam"),
+      trade_license: makeFileUrl("trade_license"),
+      shop_license: makeFileUrl("shop_license"),
       business_logo: makeFileUrl("business_logo"),
     };
 
@@ -419,9 +484,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       if (vendorUpdateData[key] === undefined) delete vendorUpdateData[key];
     });
 
-    // -----------------------------
-    // 6) Update Vendor model
-    // -----------------------------
     const vendordata = await Vendor.findOneAndUpdate(
       { user: vendorId },
       vendorUpdateData,

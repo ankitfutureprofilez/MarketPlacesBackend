@@ -6,10 +6,18 @@ const router = require("express").Router();
 router.post(
   "/vendor/register",
   upload.fields([
+    // Address proofs
     { name: "aadhaar_front", maxCount: 1 },
     { name: "aadhaar_back", maxCount: 1 },
     { name: "pan_card_image", maxCount: 1 },
+    { name: "driving_license", maxCount: 1 },
+    { name: "passport", maxCount: 1 },
+    // Business Proofs
     { name: "gst_certificate", maxCount: 1 },
+    { name: "udhyam", maxCount: 1 },
+    { name: "trade_license", maxCount: 1 },
+    { name: "shop_license", maxCount: 1 },
+    // Business logo
     { name: "business_logo", maxCount: 1 },
   ]), VendorRegister);
 
@@ -19,12 +27,21 @@ router.get("/vendor/get_details", verifyToken, VendorGetId);
 
 router.post("/vendor/update", verifyToken,
   upload.fields([
+    // Address proofs
     { name: "aadhaar_front", maxCount: 1 },
     { name: "aadhaar_back", maxCount: 1 },
     { name: "pan_card_image", maxCount: 1 },
+    { name: "driving_license", maxCount: 1 },
+    { name: "passport", maxCount: 1 },
+    // Business Proofs
     { name: "gst_certificate", maxCount: 1 },
+    { name: "udhyam", maxCount: 1 },
+    { name: "trade_license", maxCount: 1 },
+    { name: "shop_license", maxCount: 1 },
+    // Business logo
     { name: "business_logo", maxCount: 1 },
   ]), vendorUpdate);
+  
 router.get("/vendor/categroy", category);
 router.get("/vendor/sub_categroy/:id", subcategory);
 router.get("/vendor/order", verifyToken, VendorOrder);
