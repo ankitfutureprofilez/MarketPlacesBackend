@@ -1121,3 +1121,72 @@ exports.AdminGetCategories = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
+
+exports.addVendorGallery = catchAsync(async (req, res) => {
+  try {
+      const user = req.params.id;
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "No files uploaded" });
+      }
+      const fileUrls = req.files.map(
+        (file) => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
+      );
+      const vendor = await Vendor.findOne({ user: user });
+      if (!vendor) {
+        return validationErrorResponse(res, "Vendor not found", 404);
+      }
+      if (!Array.isArray(vendor.business_image)) {
+        vendor.business_image = [];
+      }
+      vendor.business_image = vendor.business_image.concat(fileUrls);
+      await vendor.save();
+      res.json({
+        message: "Files uploaded successfully",
+        count: req.files.length,
+        data: fileUrls,
+      });
+    } catch (error) {
+      console.log("Error:", error);
+      return errorResponse(res, error.message || "Internal Server Error", 500);
+    }
+});
+
+exports.deleteVendorGallery = catchAsync(async (req, res) => {
+  try {
+    const user = req.params.id;
+    const { files } = req.body; // expecting an array of file URLs
+
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ message: "No files provided" });
+    }
+
+    const vendor = await Vendor.findOne({ user });
+    if (!vendor) {
+      return validationErrorResponse(res, "Vendor not found", 404);
+    }
+
+    // ✅ Ensure vendor.gallery exists and is an array
+    if (!Array.isArray(vendor.business_image)) {
+      vendor.business_image = [];
+    }
+
+    // Delete the physical files from the server
+    deleteUploadedFiles(files);
+
+    // Filter out deleted files from vendor.business_image
+    vendor.business_image = vendor.business_image.filter(
+      (imageUrl) => !files.includes(imageUrl)
+    );
+
+    await vendor.save();
+
+    res.json({
+      message: "Files deleted successfully",
+      deletedCount: files.length,
+      remainingbusiness_image: vendor.business_image,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});

@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, SalesAdminGetId, BroughtOffers, AdminGetCategories, AdminSalesStats, CustomerGetId } = require("../controller/AdminController");
+const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, SalesAdminGetId, BroughtOffers, AdminGetCategories, AdminSalesStats, CustomerGetId, addVendorGallery, deleteVendorGallery } = require("../controller/AdminController");
 const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
@@ -33,6 +33,9 @@ router.post("/admin/vendor-Edit/:id", verifyToken,
         { name: "gst_certificate", maxCount: 1 },
         { name: "business_logo", maxCount: 1 },
     ]), vendorUpdate);
+router.post("/admin/vendor/gallery/upload/:id", verifyToken, upload.array("files", 10), addVendorGallery);
+router.post("/admin/vendor/gallery/delete/:id", verifyToken, deleteVendorGallery);
+
 router.get("/admin/subcatgroy/:id", AdminSubcaterites);
 router.get("/admin/vendor_details/:id", VendorGetId);
 router.get("/admin/dashboard", AdminDashboard);
