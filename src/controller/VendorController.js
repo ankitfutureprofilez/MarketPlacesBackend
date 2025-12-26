@@ -560,7 +560,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
       discountPercentage,
       maxDiscountCap,
       minBillAmount,
-      amount,
+      // amount,
       type,
       inclusion,
       exclusion,
@@ -585,7 +585,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
         title,
         description,
         expiryDate,
-        amount, // flat amount
+        amount: 20, 
         minBillAmount,
         offer_image: fileUrl,
         status: "active",
@@ -598,7 +598,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
         title,
         description,
         expiryDate,
-        amount,
+        amount: 20,
         discountPercentage,
         maxDiscountCap,
         minBillAmount,
@@ -753,7 +753,6 @@ exports.EditOffer = catchAsync(async (req, res) => {
       discountPercentage,
       maxDiscountCap,
       minBillAmount,
-      amount,
       inclusion,
       exclusion,
     } = req.body;
@@ -780,7 +779,6 @@ exports.EditOffer = catchAsync(async (req, res) => {
       discountPercentage,
       maxDiscountCap,
       minBillAmount,
-      amount,
     };
 
     if (req.file && req.file.filename) {
