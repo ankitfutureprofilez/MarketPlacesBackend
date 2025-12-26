@@ -895,9 +895,12 @@ exports.Dashboard = catchAsync(async (req, res) => {
               ]
             }
           },
-          users: { $addToSet: "$user" },
+          // users: { $addToSet: "$user" },
           redeemedCount: {
             $sum: { $cond: [{ $eq: ["$vendor_bill_status", true] }, 1, 0] },
+          },
+          totalVouchers: {
+            $sum: 1,
           },
         },
       },
@@ -905,8 +908,8 @@ exports.Dashboard = catchAsync(async (req, res) => {
 
     const statsData = offerBuyStats[0] || {
       totalSales: 0,
-      users: [],
       redeemedCount: 0,
+      totalVouchers: 0,
     };
 
     const activeOffersCount = await Offer.countDocuments({
@@ -950,7 +953,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
     }
 
     // ✅ Last 5 Purchases
-    const lastFivePurchases = await OfferBuy.find({ vendor: userId })
+    const lastFivePurchases = await OfferBuy.find({ vendor: userId, vendor_bill_status: true })
       .populate("user", "name email")
       .populate({
         path: "offer",
@@ -1021,9 +1024,9 @@ exports.Dashboard = catchAsync(async (req, res) => {
         total_sales: statsData.totalSales || 0,
         redeemed_offeres: statsData.redeemedCount || 0,
         active_offers: activeOffersCount || 0,
-        total_customers: statsData.users.length || 0,
+        totalVouchers: statsData.totalVouchers || 0,
       },
-      last_7_days_sales: salesByDate, // 👈 this replaces the number-only stat
+      last_7_days_sales: salesByDate,
       vendors: Vendors,
       last_five_purchases: lastFivePurchases,
       top_offers: topOffers,
