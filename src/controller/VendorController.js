@@ -1280,7 +1280,11 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
     const record = await OfferBuy.findById(id).populate({
       path: "offer",
       populate: [{ path: "flat" }, { path: "percentage" }]
-    });
+    }).populate("vendor");
+
+    if(req?.user?.id != record?.vendor?._id){
+      return validationErrorResponse(res, "You are not authorized to update this record", 403);
+    }
 
     if (!record) {
       return validationErrorResponse(res, "Offer not found for this vendor", 404);
