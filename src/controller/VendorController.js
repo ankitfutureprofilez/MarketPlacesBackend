@@ -224,18 +224,35 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     };
 
     const documentObj = {
-      business_logo: record.business_logo,
-      aadhaar_front: record.aadhaar_front,
-      aadhaar_back: record.aadhaar_back,
-      pan_card_image: record.pan_card_image,
-      gst_certificate: record.gst_certificate,
-      shop_license: record.shop_license,
-      aadhaar_verify: record.aadhaar_verify,
-      pan_card_verify: record.pan_card_verify,
-      gst_certificate_verify: record.gst_certificate_verify,
-      aadhaar_reason: record?.aadhaar_reason,
-      gst_certificate_reason: record?.gst_certificate_reason,
-      pan_card_reason: record?.pan_card_reason,
+      business_logo: record?.business_logo ?? null,
+
+      aadhaar_front: record?.aadhaar_front ?? null,
+      aadhaar_back: record?.aadhaar_back ?? null,
+      pan_card_image: record?.pan_card_image ?? null,
+      gst_certificate: record?.gst_certificate ?? null,
+      shop_license: record?.shop_license ?? null,
+      driving_license: record?.driving_license ?? null,
+      passport: record?.passport ?? null,
+      udhyam: record?.udhyam ?? null,
+      trade_license: record?.trade_license ?? null,
+      // Verification status
+      aadhaar_verify: record?.aadhaar_verify ?? "pending",
+      pan_card_verify: record?.pan_card_verify ?? "pending",
+      gst_certificate_verify: record?.gst_certificate_verify ?? "pending",
+      shop_license_verify: record?.shop_license_verify ?? "pending",
+      driving_license_verify: record?.driving_license_verify ?? "pending",
+      passport_verify: record?.passport_verify ?? "pending",
+      udhyam_verify: record?.udhyam_verify ?? "pending",
+      trade_license_verify: record?.trade_license_verify ?? "pending",
+      // Rejection reasons
+      aadhaar_reason: record?.aadhaar_reason ?? null,
+      pan_card_reason: record?.pan_card_reason ?? null,
+      gst_certificate_reason: record?.gst_certificate_reason ?? null,
+      shop_license_reason: record?.shop_license_reason ?? null,
+      driving_license_reason: record?.driving_license_reason ?? null,
+      passport_reason: record?.passport_reason ?? null,
+      udhyam_reason: record?.udhyam_reason ?? null,
+      trade_license_reason: record?.trade_license_reason ?? null,
     };
 
     const businessObj = {
