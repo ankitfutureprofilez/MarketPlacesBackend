@@ -1,6 +1,6 @@
 const dotenv = require("dotenv");
 dotenv.config();
-require("./monogconfig"); // check spelling
+require("./monogconfig");
 require("./Cron")
 const path = require("path");
 const logger = require("./utils/Logger");
@@ -27,168 +27,136 @@ const OfferBuy = require("./model/OfferBuy");
 
 // console.log("Webhook Payment")
 app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), async (req, res) => {
-  try {
-    console.log("🔥 Webhook triggered");
-    logger.info("🔥 Webhook triggered");
+    try {
+      console.log("🔥 Webhook triggered");
+      logger.info("🔥 Webhook triggered");
 
-    const secret = "my_super_secret_key_123";
-    const body = req.body.toString("utf-8");
-    const signature = req.headers["x-razorpay-signature"];
+      const secret = "my_super_secret_key_123";
+      const body = req.body.toString("utf-8");
+      const signature = req.headers["x-razorpay-signature"];
 
-    console.log("Received Signature:", signature);
-    logger.info("Received Signature:", signature);
+      const expectedSignature = crypto
+        .createHmac("sha256", secret)
+        .update(body)
+        .digest("hex");
 
-    const expectedSignature = crypto.createHmac("sha256", secret).update(body).digest("hex");
+      if (signature !== expectedSignature) {
+        console.log("❌ Invalid signature");
+        logger.warn("❌ Invalid signature");
+        return res.status(400).send("Invalid signature");
+      }
 
-    console.log("Expected Signature:", expectedSignature);
-    logger.info("Expected Signature:", expectedSignature);
+      const payload = JSON.parse(body);
+      const paymentEntity = payload.payload?.payment?.entity;
 
-    if (signature === expectedSignature) {
-      console.log("✅ Signature matched");
-      logger.info("✅ Signature matched");
+      if (!paymentEntity) {
+        return res.status(200).json({ status: "ignored" });
+      }
 
-      try {
-        console.log("Raw body:", body);
-        logger.info("Raw body:", body);
+      const paymentId = paymentEntity.id;
 
-        const payload = JSON.parse(body);
-        console.log("Parsed payload:", payload);
-        logger.info("Parsed payload:", payload);
+      // ✅ Idempotency check
+      const existingPayment = await Payment.findOne({
+        payment_id: paymentId,
+      });
+      if (existingPayment) {
+        logger.info("⚠️ Duplicate webhook ignored:", paymentId);
+        return res.status(200).json({ status: "duplicate" });
+      }
 
-        const paymentEntity = payload.payload.payment?.entity;
-        console.log("Payment entity extracted:", paymentEntity);
-        logger.info("Payment entity extracted:", paymentEntity);
+      const notes = paymentEntity.notes || {};
+      const paymentType = notes.payment_type || "buy";
 
-        const orderId = paymentEntity.order_id;
-        console.log("Order ID:", orderId || "Standalone payment");
-        logger.info("Order ID:", orderId || "Standalone payment");
+      // ✅ Only process successful events
+      if (payload.event !== "payment.captured") {
+        return res.status(200).json({ status: "ignored" });
+      }
 
-        const paymentId = paymentEntity.id;
-        console.log("🔍 Payment ID:", paymentId);
-        logger.info("🔍 Payment ID:", paymentId);
+      /* -------------------------
+         SAVE PAYMENT (COMMON)
+      ------------------------- */
+      const payment = await Payment.create({
+        payment_id: paymentEntity.id,
+        amount: paymentEntity.amount / 100,
+        currency: paymentEntity.currency,
+        payment_status: paymentEntity.status,
+        payment_method: paymentEntity.method,
+        user: notes.userid,
+        vendor_id: notes.vendor_id,
+        offer_id: notes.new_offer_id || notes.offer_id,
+        payment_type: paymentType,
+      });
 
-        const existingPayment = await Payment.findOne({ payment_id: paymentId });
-        if (existingPayment) {
-          console.log("⚠️ Duplicate webhook ignored for:", paymentId);
-          logger.info("⚠️ Duplicate webhook ignored for:", paymentId);
-          return res.status(200).json({ status: "duplicate" });
-        }
+      logger.info("✅ Payment saved:", payment._id);
 
-        const isStandalonePayment = !paymentEntity.order_id;
-        console.log("🔍 Is Standalone Payment:", isStandalonePayment);
-        logger.info("🔍 Is Standalone Payment:", isStandalonePayment);
+      /* -------------------------
+         BUY FLOW (UNCHANGED)
+      ------------------------- */
+      if (paymentType === "buy") {
+        const offerBuy = await OfferBuy.create({
+          user: notes.userid,
+          offer: notes.offer_id,
+          vendor: notes.vendor_id,
+          payment_id: payment._id,
+          status: "active",
+        });
 
-        let notes = {};
-        if (isStandalonePayment) {
-          console.log("🔄 Standalone payment detected, using default values");
-          logger.info("🔄 Standalone payment detected, using default values");
-          notes = {
-            offer_id: "68edff002c5753929286bfac",
-            userid: "68edfb9be37a34d7bc1e2412",
-            vendor_id: "68edfeb22c5753929286bfa1"
-          };
-        } else {
-          notes = paymentEntity.notes && Object.keys(paymentEntity.notes).length > 0
-            ? paymentEntity.notes
-            : {};
-        }
+        logger.info("✅ OfferBuy (BUY) created:", offerBuy._id);
+      }
 
-        console.log("📝 Notes:", notes);
-        logger.info("📝 Notes:", notes);
+      /* -------------------------
+         UPGRADE FLOW (NEW)
+      ------------------------- */
+      if (paymentType === "upgrade") {
+        const {
+          old_offer_buy_id,
+          new_offer_id,
+          upgrade_chain_root,
+        } = notes;
 
-        if (!paymentEntity) {
-          console.log("⚠️ No payment entity found, ignoring webhook");
-          logger.info("⚠️ No payment entity found, ignoring webhook");
+        // 1️⃣ Fetch old OfferBuy
+        const oldOfferBuy = await OfferBuy.findOne({
+          _id: old_offer_buy_id,
+          status: "active",
+        });
+
+        if (!oldOfferBuy) {
+          logger.info("⚠️ Old offer not found or already upgraded");
           return res.status(200).json({ status: "ignored" });
         }
 
-        if (
-          payload.event === "payment.captured" ||
-          payload.event === "order.paid" ||
-          payload.event === "payment.authorized"
-        ) {
-          console.log("💰 Payment captured or order paid event");
-          logger.info("💰 Payment captured or order paid event");
+        // 2️⃣ Mark old offer as upgraded
+        oldOfferBuy.status = "upgraded";
+        await oldOfferBuy.save();
 
-          const records = new Payment({
-            amount: paymentEntity.amount/100,
-            currency: paymentEntity.currency,
-            offer_id: notes.offer_id,
-            user: notes.userid,
-            vendor_id: notes.vendor_id,
-            payment_status: paymentEntity.status,
-            payment_id: paymentEntity.id,
-            email: paymentEntity.email,
-            contact: paymentEntity.contact,
-            payment_method: paymentEntity.method,
-          });
+        // 3️⃣ Create new OfferBuy (next in chain)
+        const newOfferBuy = await OfferBuy.create({
+          user: oldOfferBuy.user,
+          offer: new_offer_id,
+          vendor: oldOfferBuy.vendor,
+          payment_id: payment._id,
+          upgraded_from: oldOfferBuy._id,
+          upgrade_chain_root:
+            upgrade_chain_root || oldOfferBuy._id,
+          status: "active",
+        });
 
-          console.log("payment record", records);
-          logger.info("payment record", records);
-
-          const data = await records.save();
-
-          console.log("✅ Payment saved:", data);
-          logger.info("✅ Payment saved:", data);
-
-          const record = new OfferBuy({
-            user: notes.userid,
-            offer: notes.offer_id,
-            vendor: notes.vendor_id,
-            payment_id: data._id || "",
-            status: "active",
-          });
-
-          console.log("record offer", record);
-          logger.info("record offer", record);
-
-          const offerData = await record.save();
-
-          console.log("✅ OfferBuy saved:", offerData);
-          logger.info("✅ OfferBuy saved:", offerData);
-
-        } else if (payload.event === "payment.failed") {
-          console.log("❌ Payment failed event");
-          logger.info("❌ Payment failed event");
-
-          const newPayment = new Payment({
-            order_id: orderId || "standalone",
-            amount: paymentEntity.amount/100,
-            currency: paymentEntity.currency,
-            payment_status: paymentEntity.status,
-            payment_id: paymentEntity.id,
-            email: paymentEntity.email,
-            contact: paymentEntity.contact,
-            payment_method: paymentEntity.method,
-            offer_id: notes.offer_id || null,
-            user: notes.userid || null,
-            vendor_id: notes.vendor_id || null
-          });
-
-          const data = await newPayment.save();
-          console.log("✅ Payment (failed) saved:", data);
-          logger.info("✅ Payment (failed) saved:", data);
-        }
-
-        console.log("🎉 Webhook processing complete");
-        logger.info("🎉 Webhook processing complete");
-
-        res.status(200).json({ status: "ok" });
-      } catch (error) {
-        console.error("❌ Error processing webhook:", error);
-        logger.error("❌ Error processing webhook:", error);
-        res.status(500).send("Internal Server Error");
+        logger.info("✅ Offer upgraded:", {
+          from: oldOfferBuy._id,
+          to: newOfferBuy._id,
+        });
       }
-    } else {
-      console.log("❌ Invalid signature, webhook ignored");
-      logger.warn("❌ Invalid signature, webhook ignored");
-      res.status(400).send("Invalid signature");
+
+      logger.info("🎉 Webhook processing complete");
+      res.status(200).json({ status: "ok" });
+    } catch (error) {
+      console.error("❌ Webhook error:", error);
+      logger.error("❌ Webhook error:", error);
+      res.status(500).send("Internal Server Error");
     }
-  } catch (error) {
-    console.log("errro", error);
-    logger.error("errro", error);
   }
-});
+);
+
 
 app.use(express.json({ limit: "25000mb" }));
 app.use(express.urlencoded({ extended: true }));

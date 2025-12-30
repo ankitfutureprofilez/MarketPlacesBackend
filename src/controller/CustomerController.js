@@ -1170,3 +1170,82 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
+
+exports.offerUpgrade = catchAsync(async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { old_offer_buy_id, new_offer_id, currency } = req.body;
+
+    if (!old_offer_buy_id || !new_offer_id) {
+      return errorResponse(res, "Old Offer Id and New Offer Id are required", 400);
+    }
+
+    // 1️⃣ Fetch the exact offer the user wants to upgrade
+    const currentOfferBuy = await OfferBuy.findById(old_offer_buy_id).populate("offer vendor payment_id");
+
+    if (!currentOfferBuy) {
+      return errorResponse(res, "Offer not found or not eligible for upgrade", 400);
+    }
+
+    // 2️⃣ Fetch new offer
+    const newOffer = await Offer.findById(new_offer_id).populate("vendor flat percentage");
+
+    if (!newOffer) {
+      return errorResponse(res, "New offer not found", 200);
+    }
+
+    // 3️⃣ Vendor validation (CRITICAL)
+    if (currentOfferBuy.vendor._id.toString() !== newOffer.vendor._id.toString()) {
+      return errorResponse(res, "Cross-vendor upgrade not allowed", 400);
+    }
+
+    // 4️⃣ Price calculation
+    const oldAmount = currentOfferBuy?.payment_id?.amount || 0;
+
+    // ⚠️ Replace this with your actual pricing logic
+    const newAmount = newOffer?.flat?.amount || newOffer?.percentage?.amount || 0;
+
+    if (newAmount <= oldAmount) {
+      return errorResponse(res, "Upgrade amount must be greater than current offer", 400);
+    }
+
+    const upgradeAmount = newAmount - oldAmount;
+
+    // 5️⃣ Resolve upgrade chain root
+    const upgradeChainRoot =
+      currentOfferBuy.upgrade_chain_root || currentOfferBuy._id;
+
+    // 6️⃣ Razorpay instance
+    const razorpay = new Razorpay({
+      key_id: "rzp_test_Rxncr3PhssgP4K",
+      key_secret: "3EFVLS4DwGe1lwEayh3HzzNx",
+    });
+
+    // 7️⃣ Create Razorpay order
+    const orderOptions = {
+      amount: upgradeAmount * 100,
+      currency: currency || "INR",
+      receipt: `upgrade_${Date.now()}`,
+      notes: {
+        payment_type: "upgrade",
+        userid: userId,
+        vendor_id: currentOfferBuy.vendor._id.toString(),
+        old_offer_buy_id: currentOfferBuy._id.toString(),
+        new_offer_id: new_offer_id,
+        upgrade_chain_root: upgradeChainRoot.toString(),
+      },
+    };
+
+    const order = await razorpay.orders.create(orderOptions);
+
+    return successResponse(res, "Upgrade order created successfully", 200, {
+      order,
+      upgradeAmount,
+      oldOffer: currentOfferBuy.offer,
+      newOffer,
+    });
+  } catch (error) {
+    console.error("❌ Offer upgrade error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
