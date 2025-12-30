@@ -1173,7 +1173,7 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
 
 exports.offerUpgrade = catchAsync(async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.body.userId;
     const { old_offer_buy_id, new_offer_id, currency } = req.body;
 
     if (!old_offer_buy_id || !new_offer_id) {

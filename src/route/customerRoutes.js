@@ -21,6 +21,6 @@ router.post("/customer/bill-add/:id",verifyToken, upload.single("bill"), Custome
 router.get("/customer/vendor-gallery/:id", getVendorGallery);
 router.post("/customer/phone-update", verifyToken, customerphoneUpdate);
 router.get("/customer/offer/eligible", verifyToken, eligibleOffers);
-router.get("/customer/offer/upgrade", verifyToken, offerUpgrade);
+router.get("/customer/offer/upgrade", offerUpgrade);
 
 module.exports = router;
