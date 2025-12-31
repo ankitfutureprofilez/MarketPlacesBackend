@@ -47,6 +47,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
       }
 
       const payload = JSON.parse(body);
+      logger.info("📦 Payload received:", JSON.stringify(payload));
       const paymentEntity = payload.payload?.payment?.entity;
 
       if (!paymentEntity) {
