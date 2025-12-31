@@ -1226,6 +1226,7 @@ exports.offerUpgrade = catchAsync(async (req, res) => {
       amount: upgradeAmount * 100,
       currency: currency || "INR",
       receipt: `upgrade_${Date.now()}`,
+      payment_capture: 1,
       notes: {
         payment_type: "upgrade",
         userid: userId,
