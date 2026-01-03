@@ -1,16 +1,13 @@
 const Offer = require("../model/Offer");
 const Payment = require("../model/Payment");
 const User = require("../model/User");
+const bcrypt = require("bcrypt");
 const Vendor = require("../model/Vendor");
 const OfferBuy = require("../model/OfferBuy.js");
 const Category = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
 const catchAsync = require("../utils/catchAsync");
-const {
-  errorResponse,
-  successResponse,
-  validationErrorResponse,
-} = require("../utils/ErrorHandling");
+const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
 const mongoose = require('mongoose');
 const deleteUploadedFiles = require("../utils/fileDeleter.js");
@@ -18,19 +15,17 @@ const deleteUploadedFiles = require("../utils/fileDeleter.js");
 exports.Login = catchAsync(async (req, res) => {
   try {
     const { email, password, role } = req.body;
-    // console.log(req.body);
     if (!email || !password || !role) {
-      return validationErrorResponse(
-        res,
-        "email , password and role all are required",
-        401
-      );
+      return validationErrorResponse(res, "Email, password and role all are required", 401);
     }
-    const user = await User.findOne({ email: email, password: password });
+    const user = await User.findOne({ email: email });
     if (!user) {
-      return validationErrorResponse(res, "Invalid email or password", 401);
+      return validationErrorResponse(res, "Invalid email", 401);
     }
-
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return errorResponse(res, "Invalid password", 400);
+    }
     const token = jwt.sign(
       { id: user._id, role: user.role, email: user.email },
       process.env.JWT_SECRET_KEY,
@@ -41,7 +36,6 @@ exports.Login = catchAsync(async (req, res) => {
       token: token,
       role: user?.role,
     });
-
     // Verify OTP with Twilio
     // const verificationCheck = await client.verify.v2
     //   .services(process.env.TWILIO_VERIFY_SID)
@@ -204,12 +198,7 @@ exports.SalesGet = catchAsync(async (req, res) => {
       assigned_vendors: staffCountMap[String(user._id)] || 0,
     }));
 
-    return successResponse(
-      res,
-      "Sales users fetched successfully",
-      200,
-      finalData
-    );
+    return successResponse(res, "Sales users fetched successfully", 200, finalData);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -527,8 +516,8 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 
 exports.adminGet = catchAsync(async (req, res) => {
   try {
-    const adminId = req.user?.id || null;
-    const admins = await User.findOne({ role: "admin" }).select("-password");
+    const adminId = req.user?.id;
+    const admins = await User.findById(adminId).select("-password");
 
     if (!admins || admins.length === 0) {
       return validationErrorResponse(res, "No admin users found", 404);
@@ -783,33 +772,16 @@ exports.AssignStaff = catchAsync(async (req, res) => {
 
 exports.AddSalesPersons = catchAsync(async (req, res) => {
   try {
-    // console.log("req.body", req.body);
     const { phone, otp, role, name, email } = req.body;
-    // Validate required fields
     if (!phone || !otp || !name || !email) {
-      return validationErrorResponse(
-        res,
-        "Phone number, OTP, Name, and Email are required.",
-        401
-      );
+      return validationErrorResponse(res, "Phone number, OTP, Name, and Email are required.", 401);
     }
-    // OTP validation
     if (otp !== "123456") {
-      return validationErrorResponse(
-        res,
-        "Invalid or expired OTP. Please try again.",
-        400
-      );
+      return validationErrorResponse(res, "Invalid or expired OTP. Please try again.", 400);
     }
-    // Check if user already exists
     const existingUser = await User.findOne({ phone });
     if (existingUser) {
-      return errorResponse(
-        res,
-        "An account with this phone number already exists.",
-        409,
-        { role: role }
-      );
+      return errorResponse(res, "An account with this phone number already exists.", 409, { role: role });
     }
     if (!req.file) {
       return errorResponse(res, "Image is required", 400);
@@ -819,8 +791,6 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
       const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
       avatar = fileUrl;
     }
-
-    // Create new Sales Person
     const newUser = new User({
       name,
       email,
@@ -831,20 +801,9 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
 
     const record = await newUser.save();
 
-    // Success response
     return successResponse(res, "Account created successfully.", 200, {
       record,
     });
-
-    // Optional: Verify OTP with Twilio (currently unreachable)
-    // const verificationCheck = await client.verify.v2
-    //     .services(process.env.TWILIO_VERIFY_SID)
-    //     .verificationChecks.create({ to: phone, code: otp });
-    // if (verificationCheck.status === "approved") {
-    //     return successResponse(res, "OTP verified successfully", 200);
-    // } else {
-    //     return validationErrorResponse(res, "Invalid or expired OTP", 400);
-    // }
   } catch (error) {
     console.error("AddSalesPersons error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -1187,6 +1146,119 @@ exports.deleteVendorGallery = catchAsync(async (req, res) => {
     });
   } catch (error) {
     console.error("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.AddSubAdmin = catchAsync(async (req, res) => {
+  try {
+    const { name, email, phone, password, permissions } = req.body;
+    if (!name || !email || !phone || !password) {
+      return validationErrorResponse(res, "Name, Email, Phone and Password are required.", 400);
+    }
+    const existingUser = await User.findOne({ phone });
+    if (existingUser) {
+      return errorResponse(res, "An account with this phone number already exists.", 409);
+    }
+    let parsedPermissions = [];
+    if (permissions) {
+      try {
+        parsedPermissions = JSON.parse(permissions);
+        if (!Array.isArray(parsedPermissions)) {
+          return validationErrorResponse(res, "Permissions must be an array.", 400);
+        }
+      } catch (err) {
+        return validationErrorResponse(res, "Invalid permissions format.", 400);
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    let avatar = null;
+    if (req.file && req.file.filename) {
+      avatar = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
+    const newUser = new User({
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+      role: "sub-admin",
+      permissions: parsedPermissions,
+      avatar,
+    });
+
+    const record = await newUser.save();
+    return successResponse(res, "Sub-admin created successfully.", 201, {
+      record,
+    });
+  } catch (error) {
+    console.error("AddSubAdmin error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.UpdateSubAdmin = catchAsync(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, password, permissions } = req.body;
+
+    const user = await User.findOne({ _id: id, role: "sub-admin" });
+    if (!user) {
+      return errorResponse(res, "Sub-admin not found.", 404);
+    }
+
+    let parsedPermissions;
+    if (permissions !== undefined) {
+      try {
+        parsedPermissions = JSON.parse(permissions);
+        if (!Array.isArray(parsedPermissions)) {
+          return validationErrorResponse(res, "Permissions must be an array.", 400);
+        }
+      } catch (err) {
+        return validationErrorResponse(res, "Invalid permissions format.", 400);
+      }
+    }
+
+    if (password) {
+      user.password = await bcrypt.hash(password, 12);
+    }
+
+    if (req.file && req.file.filename) {
+      user.avatar = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (phone) user.phone = phone;
+    if (parsedPermissions !== undefined) {
+      user.permissions = parsedPermissions;
+    }
+    const record = await user.save();
+    return successResponse(res, "Sub-admin updated successfully.", 200,{ record });
+  } catch (error) {
+    console.error("UpdateSubAdmin error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.SubAdminGet = catchAsync(async (req, res) => {
+  try {
+    const { search = "" } = req.query;
+
+    let query = { role: "sub-admin" };
+
+    if (search.trim() !== "") {
+      const regex = { $regex: search.trim(), $options: "i" };
+      query.$or = [{ name: regex }, { email: regex }];
+    }
+    const data = await User.find(query).lean();
+    if (!data || data.length === 0) {
+      return validationErrorResponse(res, "No sub-admins found", 404);
+    }
+    return successResponse(res, "Sub-Admins fetched successfully", 200, data);
+  } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });

@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, SalesAdminGetId, BroughtOffers, AdminGetCategories, AdminSalesStats, CustomerGetId, addVendorGallery, deleteVendorGallery } = require("../controller/AdminController");
+const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, SalesAdminGetId, BroughtOffers, AdminGetCategories, AdminSalesStats, CustomerGetId, addVendorGallery, deleteVendorGallery, AddSubAdmin, UpdateSubAdmin, SubAdminGet } = require("../controller/AdminController");
 const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
@@ -47,5 +47,10 @@ router.post("/admin/reset/password", resetpassword);
 router.get("/admin/sales_id/:id", SalesAdminGetId);
 router.get("/admin/brought-offer",verifyToken, BroughtOffers);
 router.get("/admin/category/get", AdminGetCategories);
+
+// Sub-admin routes
+router.post("/admin/sub-admin/add", verifyToken, upload.single("avatar"), verifyToken, AddSubAdmin);
+router.post("/admin/sub-admin/update/:id", verifyToken, upload.single("avatar"), verifyToken, UpdateSubAdmin);
+router.get("/admin/sub-admin/get", verifyToken, SubAdminGet);
 
 module.exports = router;
