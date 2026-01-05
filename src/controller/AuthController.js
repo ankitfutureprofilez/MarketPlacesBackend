@@ -17,7 +17,7 @@ exports.SendOtp = catchAsync(async (req, res) => {
   try {
     const { phone, role } = req.body;
     if (!phone) {
-      return validationErrorResponse(res, "Phone number is required", 401);
+      return validationErrorResponse(res, "Phone number is required", 400);
     }
 
     const user = await User.findOne({phone: phone});
@@ -56,7 +56,7 @@ exports.Login = catchAsync(async (req, res) => {
       return validationErrorResponse(
         res,
         "Phone number, OTP and role all are required",
-        401
+        400
       );
     }
     if (otp !== "123456") {
@@ -110,7 +110,7 @@ exports.signup = catchAsync(async (req, res) => {
 
     // Check if required fields are provided
     if (!name || !role) {
-      return res.status(401).json({
+      return res.status(400).json({
         status: false,
         message: "All fields are required",
       });

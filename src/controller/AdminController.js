@@ -16,11 +16,11 @@ exports.Login = catchAsync(async (req, res) => {
   try {
     const { email, password, role } = req.body;
     if (!email || !password || !role) {
-      return validationErrorResponse(res, "Email, password and role all are required", 401);
+      return validationErrorResponse(res, "Email, password and role all are required", 400);
     }
     const user = await User.findOne({ email: email });
     if (!user) {
-      return validationErrorResponse(res, "Invalid email", 401);
+      return validationErrorResponse(res, "Invalid email", 400);
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
@@ -774,7 +774,7 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
   try {
     const { phone, otp, role, name, email } = req.body;
     if (!phone || !otp || !name || !email) {
-      return validationErrorResponse(res, "Phone number, OTP, Name, and Email are required.", 401);
+      return validationErrorResponse(res, "Phone number, OTP, Name, and Email are required.", 400);
     }
     if (otp !== "123456") {
       return validationErrorResponse(res, "Invalid or expired OTP. Please try again.", 400);

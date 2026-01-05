@@ -260,7 +260,7 @@ exports.SalesphoneUpdate = catchAsync(async (req, res) => {
     }
     const { phone, otp } = req.body;
     if (!otp) {
-      return validationErrorResponse(res, "Phone number is required", 401);
+      return validationErrorResponse(res, "Phone number is required", 400);
     }
     if (otp !== "123456") {
       return validationErrorResponse(res, "Invalid OTP", 400);
@@ -324,7 +324,7 @@ exports.OTPVerify = catchAsync(async (req, res) => {
       return validationErrorResponse(
         res,
         " OTP is required",
-        401
+        400
       );
     }
     if (otp !== "123456") {
