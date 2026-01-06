@@ -1216,7 +1216,7 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
     let currentOfferMinPrice = currentOffer?.percentage?.minBillAmount || currentOffer?.flat?.minBillAmount;
 
     if(currentOfferMinPrice>billAmount){
-      return errorResponse(res, "Price less then min amount of current offer", 200, { eligibleOffers:[] });
+      return successResponse(res, "Price less then min amount of current offer", 200, { eligibleOffers:[] });
     }
 
 
