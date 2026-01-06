@@ -1225,6 +1225,7 @@ exports.UpdateSubAdmin = catchAsync(async (req, res) => {
       user.password = await bcrypt.hash(password, 12);
     }
 
+    // console.log("req.file", req.file);
     if (req.file && req.file.filename) {
       user.avatar = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
     }
