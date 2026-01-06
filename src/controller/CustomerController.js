@@ -1215,7 +1215,7 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
 
     let currentOfferMinPrice = currentOffer?.percentage?.minBillAmount || currentOffer?.flat?.minBillAmount;
 
-    if(currentOfferMinPrice<billAmount){
+    if(currentOfferMinPrice>billAmount){
       return errorResponse(res, "Eligible offer not found", 200, { eligibleOffers:[] });
     }
 
