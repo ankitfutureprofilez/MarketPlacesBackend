@@ -1076,6 +1076,113 @@ exports.customerphoneUpdate = catchAsync(async (req, res) => {
   }
 });
 
+// Old api commented kyonki bhim convince nhi hai. Now sending all eligible offers instead of one
+// exports.eligibleOffers = catchAsync(async (req, res) => {
+//   try {
+//     const { vendorId, offerId, bill } = req.query;
+
+//     if (!vendorId || !offerId || !bill) {
+//       return validationErrorResponse(
+//         res,
+//         "vendorId, offerId and bill are required",
+//         400
+//       );
+//     }
+
+//     const billAmount = Number(bill);
+//     if (isNaN(billAmount) || billAmount <= 0) {
+//       return validationErrorResponse(res, "Invalid bill amount", 400);
+//     }
+
+//     const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
+//     const currentOfferId = new mongoose.Types.ObjectId(offerId);
+
+//     const currentOffer = await Offer.findById(currentOfferId)
+//       .populate("percentage")
+//       .populate("flat");
+
+//     if (!currentOffer) {
+//       return validationErrorResponse(res, "Current offer not found", 400);
+//     }
+
+//     const currentOfferAmount =
+//       currentOffer.type === "percentage"
+//         ? currentOffer.percentage?.amount || 0
+//         : currentOffer.flat?.amount || 0;
+
+//     // console.log("currentOfferAmount", currentOfferAmount);
+
+//     let currentDiscount = 0;
+
+//     if (currentOffer.type === "percentage" && currentOffer.percentage) {
+//       const o = currentOffer.percentage;
+//       currentDiscount = Math.min(
+//         o.maxDiscountCap,
+//         (o.discountPercentage * billAmount) / 100
+//       );
+//     } else if (currentOffer.type === "flat" && currentOffer.flat) {
+//       currentDiscount = currentOffer.flat.discountPercentage;
+//     }
+
+//     // console.log("currentDiscount", currentDiscount);
+
+//     const offers = await Offer.find({
+//       vendor: vendorObjectId,
+//       status: "active",
+//       _id: { $ne: currentOfferId },
+//     })
+//       .populate("percentage")
+//       .populate("flat");
+
+//     // console.log("offers", offers);
+
+//     let bestOffer = null;
+
+//     for (const offer of offers) {
+//       let targetAmount = 0;
+//       let discount = 0;
+//       let minimum_bill_amount = 0;
+
+//       if (offer.type === "percentage" && offer.percentage) {
+//         const o = offer.percentage;
+//         if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
+//         targetAmount = o.amount || 0;
+//         discount = Math.min(o.maxDiscountCap,(o.discountPercentage*billAmount)/100);
+//         minimum_bill_amount = offer?.percentage?.minBillAmount;
+//       }
+//       else if (offer.type === "flat" && offer.flat) {
+//         const o = offer.flat;
+//         if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
+//         targetAmount = o.amount || 0;
+//         discount = o.discountPercentage;
+//         minimum_bill_amount = offer?.flat?.minBillAmount;
+//       }
+
+//       // console.log("targetAmount", targetAmount);
+//       // console.log("discount", discount);
+
+//       if (targetAmount <= currentOfferAmount) continue;
+//       if (discount <= currentDiscount) continue;
+
+//       const amountRequiredToUpgrade = targetAmount - currentOfferAmount;
+//       const additionalAmountToShop = Math.max(0, minimum_bill_amount - billAmount);
+
+//       if (!bestOffer || amountRequiredToUpgrade < bestOffer.amount_required_to_upgrade) {
+//         bestOffer = {
+//           offer,
+//           // discount,
+//           additionalAmountToShop,
+//           amount_required_to_upgrade: amountRequiredToUpgrade,
+//           new_offer_amount: targetAmount,
+//         };
+//       }
+//     }
+//     return successResponse(res,"Eligible upgrade offer fetched successfully",200,{eligibleOffer: bestOffer,});
+//   } catch (error) {
+//     return errorResponse(res, error.message || "Internal Server Error", 500);
+//   }
+// });
+
 exports.eligibleOffers = catchAsync(async (req, res) => {
   try {
     const { vendorId, offerId, bill } = req.query;
@@ -1089,7 +1196,7 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
     }
 
     const billAmount = Number(bill);
-    if (isNaN(billAmount) || billAmount <= 0) {
+    if (isNaN(billAmount) || billAmount < 0) {
       return validationErrorResponse(res, "Invalid bill amount", 400);
     }
 
@@ -1104,27 +1211,13 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Current offer not found", 400);
     }
 
+    /** Current offer price */
     const currentOfferAmount =
       currentOffer.type === "percentage"
-        ? currentOffer.percentage?.amount || 0
-        : currentOffer.flat?.amount || 0;
+        ? currentOffer?.percentage?.amount || 0
+        : currentOffer?.flat?.amount || 0;
 
-    // console.log("currentOfferAmount", currentOfferAmount);
-
-    let currentDiscount = 0;
-
-    if (currentOffer.type === "percentage" && currentOffer.percentage) {
-      const o = currentOffer.percentage;
-      currentDiscount = Math.min(
-        o.maxDiscountCap,
-        (o.discountPercentage * billAmount) / 100
-      );
-    } else if (currentOffer.type === "flat" && currentOffer.flat) {
-      currentDiscount = currentOffer.flat.discountPercentage;
-    }
-
-    // console.log("currentDiscount", currentDiscount);
-
+    /** Fetch all other active offers of vendor */
     const offers = await Offer.find({
       vendor: vendorObjectId,
       status: "active",
@@ -1134,51 +1227,62 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
       .populate("flat");
 
     // console.log("offers", offers);
-
-    let bestOffer = null;
+    const eligibleOffers = [];
 
     for (const offer of offers) {
-      let targetAmount = 0;
-      let discount = 0;
-      let minimum_bill_amount = 0;
+      let offerAmount = 0;
+      let minBillAmount = 0;
 
+      /** Percentage Offer */
       if (offer.type === "percentage" && offer.percentage) {
         const o = offer.percentage;
         if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
-        targetAmount = o.amount || 0;
-        discount = Math.min(o.maxDiscountCap,(o.discountPercentage*billAmount)/100);
-        minimum_bill_amount = offer?.percentage?.minBillAmount;
+
+        offerAmount = o.amount || 0;
+        minBillAmount = o.minBillAmount || 0;
       }
+
+      /** Flat Offer */
       else if (offer.type === "flat" && offer.flat) {
         const o = offer.flat;
         if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
-        targetAmount = o.amount || 0;
-        discount = o.discountPercentage;
-        minimum_bill_amount = offer?.flat?.minBillAmount;
+
+        offerAmount = o.amount || 0;
+        minBillAmount = o.minBillAmount || 0;
+      } else {
+        continue;
       }
 
-      // console.log("targetAmount", targetAmount);
-      // console.log("discount", discount);
+      /** Only higher priced offers */
+      if (offerAmount <= currentOfferAmount) continue;
 
-      if (targetAmount <= currentOfferAmount) continue;
-      if (discount <= currentDiscount) continue;
+      /** Need to shop (never negative) */
+      const needToShop = Math.max(0, minBillAmount - billAmount);
 
-      const amountRequiredToUpgrade = targetAmount - currentOfferAmount;
-      const additionalAmountToShop = Math.max(0, minimum_bill_amount - billAmount);
+      /** Upgrade price (always positive here) */
+      const upgradePrice = offerAmount - currentOfferAmount;
 
-      if (!bestOffer || amountRequiredToUpgrade < bestOffer.amount_required_to_upgrade) {
-        bestOffer = {
-          offer,
-          // discount,
-          additionalAmountToShop,
-          amount_required_to_upgrade: amountRequiredToUpgrade,
-          new_offer_amount: targetAmount,
-        };
-      }
+      eligibleOffers.push({
+        offer,
+        needToShop,
+        upgradePrice,
+        newOfferAmount: offerAmount,
+        currentOfferAmount,
+      });
     }
-    return successResponse(res,"Eligible upgrade offer fetched successfully",200,{eligibleOffer: bestOffer,});
+
+    return successResponse(
+      res,
+      "Eligible upgrade offers fetched successfully",
+      200,
+      { eligibleOffers }
+    );
   } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
+    return errorResponse(
+      res,
+      error.message || "Internal Server Error",
+      500
+    );
   }
 });
 
