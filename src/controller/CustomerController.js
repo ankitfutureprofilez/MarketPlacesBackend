@@ -1213,6 +1213,13 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Current offer not found", 400);
     }
 
+    let currentOfferMinPrice = currentOffer?.percentage?.minBillAmount || currentOffer?.flat?.minBillAmount;
+
+    if(currentOfferMinPrice<billAmount){
+      return errorResponse(res, "Eligible offer not found", 200, { eligibleOffers:[] });
+    }
+
+
     /** Current offer price */
     const currentOfferAmount =
       currentOffer.type === "percentage"
