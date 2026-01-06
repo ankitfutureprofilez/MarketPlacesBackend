@@ -688,6 +688,8 @@ exports.OfferBrought = catchAsync(async (req, res) => {
       .populate("offer")
       .populate("vendor")
       .populate("payment_id")
+      .populate("upgraded_from")
+      .populate("upgrade_chain_root")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
