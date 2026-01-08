@@ -1098,7 +1098,7 @@ exports.VendorOrder = catchAsync(async (req, res) => {
     if (!vendorId) {
       return validationErrorResponse(res, "Vendor not authenticated", 401);
     }
-    const allPurchases = await OfferBuy.find({ vendor: vendorId })
+    const allPurchases = await OfferBuy.find({ vendor: vendorId, status: {$ne : "upgraded"} })
       .populate("user", "name email phone")
       .populate({
         path: "offer",
@@ -1171,41 +1171,33 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
   try {
     const vendorId = req.user.id;
     const { offerId, page = 1, limit = 20 } = req.query;
-    // ✅ Validate inputs
+
     if (!vendorId || !offerId) {
-      return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
+      return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 400);
     }
 
-    // ✅ Build query
     const query = {
       vendor: new mongoose.Types.ObjectId(vendorId),
       offer: new mongoose.Types.ObjectId(offerId),
     };
-    console.log("query", query)
-    // ✅ Pagination
+
     const skip = (page - 1) * limit;
 
-    // ✅ Fetch records
     const allPurchases = await OfferBuy.find(query)
       .populate("user", "name email phone")
       .populate({
         path: "offer",
-        // select: "title description discountPercentage", // only needed fields
         populate: [
           { path: "flat", select: "title discount" },
           { path: "percentage", select: "title discount" },
         ],
       })
-      .populate({
-        path: "payment_id",
-        // select: "payment_id method amount currency status createdAt",
-      })
+      .populate("payment_id")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
-    // console.log("allPurchases", allPurchases)
-    // ✅ Count total records
     const total_records = await OfferBuy.countDocuments(query);
     const total_pages = Math.ceil(total_records / limit);
 
@@ -1213,36 +1205,61 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "No purchase found", 200);
     }
 
-    // ✅ Format response
-    // const purchased_customers = allPurchases.map((purchase) => ({
-    //     offer_buy: {
-    //         purchase_id: purchase._id,
-    //         final_amount: purchase.final_amount,
-    //         status: purchase.status,
-    //         vendor_bill_status: purchase.vendor_bill_status,
-    //         description: purchase?.description || "",
-    //         createdAt: purchase?.createdAt || ""
-    //     },
-    //     customer: {
-    //         id: purchase.user?._id,
-    //         name: purchase.user?.name,
-    //         email: purchase.user?.email,
-    //         phone: purchase.user?.phone,
-    //     },
-    //     payment: {
-    //         id: purchase.payment_id?._id,
-    //         payment_id: purchase.payment_id?.payment_id,
-    //         method: purchase.payment_id?.method,
-    //         amount: purchase.payment_id?.amount,
-    //         currency: purchase.payment_id?.currency,
-    //         status: purchase.payment_id?.status,
-    //         date: purchase.payment_id?.createdAt,
-    //     },
-    // }));
+    /** 🔹 Fetch all vendor-related purchases (for linking) */
+    const allRelated = await OfferBuy.find({
+      vendor: vendorId,
+    })
+      .populate({
+        path: "offer",
+        populate: [
+          { path: "flat", select: "title discount" },
+          { path: "percentage", select: "title discount" },
+        ],
+      })
+      .lean();
 
+    /** 🔹 Build lookup maps */
+    const byIdMap = new Map();
+    const upgradedToMap = new Map(); // upgraded_from → OfferBuy
+
+    allRelated.forEach((doc) => {
+      byIdMap.set(doc._id.toString(), doc);
+      if (doc.upgraded_from) {
+        upgradedToMap.set(doc.upgraded_from.toString(), doc);
+      }
+    });
+
+    /** 🔹 Attach upgrade data */
+    const enrichedPurchases = allPurchases.map((purchase) => {
+      let updatedPurchase = { ...purchase };
+
+      /** CASE 1: upgraded_from exists → build full history */
+      if (purchase.upgraded_from) {
+        const history = [];
+        let current = byIdMap.get(purchase.upgraded_from.toString());
+
+        while (current) {
+          history.push(current);
+          current = current.upgraded_from
+            ? byIdMap.get(current.upgraded_from.toString())
+            : null;
+        }
+
+        history.reverse(); // root → latest previous
+        updatedPurchase.upgraded_from = history;
+      }
+
+      /** CASE 2: status === upgraded → find upgrade_to */
+      if (purchase.status === "upgraded") {
+        const upgradeTo = upgradedToMap.get(purchase._id.toString()) || null;
+        updatedPurchase.upgrade_to = upgradeTo;
+      }
+
+      return updatedPurchase;
+    });
 
     return successResponse(res, "Vendor amount updated successfully", 200, {
-      purchased_customers: allPurchases,
+      purchased_customers: enrichedPurchases,
       total_records,
       current_page: Number(page),
       per_page: Number(limit),
@@ -1252,7 +1269,10 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching purchased customers:", error);
-    return res.status(500).json({ message: "Server error", error: error.message });
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 });
 

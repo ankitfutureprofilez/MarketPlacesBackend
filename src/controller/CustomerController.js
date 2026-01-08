@@ -671,24 +671,24 @@ exports.OfferBrought = catchAsync(async (req, res) => {
   try {
     const id = req?.user?.id;
 
-    // Pagination inputs
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Total records
-    const total_records = await OfferBuy.countDocuments({ user: id });
+    const total_records = await OfferBuy.countDocuments({
+      user: id,
+      status: { $ne: "upgraded" },
+    });
 
-    // Calculate total pages
     const total_pages = Math.ceil(total_records / limit);
 
-    // Fetch paginated records
-    const allPurchases = await OfferBuy.find({ user: id })
+    const allPurchases = await OfferBuy.find({
+      user: id,
+      status: { $ne: "upgraded" },
+    })
       .populate("user")
-      .populate("offer")
       .populate("vendor")
       .populate("payment_id")
-      .populate("upgraded_from")
       .populate("upgrade_chain_root")
       .populate({
         path: "offer",
@@ -698,9 +698,57 @@ exports.OfferBrought = catchAsync(async (req, res) => {
       .limit(limit)
       .sort({ createdAt: -1 });
 
-    // Always return 200, even if no data for this page
+    /** Build upgrade history map (performance-safe) */
+    const offerBuyMap = new Map();
+
+    const allRelated = await OfferBuy.find({
+      user: id,
+    })
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** Attach upgrade history */
+    const formattedPurchases = allPurchases.map((purchase) => {
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchase.toObject(),
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() ===
+            purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse(); // root → latest
+
+      return {
+        ...purchase.toObject(),
+        upgraded_from: history,
+      };
+    });
+
     return successResponse(res, "Brought offers fetched successfully", 200, {
-      purchased_customers: allPurchases,
+      purchased_customers: formattedPurchases,
       total_records,
       current_page: page,
       per_page: limit,
@@ -721,6 +769,8 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
       .populate("offer")
       .populate("vendor")
       .populate("payment_id")
+      .populate("upgraded_from")
+      .populate("upgrade_chain_root")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
@@ -772,13 +822,19 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
     if (!id) {
       return validationErrorResponse(res, "User ID is required", 400);
     }
+
     const skip = (page - 1) * limit;
 
-    let record = await OfferBuy.find({ user: id, vendor_bill_status: true })
+    let record = await OfferBuy.find({
+      user: id,
+      vendor_bill_status: true,
+      status: { $ne: "upgraded" },
+    })
       .populate("user")
       .populate("offer")
       .populate("vendor")
       .populate("payment_id")
+      .populate("upgrade_chain_root")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
@@ -788,13 +844,63 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
+    /** 🔹 Build lookup map for upgrade history */
+    const allRelated = await OfferBuy.find({ user: id })
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .lean();
+
+    const offerBuyMap = new Map();
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** 🔹 Attach upgrade history to upgraded_from */
+    record = record.map((purchase) => {
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchase,
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() ===
+            purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse(); // root → latest
+
+      return {
+        ...purchase,
+        upgraded_from: history,
+      };
+    });
+
+    /** 🔹 Existing logic (untouched) */
     record = await attachVendorLogos(record);
 
-    // ✅ Count total records
     const total_records = await OfferBuy.countDocuments({
       user: id,
       vendor_bill_status: true,
     });
+
     const total_pages = Math.ceil(total_records / limit);
 
     if (!record) {
