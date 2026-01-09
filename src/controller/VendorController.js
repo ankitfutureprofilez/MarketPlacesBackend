@@ -761,7 +761,10 @@ exports.OfferDelete = catchAsync(async (req, res) => {
 
 exports.EditOffer = catchAsync(async (req, res) => {
   try {
-    const Id = req.params.id;
+    const id = req.params.id;
+    const userId = req.user.id;
+    const Id = new mongoose.Types.ObjectId(id);
+    // console.log("Id", Id);
 
     let {
       title,
@@ -778,12 +781,14 @@ exports.EditOffer = catchAsync(async (req, res) => {
     inclusion = safeJsonParse(inclusion);
     exclusion = safeJsonParse(exclusion);
 
-    const user = await User.findById(Id);
+    const user = await User.findById(userId);
+    // console.log("user", user);
     if (user?.deleted_at) {
       return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
     const record = await Offer.findById(Id);
+    // console.log("record", record);
     if (!record) {
       return errorResponse(res, "Offer not found", 404);
     }
@@ -795,10 +800,6 @@ exports.EditOffer = catchAsync(async (req, res) => {
       isExpired = expiry < now;
     }
 
-    if (typeof isExpired === "boolean") {
-      updateData.isExpired = isExpired;
-    }
-
     // ✅ Update offer-specific data (flat / percentage)
     const updateData = {
       title,
@@ -808,6 +809,10 @@ exports.EditOffer = catchAsync(async (req, res) => {
       maxDiscountCap,
       minBillAmount,
     };
+
+    if (typeof isExpired === "boolean") {
+      updateData.isExpired = isExpired;
+    }
 
     if (req.file && req.file.filename) {
       const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
