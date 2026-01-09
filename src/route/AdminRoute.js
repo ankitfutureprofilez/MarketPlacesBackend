@@ -10,7 +10,7 @@ router.get("/admin/sales_list", verifyToken, SalesGet);
 // Niche waala route vendor ko assign ke team call hota hai. Done due to lack of time and urgency, future mein shai karna hai.
 router.get("/admin/sales-get", verifyToken, SalesList);
 router.get("/admin/user_list", verifyToken, UserGet);
-router.get("/admin/user/:id", CustomerGetId);
+router.get("/admin/user/:id", verifyToken, CustomerGetId);
 router.get("/admin/vendor_status/:id/:status", verifyToken, VendorStatus);
 // router.get("/admin/sales_status/:id/:status", verifyToken, SalesPersonStatus);
 router.post("/admin/sales_add", verifyToken, upload.single("avatar"), verifyToken, AddSalesPersons);

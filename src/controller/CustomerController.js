@@ -895,6 +895,7 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
 
     /** 🔹 Build lookup map for upgrade history */
     const allRelated = await OfferBuy.find({ user: id })
+      .populate("payment_id")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
