@@ -765,29 +765,77 @@ exports.OfferBrought = catchAsync(async (req, res) => {
 exports.OfferBroughtById = catchAsync(async (req, res) => {
   try {
     const id = req?.params?.id;
+
     const record = await OfferBuy.findById(id)
       .populate("user")
-      .populate("offer")
       .populate("vendor")
       .populate("payment_id")
-      .populate("upgraded_from")
       .populate("upgrade_chain_root")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
       });
-    // console.log("record", record);
+
     if (!record) {
-      return validationErrorResponse(res, " Brought Offer not found", 404);
+      return validationErrorResponse(res, "Brought Offer not found", 404);
     }
-    return successResponse(
-      res,
-      "Brought Offer Detail fetched successfully",
-      200,
-      record
-    );
+
+    /** 🧠 If no upgrade, normalize upgraded_from */
+    if (!record.upgraded_from) {
+      return successResponse(
+        res,
+        "Brought Offer Detail fetched successfully",
+        200,
+        {
+          ...record.toObject(),
+          upgraded_from: [],
+        }
+      );
+    }
+
+    /** 🔁 Build full upgrade history (same logic as OfferBrought) */
+    const offerBuyMap = new Map();
+
+    const allRelated = await OfferBuy.find({
+      user: record.user,
+    })
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    const history = [];
+    let current = offerBuyMap.get(record.upgraded_from.toString());
+
+    while (current) {
+      history.push(current);
+
+      if (
+        record.upgrade_chain_root &&
+        current._id.toString() === record.upgrade_chain_root.toString()
+      ) {
+        break;
+      }
+
+      current = current.upgraded_from
+        ? offerBuyMap.get(current.upgraded_from.toString())
+        : null;
+    }
+
+    history.reverse(); // root → latest
+
+    return successResponse(res, "Brought Offer Detail fetched successfully", 200,
+      {
+        ...record.toObject(),
+        upgraded_from: history,
+      });
   } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
+    return errorResponse(error.message || "Internal Server Error", 500);
   }
 });
 

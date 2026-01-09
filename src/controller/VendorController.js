@@ -1209,6 +1209,7 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
     const allRelated = await OfferBuy.find({
       vendor: vendorId,
     })
+      .populate("payment_id")
       .populate({
         path: "offer",
         populate: [
