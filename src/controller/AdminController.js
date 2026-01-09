@@ -107,14 +107,72 @@ exports.CustomerGetId = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "User not found", 200);
     }
 
-    const offerBuys = await OfferBuy.find({ user: id, status: {$ne: "upgraded"} })
+    const offerBuys = await OfferBuy.find({
+      user: id,
+      status: { $ne: "upgraded" },
+    })
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
       })
       .populate("vendor")
       .populate("payment_id")
+      .populate("upgrade_chain_root")
       .sort({ createdAt: -1 });
+
+    /** 2️⃣ Fetch ALL related purchases to build lookup map */
+    const allRelated = await OfferBuy.find({ user: id })
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    /** 3️⃣ Build fast lookup map */
+    const offerBuyMap = new Map();
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** 4️⃣ Attach upgrade history */
+    const formattedPurchases = offerBuys.map((purchase) => {
+      const purchaseObj = purchase.toObject();
+
+      // No upgrade
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchaseObj,
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+
+        // Stop at root
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() ===
+            purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse(); // root → latest
+
+      return {
+        ...purchaseObj,
+        upgraded_from: history,
+      };
+    });
 
     // console.log("id", id);
 
@@ -166,7 +224,7 @@ exports.CustomerGetId = catchAsync(async (req, res) => {
 
     return successResponse(res, "Vendor details fetched successfully", 200, {
       record,
-      offerBuys,
+      offerBuys: formattedPurchases,
       stats: summary,
     });
   } catch (error) {

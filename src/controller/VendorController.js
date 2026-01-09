@@ -556,6 +556,20 @@ const safeJsonParse = (value) => {
   return value; // already an object/array
 };
 
+const calculateOfferAmount = ({ type, discountPercentage, maxDiscountCap }) => {
+  let baseValue = 0;
+  if (type === "flat") {
+    if (!discountPercentage || discountPercentage <= 0) return 20;
+    baseValue = discountPercentage * 0.10;
+  }
+  if (type === "percentage") {
+    if (!maxDiscountCap || maxDiscountCap <= 0) return 20;
+    baseValue = maxDiscountCap * 0.10;
+  }
+  const roundedToNearest10 = Math.ceil(baseValue / 10) * 10;
+  return Math.max(roundedToNearest10, 20);
+};
+
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
   try {
@@ -597,12 +611,18 @@ exports.AddOffer = catchAsync(async (req, res) => {
     // ✅ Create offer based on type
     let offerRecord;
 
+    const amount = calculateOfferAmount({
+      type,
+      discountPercentage,
+      maxDiscountCap,
+    });
+
     if (type === "flat") {
       const newOffer = new FlatOffer({
         title,
         description,
         expiryDate,
-        amount: 20, 
+        amount, 
         minBillAmount,
         offer_image: fileUrl,
         status: "active",
@@ -615,7 +635,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
         title,
         description,
         expiryDate,
-        amount: 20,
+        amount,
         discountPercentage,
         maxDiscountCap,
         minBillAmount,
@@ -805,10 +825,35 @@ exports.EditOffer = catchAsync(async (req, res) => {
       title,
       description,
       expiryDate,
+      amount,
       discountPercentage,
       maxDiscountCap,
       minBillAmount,
     };
+
+    
+    if (record.type === "flat") {
+      if (discountPercentage !== undefined) {
+        updateData.discountPercentage = discountPercentage;
+        updateData.amount = calculateOfferAmount({
+          type: "flat",
+          discountPercentage,
+        });
+      }
+    }
+
+    if (record.type === "percentage") {
+      if (discountPercentage !== undefined)
+        updateData.discountPercentage = discountPercentage;
+
+      if (maxDiscountCap !== undefined) {
+        updateData.maxDiscountCap = maxDiscountCap;
+        updateData.amount = calculateOfferAmount({
+          type: "percentage",
+          maxDiscountCap,
+        });
+      }
+    }
 
     if (typeof isExpired === "boolean") {
       updateData.isExpired = isExpired;
