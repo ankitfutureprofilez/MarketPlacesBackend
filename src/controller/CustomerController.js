@@ -776,7 +776,7 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
       });
-    console.log("record", record);
+    // console.log("record", record);
     if (!record) {
       return validationErrorResponse(res, " Brought Offer not found", 404);
     }
@@ -1062,7 +1062,7 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
         (offerData.discountPercentage * total_amount) / 100
       );
 
-      final = total_amount - discount;
+      final = total_amount - discount - record?.offer_paid_amount;
     } else if (record?.offer?.type === "flat") {
       const offerData = record.offer.flat;
       if (total_amount < offerData.minBillAmount) {
@@ -1073,7 +1073,7 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
         );
       }
       discount = offerData?.discountPercentage;
-      final = total_amount - discount;
+      final = total_amount - discount - record?.offer_paid_amount;
     } else {
       console.log("invalid offer type");
     }

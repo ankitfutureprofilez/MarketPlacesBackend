@@ -100,6 +100,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
           vendor: notes.vendor_id,
           payment_id: payment._id,
           status: "active",
+          offer_paid_amount: payment?.amount || paymentEntity?.amount / 100 || 0,
         });
 
         logger.info("✅ OfferBuy (BUY) created:", offerBuy._id);
@@ -109,11 +110,7 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
          UPGRADE FLOW (NEW)
       ------------------------- */
       if (paymentType === "upgrade") {
-        const {
-          old_offer_buy_id,
-          new_offer_id,
-          upgrade_chain_root,
-        } = notes;
+        const { old_offer_buy_id, new_offer_id, upgrade_chain_root, } = notes;
 
         // 1️⃣ Fetch old OfferBuy
         const oldOfferBuy = await OfferBuy.findOne({
@@ -130,6 +127,9 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
         oldOfferBuy.status = "upgraded";
         await oldOfferBuy.save();
 
+        const accumulatedPaidAmount =
+        (oldOfferBuy.offer_paid_amount || 0) + payment.amount;
+
         // 3️⃣ Create new OfferBuy (next in chain)
         const newOfferBuy = await OfferBuy.create({
           user: oldOfferBuy.user,
@@ -137,9 +137,9 @@ app.post("/api/webhook/razorpay", express.raw({ type: "application/json" }), asy
           vendor: oldOfferBuy.vendor,
           payment_id: payment._id,
           upgraded_from: oldOfferBuy._id,
-          upgrade_chain_root:
-            upgrade_chain_root || oldOfferBuy._id,
+          upgrade_chain_root: upgrade_chain_root || oldOfferBuy._id,
           status: "active",
+          offer_paid_amount: accumulatedPaidAmount
         });
 
         logger.info("✅ Offer upgraded:", {

@@ -51,6 +51,10 @@ const OfferBuySchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    offer_paid_amount: {
+      type: Number,
+      default: 0,
+    },
     upgraded_from: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "OfferBuy",
