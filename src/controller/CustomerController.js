@@ -944,8 +944,8 @@ exports.AddPayment = catchAsync(async (req, res) => {
     console.log("req.body", req.body);
 
     const razorpay = new Razorpay({
-      key_id: "rzp_test_RQ3O3IWq0ayjsg",
-      key_secret: "RcwuasbTHAdmm1mrZTiigw2x",
+      key_id: "rzp_test_Rxncr3PhssgP4K",
+      key_secret: "3EFVLS4DwGe1lwEayh3HzzNx",
     });
 
     // ✅ Pehle ORDER create karen with notes
