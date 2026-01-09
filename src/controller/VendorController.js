@@ -788,6 +788,17 @@ exports.EditOffer = catchAsync(async (req, res) => {
       return errorResponse(res, "Offer not found", 404);
     }
 
+    let isExpired;
+    if (expiryDate) {
+      const expiry = new Date(expiryDate);
+      const now = new Date();
+      isExpired = expiry < now;
+    }
+
+    if (typeof isExpired === "boolean") {
+      updateData.isExpired = isExpired;
+    }
+
     // ✅ Update offer-specific data (flat / percentage)
     const updateData = {
       title,

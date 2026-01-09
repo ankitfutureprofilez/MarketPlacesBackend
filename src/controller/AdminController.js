@@ -1013,17 +1013,25 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
 
 exports.BroughtOffers = catchAsync(async (req, res) => {
   try {
-    const id = req?.user?.id;
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const total_records = await OfferBuy.countDocuments({ user: id });
+
+    /** 📊 Count only visible (non-upgraded) records */
+    const total_records = await OfferBuy.countDocuments({
+      status: { $ne: "upgraded" },
+    });
+
     const total_pages = Math.ceil(total_records / limit);
-    const allPurchases = await OfferBuy.find()
+
+    /** 📦 Main admin-visible purchases */
+    const allPurchases = await OfferBuy.find({
+      status: { $ne: "upgraded" },
+    })
       .populate("user")
-      .populate("offer")
       .populate("vendor")
       .populate("payment_id")
+      .populate("upgrade_chain_root")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
@@ -1031,8 +1039,62 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
+
+    /** 🔁 Build upgrade lookup map (ALL records) */
+    const offerBuyMap = new Map();
+
+    const allRelated = await OfferBuy.find()
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** 🧠 Attach upgrade history */
+    const formattedPurchases = allPurchases.map((purchase) => {
+      const purchaseObj = purchase.toObject();
+      delete purchaseObj.upgraded_from; // avoid duplication
+
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchaseObj,
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() ===
+            purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse(); // root → latest
+
+      return {
+        ...purchaseObj,
+        upgraded_from: history,
+      };
+    });
+
     return successResponse(res, "Brought offers fetched successfully", 200, {
-      purchased: allPurchases,
+      purchased: formattedPurchases,
       total_records,
       current_page: page,
       per_page: limit,
