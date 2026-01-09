@@ -704,6 +704,7 @@ exports.OfferBrought = catchAsync(async (req, res) => {
     const allRelated = await OfferBuy.find({
       user: id,
     })
+      .populate("payment_id")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
