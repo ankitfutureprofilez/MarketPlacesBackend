@@ -1531,3 +1531,95 @@ exports.offerUpgrade = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
+
+exports.getTransactions = catchAsync(async (req, res) => {
+  try {
+    const userId = req?.user?.id;
+
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const offerBuys = await OfferBuy.find({ user: userId })
+      .populate({
+        path: "payment_id",
+        select: "amount payment_type payment_date payment_id",
+      })
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .populate({
+        path: "upgraded_from",
+        populate: {
+          path: "offer",
+          populate: [{ path: "flat" }, { path: "percentage" }],
+        },
+      })
+      .sort({ createdAt: -1 });
+
+    let transactions = [];
+
+    offerBuys.forEach((ob) => {
+      const payment = ob.payment_id;
+
+      if (payment && !ob.upgraded_from) {
+        transactions.push({
+          type: "OFFER_BUY",
+          amount: payment.amount,
+          offerBuyId: ob._id,
+          offerName: ob.offer?.flat?.title || ob.offer?.percentage?.title || null,
+          paymentId: payment.payment_id,
+          createdAt: ob.createdAt,
+        });
+      }
+
+      if (payment && ob.upgraded_from) {
+        transactions.push({
+          type: "OFFER_UPGRADE",
+          amount: payment.amount,
+          offerBuyId: ob._id,
+          // offerId: ob.offer?._id || null,
+          offerName: ob.offer?.flat?.title || ob.offer?.percentage?.title || null,
+          paymentId: payment.payment_id,
+          upgradedFrom: ob?.upgraded_from?.offer?.flat?.title || ob?.upgraded_from?.offer?.percentage?.title,
+          createdAt: ob.createdAt,
+        });
+      }
+
+      if (ob.vendor_bill_status === true && ob.final_amount && ob.used_time) {
+        transactions.push({
+          type: "OFFLINE_PAYMENT",
+          amount: ob.final_amount,
+          offerBuyId: ob._id,
+          // offerId: ob.offer?._id || null,
+          offerName: ob.offer?.flat?.title || ob.offer?.percentage?.title || null,
+          paymentId: null,
+          createdAt: ob.used_time,
+        });
+      }
+    });
+
+    // Sort final timeline by time DESC
+    transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const total_records = transactions.length;
+    const total_pages = Math.ceil(total_records / limit);
+
+    const paginatedTransactions = transactions.slice(skip, skip + limit);
+
+    return successResponse(res, "User transactions fetched successfully", 200,
+      {
+        transactions: paginatedTransactions,
+        total_records,
+        current_page: page,
+        per_page: limit,
+        total_pages,
+        nextPage: page < total_pages ? page + 1 : null,
+        previousPage: page > 1 ? page - 1 : null,
+      }
+    );
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
