@@ -1078,7 +1078,7 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
   try {
     const salesId = req.params.id;
 
-    const sales = await User.findOne({ _id: salesId, role: "sales" });
+    const sales = await User.findById(salesId);
 
     if (!sales) {
       return errorResponse(res, "Sales user not found", 404);
@@ -1087,64 +1087,73 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
     const vendors = await Vendor.find({ assign_staff: salesId });
 
     if (!vendors || vendors.length === 0) {
-      return errorResponse(
-        res,
-        "No vendors assigned to this sales person",
-        404
-      );
+      return errorResponse(res, "No vendors assigned to this sales person", 404);
     }
 
     const vendorIds = vendors.map((v) => v.user);
 
-    const offerStatusCount = await OfferBuy.aggregate([
-      { $match: { vendor: { $in: vendorIds } } },
+    const activeOffers = await Offer.aggregate([
       {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
+        $match: {
+          vendor: { $in: vendorIds },
+          status: "active",
+        },
+      },
+
+      // Lookup Flat Offers
+      {
+        $lookup: {
+          from: "flats",
+          localField: "flat",
+          foreignField: "_id",
+          as: "flatOffer",
+        },
+      },
+
+      // Lookup Percentage Offers
+      {
+        $lookup: {
+          from: "percentageoffers",
+          localField: "percentage",
+          foreignField: "_id",
+          as: "percentageOffer",
+        },
+      },
+
+      {
+        $addFields: {
+          offerData: {
+            $cond: [
+              { $eq: ["$type", "flat"] },
+              { $arrayElemAt: ["$flatOffer", 0] },
+              { $arrayElemAt: ["$percentageOffer", 0] },
+            ],
+          },
+        },
+      },
+
+      {
+        $match: {
+          "offerData.isExpired": false,
+        },
+      },
+      {
+        $project: {
+          flatOffer: 0,
+          percentageOffer: 0,
         },
       },
     ]);
 
-    const statusList = ["active", "expired", "redeemed", "under-dispute"];
-
-    const total_stats = {};
-    statusList.forEach((st) => {
-      const found = offerStatusCount.find((x) => x._id === st);
-      total_stats[st] = found ? found.count : 0;
-    });
-
-    const vendor_status_list = [];
-
-    for (let vendor of vendors) {
-      const stats = await OfferBuy.aggregate([
-        { $match: { vendor: vendor.user } },
-        {
-          $group: {
-            _id: "$status",
-            count: { $sum: 1 },
-          },
-        },
-      ]);
-
-      const formattedVendorStatus = {};
-      statusList.forEach((st) => {
-        const f = stats.find((x) => x._id === st);
-        formattedVendorStatus[st] = f ? f.count : 0;
-      });
-
-      vendor_status_list.push({
-        vendors: vendor,
-        // vendors: vendors,
-        status_count: formattedVendorStatus,
-      });
-    }
+    const offersCount = {
+      activeOffers: activeOffers.length
+    };
 
     return successResponse(res, "Sales & vendor status details", 200, {
       sales,
-      // vendors,
-      total_offer_stats: total_stats,
-      vendors: vendor_status_list,
+      activeOffers : activeOffers,
+      total_offer_stats: offersCount,
+      vendors: vendors,
     });
   } catch (error) {
     console.log(error);
