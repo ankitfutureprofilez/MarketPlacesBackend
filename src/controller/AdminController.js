@@ -1077,20 +1077,17 @@ exports.resetpassword = catchAsync(async (req, res) => {
 exports.SalesAdminGetId = catchAsync(async (req, res) => {
   try {
     const salesId = req.params.id;
-
     const sales = await User.findById(salesId);
-
     if (!sales) {
       return errorResponse(res, "Sales user not found", 404);
     }
-
     const vendors = await Vendor.find({ assign_staff: salesId });
-
     if (!vendors || vendors.length === 0) {
       return errorResponse(res, "No vendors assigned to this sales person", 404);
     }
-
     const vendorIds = vendors.map((v) => v.user);
+
+    const offers = await Offer.find({ vendor: { $in: vendorIds } }).populate("flat").populate("percentage");
 
     const activeOffers = await Offer.aggregate([
       {
@@ -1145,15 +1142,133 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
       },
     ]);
 
+    const offerBuyStatsAgg = await OfferBuy.aggregate([
+      {
+        $match: {
+          vendor: { $in: vendorIds },
+        },
+      },
+      {
+        $facet: {
+          total: [
+            { $count: "count" }
+          ],
+          billed: [
+            { $match: { vendor_bill_status: true } },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+                amount: { $sum: "$final_amount" },
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          totalOfferBuys: {
+            $ifNull: [{ $arrayElemAt: ["$total.count", 0] }, 0],
+          },
+          vendorBilledCount: {
+            $ifNull: [{ $arrayElemAt: ["$billed.count", 0] }, 0],
+          },
+          vendorBilledAmount: {
+            $ifNull: [{ $arrayElemAt: ["$billed.amount", 0] }, 0],
+          },
+        },
+      },
+    ]);
+
+    const offerBuyStats = offerBuyStatsAgg[0] || {
+      totalOfferBuys: 0,
+      vendorBilledCount: 0,
+      vendorBilledAmount: 0,
+    };
+
+    const allPurchases = await OfferBuy.find({
+      vendor: { $in: vendorIds },
+      status: { $ne: "upgraded" },
+    })
+      .populate("user")
+      .populate("vendor")
+      .populate("payment_id")
+      .populate("upgrade_chain_root")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .sort({ createdAt: -1 });
+
+    /** 🔁 Build upgrade lookup map (only vendor scope) */
+    const offerBuyMap = new Map();
+
+    const allRelated = await OfferBuy.find({
+      vendor: { $in: vendorIds },
+    })
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** 🧠 Attach upgrade history */
+    const formattedPurchases = allPurchases.map((purchase) => {
+      const purchaseObj = purchase.toObject();
+      delete purchaseObj.upgraded_from;
+
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchaseObj,
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() === purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse();
+
+      return {
+        ...purchaseObj,
+        upgraded_from: history,
+      };
+    });
+
+
+
     const offersCount = {
-      activeOffers: activeOffers.length
+      activeOffers: activeOffers.length,
+      totalOfferBuys: offerBuyStats.totalOfferBuys,
+      redeemedOffers: offerBuyStats.vendorBilledCount,
+      totalAmount: offerBuyStats.vendorBilledAmount,
     };
 
     return successResponse(res, "Sales & vendor status details", 200, {
       sales,
-      activeOffers : activeOffers,
       total_offer_stats: offersCount,
+      offers : offers,
       vendors: vendors,
+      purchases: formattedPurchases,
     });
   } catch (error) {
     console.log(error);
