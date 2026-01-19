@@ -1146,6 +1146,7 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
       {
         $match: {
           vendor: { $in: vendorIds },
+          status: { $ne: "upgraded" },
         },
       },
       {
@@ -1425,10 +1426,9 @@ exports.addVendorGallery = catchAsync(async (req, res) => {
     }
     vendor.business_image = vendor.business_image.concat(fileUrls);
     await vendor.save();
-    res.json({
-      message: "Files uploaded successfully",
+    return successResponse(res, "Files uploaded successfully", 201, {
       count: req.files.length,
-      data: fileUrls,
+      data: fileUrls
     });
   } catch (error) {
     console.log("Error:", error);
@@ -1464,9 +1464,8 @@ exports.deleteVendorGallery = catchAsync(async (req, res) => {
     );
 
     await vendor.save();
-
-    res.json({
-      message: "Files deleted successfully",
+    
+    return successResponse(res, "Files deleted successfully", 201, {
       deletedCount: files.length,
       remainingbusiness_image: vendor.business_image,
     });
