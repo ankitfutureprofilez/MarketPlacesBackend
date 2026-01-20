@@ -7,11 +7,7 @@ const OfferBuy = require("../model/OfferBuy.js");
 const Category = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
 const catchAsync = require("../utils/catchAsync");
-const {
-  errorResponse,
-  successResponse,
-  validationErrorResponse,
-} = require("../utils/ErrorHandling");
+const { errorResponse, successResponse, validationErrorResponse} = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const deleteUploadedFiles = require("../utils/fileDeleter.js");
@@ -1277,23 +1273,39 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
   }
 });
 
+const attachVendorData = async (records) => {
+  return Promise.all(
+    records && records?.map(async (item) => {
+      const vendorUserId = item?.vendor?._id;
+      if (!vendorUserId) {
+        return item;
+      }
+      const vendorData = await Vendor.findOne({ user: vendorUserId }).lean();
+      item.vendor= {...item?.vendor, ...vendorData};
+      return item;
+    })
+  );
+};
+
 exports.BroughtOffers = catchAsync(async (req, res) => {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+    let page = Number(req.query.page) || 1;
+    let limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const { search, status } = req.query;
 
-    /** 📊 Count only visible (non-upgraded) records */
-    const total_records = await OfferBuy.countDocuments({
+    const filter = {
       status: { $ne: "upgraded" },
-    });
+    };
 
-    const total_pages = Math.ceil(total_records / limit);
+    if (status && status.trim() !== "") {
+      filter.vendor_bill_status = status === "pending" ? false : true;
+    }
 
-    /** 📦 Main admin-visible purchases */
-    const allPurchases = await OfferBuy.find({
-      status: { $ne: "upgraded" },
-    })
+    const isSearching = search && search.trim() !== "";
+
+    /** 📦 Fetch purchases (NO pagination if searching) */
+    let allPurchasesQuery = OfferBuy.find(filter)
       .populate("user")
       .populate("vendor")
       .populate("payment_id")
@@ -1302,11 +1314,46 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
       })
-      .skip(skip)
-      .limit(limit)
       .sort({ createdAt: -1 });
 
-    /** 🔁 Build upgrade lookup map (ALL records) */
+    // ✅ Apply pagination ONLY if not searching
+    if (!isSearching) {
+      allPurchasesQuery = allPurchasesQuery.skip(skip).limit(limit);
+    }
+
+    let allPurchases = await allPurchasesQuery;
+    allPurchases = await attachVendorData(allPurchases);
+
+    console.log("allPurchases", allPurchases);
+    console.log("search", search);
+    console.log("isSearching", isSearching);
+
+    /** 🔍 SEARCH (after populate) */
+    if (isSearching) {
+      const needle = search.trim().toLowerCase();
+
+      allPurchases = allPurchases.filter((purchase) => {
+        const vendorName =
+          purchase?.vendor?.name?.toString().toLowerCase() || "";
+
+        const businessName =
+          purchase?.vendor?.business_name?.toString().toLowerCase() || "";
+
+        const userName =
+          purchase?.user?.name?.toString().toLowerCase() || "";
+
+        return (
+          vendorName.includes(needle) ||
+          businessName.includes(needle) ||
+          userName.includes(needle)
+        );
+      });
+    }
+
+   console.log("allPurchasesafter", allPurchases);
+
+
+    /** 🔁 Build upgrade lookup map */
     const offerBuyMap = new Map();
 
     const allRelated = await OfferBuy.find()
@@ -1323,7 +1370,7 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
     /** 🧠 Attach upgrade history */
     const formattedPurchases = allPurchases.map((purchase) => {
       const purchaseObj = purchase.toObject();
-      delete purchaseObj.upgraded_from; // avoid duplication
+      delete purchaseObj.upgraded_from;
 
       if (!purchase.upgraded_from) {
         return {
@@ -1350,13 +1397,25 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
           : null;
       }
 
-      history.reverse(); // root → latest
+      history.reverse();
 
       return {
         ...purchaseObj,
         upgraded_from: history,
       };
     });
+
+    /** 📊 Pagination meta */
+    let total_records, total_pages;
+
+    if (isSearching) {
+      total_records = formattedPurchases.length;
+      total_pages = 1;
+      page = 1;
+    } else {
+      total_records = await OfferBuy.countDocuments(filter);
+      total_pages = Math.ceil(total_records / limit);
+    }
 
     return successResponse(res, "Brought offers fetched successfully", 200, {
       purchased: formattedPurchases,
