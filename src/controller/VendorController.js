@@ -1318,8 +1318,37 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
       return updatedPurchase;
     });
 
+    const sanitizeVendorBill = (record) => {
+      if (!record || typeof record !== "object") return record;
+
+      const sanitized = {
+        ...record,
+        ...(record.vendor_bill_status === false && {
+          discount: null,
+          total_amount: null,
+          final_amount: null,
+        }),
+      };
+
+      // Recursively sanitize upgraded_from
+      if (Array.isArray(sanitized.upgraded_from)) {
+        sanitized.upgraded_from = sanitized.upgraded_from.map(sanitizeVendorBill);
+      } else if (sanitized.upgraded_from) {
+        sanitized.upgraded_from = sanitizeVendorBill(sanitized.upgraded_from);
+      }
+
+      // Recursively sanitize upgrade_to
+      if (sanitized.upgrade_to) {
+        sanitized.upgrade_to = sanitizeVendorBill(sanitized.upgrade_to);
+      }
+
+      return sanitized;
+    };
+
+    const sanitizedPurchases = enrichedPurchases.map(sanitizeVendorBill);
+
     return successResponse(res, "Vendor amount updated successfully", 200, {
-      purchased_customers: enrichedPurchases,
+      purchased_customers: sanitizedPurchases,
       total_records,
       current_page: Number(page),
       per_page: Number(limit),
