@@ -1365,7 +1365,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
     const user = await User.findById(req.user.id);
 
     if(user?.deleted_at){
-      return validationErrorResponse(res, "Your account is blocked", 403);
+      return errorResponse(res, "Your account is blocked", 403);
     }
 
     // Fetch record + offer details (same as Function 2)
@@ -1375,7 +1375,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
     }).populate("vendor");
 
     if(req?.user?.id != record?.vendor?._id){
-      return validationErrorResponse(res, "You are not authorized to update this record", 200);
+      return validationErrorResponse(res, "You are not authorized to update this record", 405);
     }
 
     if (!record) {
