@@ -1324,7 +1324,7 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
     let allPurchases = await allPurchasesQuery;
     allPurchases = await attachVendorData(allPurchases);
 
-    console.log("allPurchases", allPurchases);
+    // console.log("allPurchases", allPurchases);
     console.log("search", search);
     console.log("isSearching", isSearching);
 
@@ -1333,14 +1333,14 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
       const needle = search.trim().toLowerCase();
 
       allPurchases = allPurchases.filter((purchase) => {
-        const vendorName =
-          purchase?.vendor?.name?.toString().toLowerCase() || "";
+        console.log("purchase?.vendor", purchase?.vendor);
+        const vendorName = purchase?.vendor?.name?.toString().toLowerCase() || "";
+        const businessName = purchase?.vendor?.business_name?.toString().toLowerCase() || "";
+        const userName = purchase?.user?.name?.toString().toLowerCase() || "";
 
-        const businessName =
-          purchase?.vendor?.business_name?.toString().toLowerCase() || "";
-
-        const userName =
-          purchase?.user?.name?.toString().toLowerCase() || "";
+        console.log("vendorName", vendorName);
+        console.log("businessName", businessName);
+        console.log("needle", needle);
 
         return (
           vendorName.includes(needle) ||
@@ -1350,7 +1350,7 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
       });
     }
 
-   console.log("allPurchasesafter", allPurchases);
+  //  console.log("allPurchasesafter", allPurchases);
 
 
     /** 🔁 Build upgrade lookup map */
