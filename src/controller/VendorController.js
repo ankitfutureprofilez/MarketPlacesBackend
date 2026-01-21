@@ -782,21 +782,9 @@ exports.OfferDelete = catchAsync(async (req, res) => {
 // Edit Offer
 exports.EditOffer = catchAsync(async (req, res) => {
   try {
-    const userId = req.user?.id;
-    const offerId = req.params.id;
-
-    if (!userId) {
-      return validationErrorResponse(res, "UserId Not Found", 400);
-    }
-
-    const offer = await Offer.findById(offerId);
-    if (!offer) {
-      return validationErrorResponse(res, "Offer not found", 404);
-    }
-
-    if (offer.vendor.toString() !== userId.toString()) {
-      return validationErrorResponse(res, "Unauthorized", 403);
-    }
+    const id = req.params.id;
+    const userId = req.user.id;
+    const offerId = new mongoose.Types.ObjectId(id);
 
     let {
       title,
@@ -805,89 +793,99 @@ exports.EditOffer = catchAsync(async (req, res) => {
       discountPercentage,
       maxDiscountCap,
       minBillAmount,
-      type,
       inclusion,
       exclusion,
-      status,
     } = req.body;
 
     inclusion = safeJsonParse(inclusion);
     exclusion = safeJsonParse(exclusion);
 
-    // ✅ Image update (optional)
-    let fileUrl;
+    const user = await User.findById(userId);
+    if (user?.deleted_at) {
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
+
+    const record = await Offer.findById(offerId);
+    if (!record) {
+      return errorResponse(res, "Offer not found", 404);
+    }
+
+    let isExpired;
+    if (expiryDate) {
+      isExpired = new Date(expiryDate) < new Date();
+    }
+
+    // 🔹 Fetch existing offer (flat / percentage)
+    const existingOffer =
+      record.type === "flat"
+        ? await FlatOffer.findById(record.flat)
+        : await PercentageOffer.findById(record.percentage);
+
+    if (!existingOffer) {
+      return errorResponse(res, "Offer data not found", 404);
+    }
+
+    // 🔹 Prepare update payload
+    const updateData = {
+      title,
+      description,
+      expiryDate,
+      minBillAmount,
+      discountPercentage:
+        discountPercentage !== undefined
+          ? discountPercentage
+          : existingOffer.discountPercentage,
+      maxDiscountCap:
+        maxDiscountCap !== undefined
+          ? maxDiscountCap
+          : existingOffer.maxDiscountCap,
+    };
+
+    // 🔹 Recalculate amount safely
+    updateData.amount = calculateOfferAmount({
+      type: record.type,
+      discountPercentage: updateData.discountPercentage,
+      maxDiscountCap: updateData.maxDiscountCap,
+    });
+
+    if (typeof isExpired === "boolean") {
+      updateData.isExpired = isExpired;
+    }
+
     if (req.file?.filename) {
-      fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      updateData.offer_image = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
     }
 
-    // ✅ Recalculate amount
-    const amount = calculateOfferAmount({
-      type,
-      discountPercentage,
-      maxDiscountCap,
-    });
-
-    let updatedChildOffer;
-
-    // ================= FLAT OFFER =================
-    if (type === "flat" && offer.flat) {
-      updatedChildOffer = await FlatOffer.findByIdAndUpdate(
-        offer.flat,
-        {
-          title,
-          description,
-          expiryDate,
-          discountPercentage,
-          maxDiscountCap,
-          minBillAmount,
-          amount,
-          ...(fileUrl && { offer_image: fileUrl }),
-          ...(status && { status }),
-        },
+    // 🔹 Update correct offer collection
+    let updatedOffer;
+    if (record.type === "flat") {
+      updatedOffer = await FlatOffer.findByIdAndUpdate(
+        record.flat,
+        updateData,
+        { new: true }
+      );
+    } else {
+      updatedOffer = await PercentageOffer.findByIdAndUpdate(
+        record.percentage,
+        updateData,
         { new: true }
       );
     }
 
-    // ================= PERCENTAGE OFFER =================
-    if (type === "percentage" && offer.percentage) {
-      updatedChildOffer = await PercentageOffer.findByIdAndUpdate(
-        offer.percentage,
-        {
-          title,
-          description,
-          expiryDate,
-          discountPercentage,
-          maxDiscountCap,
-          minBillAmount,
-          amount,
-          ...(fileUrl && { offer_image: fileUrl }),
-          ...(status && { status }),
-        },
-        { new: true }
-      );
+    // 🔹 Update inclusion & exclusion on main Offer doc
+    const offerUpdate = {};
+    if (inclusion !== undefined) offerUpdate.inclusion = inclusion;
+    if (exclusion !== undefined) offerUpdate.exclusion = exclusion;
+
+    if (Object.keys(offerUpdate).length) {
+      await Offer.findByIdAndUpdate(record._id, offerUpdate);
     }
 
-    if (!updatedChildOffer) {
-      return validationErrorResponse(res, "Invalid offer type", 400);
-    }
-
-    // ✅ Update main Offer document
-    offer.type = type;
-    offer.inclusion = inclusion ?? offer.inclusion;
-    offer.exclusion = exclusion ?? offer.exclusion;
-    if (status) offer.status = status;
-
-    await offer.save();
-
-    return successResponse(res, "Offer updated successfully", 200, {
-      offer,
-      amount,
-    });
+    return successResponse(res, "Offer updated successfully", 200, updatedOffer);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
-
 
 // Category Management
 exports.category = catchAsync(async (req, res) => {
