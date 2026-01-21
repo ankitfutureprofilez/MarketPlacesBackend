@@ -812,7 +812,10 @@ exports.EditOffer = catchAsync(async (req, res) => {
 
     let isExpired;
     if (expiryDate) {
-      isExpired = new Date(expiryDate) < new Date();
+      const expiryEndOfDay = new Date(expiryDate);
+      expiryEndOfDay.setHours(23, 59, 59, 999);
+
+      isExpired = new Date() > expiryEndOfDay;
     }
 
     // 🔹 Fetch existing offer (flat / percentage)
@@ -953,7 +956,7 @@ exports.Dashboard = catchAsync(async (req, res) => {
 
     // ✅ Aggregation for overall stats
     const offerBuyStats = await OfferBuy.aggregate([
-      { $match: { vendor: new mongoose.Types.ObjectId(userId) } },
+      { $match: { vendor: new mongoose.Types.ObjectId(userId), status: { $ne: "upgraded" } } },
       {
         $group: {
           _id: null,
@@ -976,6 +979,8 @@ exports.Dashboard = catchAsync(async (req, res) => {
         },
       },
     ]);
+
+    // console.log("offerBuyStats", offerBuyStats);
 
     const statsData = offerBuyStats[0] || {
       totalSales: 0,
