@@ -196,6 +196,16 @@ exports.CustomerGetId = catchAsync(async (req, res) => {
             },
           },
 
+          totalDiscount: {
+            $sum: {
+              $cond: [
+                { $eq: ["$vendor_bill_status", true] },
+                { $ifNull: ["$discount", 0] },
+                0,
+              ],
+            },
+          },
+
           totalFinalAmountPaid: {
             $sum: {
               $cond: [
@@ -216,6 +226,7 @@ exports.CustomerGetId = catchAsync(async (req, res) => {
       vendorBillTrueCount: 0,
       vendorBillFalseCount: 0,
       totalFinalAmountPaid: 0,
+      totalDiscount: 0
     };
 
     return successResponse(res, "Vendor details fetched successfully", 200, {
@@ -730,6 +741,11 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
       status: { $ne: "upgraded" },
     });
 
+    const total_customers = await User.countDocuments({
+      role: "customer",
+      deleted_at: null,
+    });
+
     const total_vendors = await Vendor.aggregate([
       { $match: { status: "active" } },
       {
@@ -757,7 +773,7 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
           total_vendors: count,
           total_sales,
           active_offers,
-          total_offer_buys,
+          total_customers,
         },
       }
     );
@@ -1325,22 +1341,22 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
     allPurchases = await attachVendorData(allPurchases);
 
     // console.log("allPurchases", allPurchases);
-    console.log("search", search);
-    console.log("isSearching", isSearching);
+    // console.log("search", search);
+    // console.log("isSearching", isSearching);
 
     /** 🔍 SEARCH (after populate) */
     if (isSearching) {
       const needle = search.trim().toLowerCase();
 
       allPurchases = allPurchases.filter((purchase) => {
-        console.log("purchase?.vendor", purchase?.vendor);
+        // console.log("purchase?.vendor", purchase?.vendor);
         const vendorName = purchase?.vendor?.name?.toString().toLowerCase() || "";
         const businessName = purchase?.vendor?.business_name?.toString().toLowerCase() || "";
         const userName = purchase?.user?.name?.toString().toLowerCase() || "";
 
-        console.log("vendorName", vendorName);
-        console.log("businessName", businessName);
-        console.log("needle", needle);
+        // console.log("vendorName", vendorName);
+        // console.log("businessName", businessName);
+        // console.log("needle", needle);
 
         return (
           vendorName.includes(needle) ||
