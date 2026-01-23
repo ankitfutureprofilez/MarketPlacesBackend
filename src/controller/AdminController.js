@@ -697,6 +697,21 @@ exports.VendorGetId = catchAsync(async (req, res) => {
       vendor_bill_status: false,
     });
 
+    const totalEarning = await OfferBuy.aggregate([
+      {
+        $match: {
+          vendor: vendorId,
+          vendor_bill_status: true,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalEarning: { $sum: "$final_amount" },
+        },
+      },
+    ]);
+
     const uniqueUsers = await OfferBuy.distinct("user", { vendor: vendorId });
     const totalUniqueUsers = uniqueUsers.length;
 
@@ -712,6 +727,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         vendor_bill_true: vendorBillsTrue,
         vendor_bill_false: vendorBillsFalse,
         unique_customers: totalUniqueUsers,
+        totalEarning: totalEarning[0] ? totalEarning[0].totalEarning : 0,
       },
     });
   } catch (error) {
