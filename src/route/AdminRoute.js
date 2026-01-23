@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, SalesAdminGetId, BroughtOffers, AdminGetCategories, AdminSalesStats, CustomerGetId, addVendorGallery, deleteVendorGallery, AddSubAdmin, UpdateSubAdmin, SubAdminGet } = require("../controller/AdminController");
+const { AdminVendorGet, SalesGet, UserGet, Login, adminGet, VendorRegister, VendorGetId, AdminDashboard, PaymentGet, vendorUpdate, AssignStaff, AddSalesPersons, EditSalesPerson, DeleteUser, EditAdmin, resetpassword, SalesList, SalesAdminGetId, BroughtOffers, AdminGetCategories, AdminSalesStats, CustomerGetId, addVendorGallery, deleteVendorGallery, AddSubAdmin, UpdateSubAdmin, SubAdminGet, AdminGetOfferId, AdminEditOffer } = require("../controller/AdminController");
 const { VendorStatus, AdminSubcaterites } = require("../controller/VendorController");
 const { verifyToken } = require("../utils/tokenVerify");
 const upload = require("../utils/uploader");
@@ -38,6 +38,10 @@ router.post("/admin/vendor/gallery/delete/:id", verifyToken, deleteVendorGallery
 
 router.get("/admin/subcatgroy/:id", AdminSubcaterites);
 router.get("/admin/vendor_details/:id", VendorGetId);
+
+router.get("/admin/offer/:id",verifyToken, AdminGetOfferId);
+router.post("/admin/offer/update/:id", verifyToken, upload.single("image"), AdminEditOffer);
+
 router.get("/admin/dashboard", AdminDashboard);
 router.get("/admin/dashboard/sales", AdminSalesStats);
 router.get("/admin/payment_get", PaymentGet);

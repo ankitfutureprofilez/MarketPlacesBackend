@@ -6,6 +6,8 @@ const Vendor = require("../model/Vendor");
 const OfferBuy = require("../model/OfferBuy.js");
 const Category = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
+const FlatOffer = require("../model/FlatOffer.js");
+const PercentageOffer = require("../model/PercentageOffer.js");
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse} = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
@@ -730,6 +732,173 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         totalEarning: totalEarning[0] ? totalEarning[0].totalEarning : 0,
       },
     });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.AdminGetOfferId = catchAsync(async (req, res) => {
+  try {
+    const offerId = req.params.id;
+    const record = await Offer.findById(offerId)
+      .populate("vendor")
+      .populate("flat")
+      .populate("percentage");
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found", 404);
+    }
+
+    return successResponse(res, "Offer details retrieved successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+const safeJsonParse = (value) => {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (err) {
+      throw new Error("Invalid JSON format for inclusion/exclusion");
+    }
+  }
+  return value; // already an object/array
+};
+
+const calculateOfferAmount = ({ type, discountPercentage, maxDiscountCap }) => {
+  let baseValue = 0;
+  if (type === "flat") {
+    if (!discountPercentage || discountPercentage <= 0) return 20;
+    baseValue = discountPercentage * 0.10;
+  }
+  if (type === "percentage") {
+    if (!maxDiscountCap || maxDiscountCap <= 0) return 20;
+    baseValue = maxDiscountCap * 0.10;
+  }
+  const roundedToNearest10 = Math.ceil(baseValue / 10) * 10;
+  return Math.max(roundedToNearest10, 20);
+};
+
+const toNumber = (value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  const num = Number(value);
+  return isNaN(num) ? undefined : num;
+};
+
+exports.AdminEditOffer = catchAsync(async (req, res) => {
+  try {
+    const id = req.params.id;
+    const userId = req.user.id;
+    const offerId = new mongoose.Types.ObjectId(id);
+
+    let {
+      title,
+      description,
+      expiryDate,
+      discountPercentage,
+      maxDiscountCap,
+      minBillAmount,
+      inclusion,
+      exclusion,
+    } = req.body;
+
+    // 🔹 Parse arrays
+    inclusion = safeJsonParse(inclusion);
+    exclusion = safeJsonParse(exclusion);
+
+    // 🔹 Convert numeric fields
+    discountPercentage = toNumber(discountPercentage);
+    maxDiscountCap = toNumber(maxDiscountCap);
+    minBillAmount = toNumber(minBillAmount);
+
+    const user = await User.findById(userId);
+    if (user?.deleted_at) {
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
+
+    const record = await Offer.findById(offerId);
+    if (!record) {
+      return errorResponse(res, "Offer not found", 404);
+    }
+
+    let isExpired;
+    if (expiryDate) {
+      const expiryEndOfDay = new Date(expiryDate);
+      expiryEndOfDay.setHours(23, 59, 59, 999);
+      isExpired = new Date() > expiryEndOfDay;
+    }
+
+    const existingOffer =
+      record.type === "flat"
+        ? await FlatOffer.findById(record.flat)
+        : await PercentageOffer.findById(record.percentage);
+
+    if (!existingOffer) {
+      return errorResponse(res, "Offer data not found", 404);
+    }
+
+    // 🔹 Prepare update payload (numbers guaranteed)
+    const updateData = {
+      title,
+      description,
+      expiryDate,
+      minBillAmount:
+        minBillAmount !== undefined
+          ? minBillAmount
+          : existingOffer.minBillAmount,
+
+      discountPercentage:
+        discountPercentage !== undefined
+          ? discountPercentage
+          : existingOffer.discountPercentage,
+
+      maxDiscountCap:
+        maxDiscountCap !== undefined
+          ? maxDiscountCap
+          : existingOffer.maxDiscountCap,
+    };
+
+    // 🔹 Recalculate amount using numbers
+    updateData.amount = calculateOfferAmount({
+      type: record.type,
+      discountPercentage: updateData.discountPercentage,
+      maxDiscountCap: updateData.maxDiscountCap,
+    });
+
+    if (typeof isExpired === "boolean") {
+      updateData.isExpired = isExpired;
+    }
+
+    if (req.file?.filename) {
+      updateData.offer_image = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
+    let updatedOffer;
+    if (record.type === "flat") {
+      updatedOffer = await FlatOffer.findByIdAndUpdate(
+        record.flat,
+        updateData,
+        { new: true, runValidators: true }
+      );
+    } else {
+      updatedOffer = await PercentageOffer.findByIdAndUpdate(
+        record.percentage,
+        updateData,
+        { new: true, runValidators: true }
+      );
+    }
+
+    // 🔹 Update inclusion/exclusion on main Offer
+    const offerUpdate = {};
+    if (Array.isArray(inclusion)) offerUpdate.inclusion = inclusion;
+    if (Array.isArray(exclusion)) offerUpdate.exclusion = exclusion;
+
+    if (Object.keys(offerUpdate).length) {
+      await Offer.findByIdAndUpdate(record._id, offerUpdate);
+    }
+
+    return successResponse(res, "Offer updated successfully", 200, updatedOffer);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
