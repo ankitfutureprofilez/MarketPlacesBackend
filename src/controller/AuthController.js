@@ -20,6 +20,10 @@ exports.SendOtp = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Phone number is required", 400);
     }
 
+    if(phone.length != 10){
+      return validationErrorResponse(res, "Invalid phone number", 400);
+    }
+
     const user = await User.findOne({phone: phone});
     if(role == "sales" && !user){
       return errorResponse(res, "Account does not exist", 404);

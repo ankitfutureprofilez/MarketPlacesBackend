@@ -600,6 +600,18 @@ exports.AddOffer = catchAsync(async (req, res) => {
     inclusion = safeJsonParse(inclusion);
     exclusion = safeJsonParse(exclusion);
 
+    if (expiryDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const expiry = new Date(expiryDate);
+      expiry.setHours(0, 0, 0, 0);
+
+      if (expiry <= today) {
+        return validationErrorResponse(res, "Expiry date must be a future date", 400);
+      }
+    }
+
     // ✅ Check if file is present
     if (!req.file || !req.file.filename) {
       return validationErrorResponse(res, "Image file is required", 400);
