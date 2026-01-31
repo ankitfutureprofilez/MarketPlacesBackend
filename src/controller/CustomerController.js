@@ -1418,14 +1418,14 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
         continue;
       }
 
-      /** Only higher priced offers */
-      if (offerAmount <= currentOfferAmount) continue;
+      /** Only higher and equally priced offers */
+      if (offerAmount < currentOfferAmount) continue;
 
       /** Need to shop (never negative) */
       const needToShop = Math.max(0, minBillAmount - billAmount);
 
       /** Upgrade price (always positive here) */
-      const upgradePrice = offerAmount - currentOfferAmount;
+      const upgradePrice = Math.max(1, offerAmount - currentOfferAmount);
 
       eligibleOffers.push({
         offer,
@@ -1486,11 +1486,11 @@ exports.offerUpgrade = catchAsync(async (req, res) => {
     // ⚠️ Replace this with your actual pricing logic
     const newAmount = newOffer?.flat?.amount || newOffer?.percentage?.amount || 0;
 
-    if (newAmount <= oldAmount) {
+    if (newAmount < oldAmount) {
       return errorResponse(res, "Upgrade amount must be greater than current offer", 400);
     }
 
-    const upgradeAmount = newAmount - oldAmount;
+    const upgradeAmount = Math.max(1, newAmount - oldAmount);
 
     // 5️⃣ Resolve upgrade chain root
     const upgradeChainRoot =
