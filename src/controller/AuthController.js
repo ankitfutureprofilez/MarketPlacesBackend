@@ -64,7 +64,7 @@ exports.Login = catchAsync(async (req, res) => {
       );
     }
     if (otp !== "123456") {
-        return validationErrorResponse(res, "Invalid or expired OTP", 403);
+        return validationErrorResponse(res, "Invalid or expired OTP", 200);
     }
     const user = await User.findOne({phone: phone});
     if (!user) {
