@@ -45,6 +45,7 @@ const vendorSchema = new mongoose.Schema(
             type: Number,
             default: null,
         },
+        // Address Proofs
         aadhaar_front: {
             type: String,
             default: null,
@@ -73,6 +74,31 @@ const vendorSchema = new mongoose.Schema(
             type: String,
             default: null
         },
+        driving_license: {
+            type: String,
+            default: null,
+        },
+        driving_license_verify: {
+            type: String,
+            default: "pending"
+        },
+        driving_license_reason: {
+            type: String,
+            default: null
+        },
+        passport: {
+            type: String,
+            default: null,
+        },
+        passport_verify: {
+            type: String,
+            default: "pending"
+        },
+        passport_reason: {
+            type: String,
+            default: null
+        },
+        // Business Proofs
         gst_certificate: {
             type: String,
             default: null,
@@ -82,6 +108,43 @@ const vendorSchema = new mongoose.Schema(
             default: "pending"
         },
         gst_certificate_reason: {
+            type: String,
+            default: null
+        },
+        // Udhyam is a govrment registration for small business in India
+        udhyam: {
+            type: String,
+            default: null,
+        },
+        udhyam_verify: {
+            type: String,
+            default: "pending"
+        },
+        udhyam_reason: {
+            type: String,
+            default: null
+        },
+        trade_license: {
+            type: String,
+            default: null,
+        },
+        trade_license_verify: {
+            type: String,
+            default: "pending"
+        },
+        trade_license_reason: {
+            type: String,
+            default: null
+        },
+        shop_license: {
+            type: String,
+            default: null,
+        },
+        shop_license_verify: {
+            type: String,
+            default: "pending"
+        },
+        shop_license_reason: {
             type: String,
             default: null
         },
@@ -134,8 +197,10 @@ const vendorSchema = new mongoose.Schema(
                 active: { type: Boolean, default: false },
             },
         },
+        // It is actually holidays array but named wrongly
         weekly_off_day: {
-            type: Date,
+            type: [Date],
+            default: [],
         },
         user: {
             type: mongoose.Schema.Types.ObjectId,
@@ -158,8 +223,8 @@ const vendorSchema = new mongoose.Schema(
         },
         Verify_status: {
             type: String,
-            default: "unverify",
-            enum: ["verify", "unverify"]
+            default: "pending",
+            enum: ["pending", "verify", "unverify"]
         },
         country: {
             type: String,

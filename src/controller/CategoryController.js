@@ -162,7 +162,9 @@ exports.addSubCategory = catchAsync(async (req, res) => {
 exports.deleteSubCategory = async (req, res) => {
     try {
         const { id } = req.params;
+        console.log("id", id);
         const category = await SubCategory.findById(id);
+        console.log("category", category);
         if (!category) {
             return validationErrorResponse(res, "SubCategory not found.", 404);
         }

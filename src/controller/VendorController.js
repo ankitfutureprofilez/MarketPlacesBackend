@@ -13,9 +13,24 @@ const Payment = require("../model/Payment.js");
 const { default: mongoose } = require("mongoose");
 const deleteUploadedFiles = require("../utils/fileDeleter.js");
 
+const ADDRESS_PROOFS = [
+  "aadhaar_front",
+  "aadhaar_back",
+  "pan_card_image",
+  "driving_license",
+  "passport",
+];
+
+const BUSINESS_PROOFS = [
+  "gst_certificate",
+  "udhyam",
+  "trade_license",
+  "shop_license",
+];
+
 exports.VendorRegister = catchAsync(async (req, res) => {
   try {
-    const {
+    let {
       business_name,
       city,
       category,
@@ -41,8 +56,47 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       return errorResponse(res, "Phone number already exists", 400);
     }
 
+    // Normalize weekly_off_day
+    if (weekly_off_day) {
+      if (typeof weekly_off_day === "string") {
+        try {
+          weekly_off_day = JSON.parse(weekly_off_day);
+        } catch (err) {
+          return errorResponse(res, "Invalid weekly_off_day format", 400);
+        }
+      }
+      if (!Array.isArray(weekly_off_day)) {
+        return errorResponse(res, "weekly_off_day must be an array", 400);
+      }
+      weekly_off_day = weekly_off_day
+        .map(d => new Date(d))
+        .filter(d => !isNaN(d.getTime())); // remove invalid dates
+    }
+
+
     // 🔹 Uploaded files handling
     const uploadedFiles = req.files || {};
+
+    // 🔹 Validate document uploads
+    const hasAtLeastOneFile = (keys) =>
+      keys.some(
+        (key) =>
+          uploadedFiles[key] &&
+          Array.isArray(uploadedFiles[key]) &&
+          uploadedFiles[key].length > 0
+      );
+
+    const hasAddressProof = hasAtLeastOneFile(ADDRESS_PROOFS);
+    const hasBusinessProof = hasAtLeastOneFile(BUSINESS_PROOFS);
+
+    if (!hasAddressProof) {
+      return errorResponse(res, "At least one address proof document is required", 400);
+    }
+
+    if (!hasBusinessProof) {
+      return errorResponse(res, "At least one business proof document is required",400);
+    }
+
     const makeFileUrl = (fieldName) => {
       if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0) return null;
       const file = uploadedFiles[fieldName][0];
@@ -82,10 +136,18 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       opening_hours,
       weekly_off_day,
       business_register,
+      // Address proofs
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
+      driving_license: makeFileUrl("driving_license"),
+      passport: makeFileUrl("passport"),
+      // Business proofs
       gst_certificate: makeFileUrl("gst_certificate"),
+      udhyam: makeFileUrl("udhyam"),
+      trade_license: makeFileUrl("trade_license"),
+      shop_license: makeFileUrl("shop_license"),
+      // Business logo
       business_logo: makeFileUrl("business_logo"),
     });
 
@@ -162,18 +224,35 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     };
 
     const documentObj = {
-      business_logo: record.business_logo,
-      aadhaar_front: record.aadhaar_front,
-      aadhaar_back: record.aadhaar_back,
-      pan_card_image: record.pan_card_image,
-      gst_certificate: record.gst_certificate,
-      shop_license: record.shop_license,
-      aadhaar_verify: record.aadhaar_verify,
-      pan_card_verify: record.pan_card_verify,
-      gst_certificate_verify: record.gst_certificate_verify,
-      aadhaar_reason: record?.aadhaar_reason,
-      gst_certificate_reason: record?.gst_certificate_reason,
-      pan_card_reason: record?.pan_card_reason,
+      business_logo: record?.business_logo ?? null,
+
+      aadhaar_front: record?.aadhaar_front ?? null,
+      aadhaar_back: record?.aadhaar_back ?? null,
+      pan_card_image: record?.pan_card_image ?? null,
+      gst_certificate: record?.gst_certificate ?? null,
+      shop_license: record?.shop_license ?? null,
+      driving_license: record?.driving_license ?? null,
+      passport: record?.passport ?? null,
+      udhyam: record?.udhyam ?? null,
+      trade_license: record?.trade_license ?? null,
+      // Verification status
+      aadhaar_verify: record?.aadhaar_verify ?? "pending",
+      pan_card_verify: record?.pan_card_verify ?? "pending",
+      gst_certificate_verify: record?.gst_certificate_verify ?? "pending",
+      shop_license_verify: record?.shop_license_verify ?? "pending",
+      driving_license_verify: record?.driving_license_verify ?? "pending",
+      passport_verify: record?.passport_verify ?? "pending",
+      udhyam_verify: record?.udhyam_verify ?? "pending",
+      trade_license_verify: record?.trade_license_verify ?? "pending",
+      // Rejection reasons
+      aadhaar_reason: record?.aadhaar_reason ?? null,
+      pan_card_reason: record?.pan_card_reason ?? null,
+      gst_certificate_reason: record?.gst_certificate_reason ?? null,
+      shop_license_reason: record?.shop_license_reason ?? null,
+      driving_license_reason: record?.driving_license_reason ?? null,
+      passport_reason: record?.passport_reason ?? null,
+      udhyam_reason: record?.udhyam_reason ?? null,
+      trade_license_reason: record?.trade_license_reason ?? null,
     };
 
     const businessObj = {
@@ -261,10 +340,44 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Vendor ID missing", 400);
     }
 
-    // -----------------------------
-    // 1) Handle uploaded files
-    // -----------------------------
+    const user = await User.findById(vendorId);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
+
     const uploadedFiles = req.files || {};
+
+    const existingVendor = await Vendor.findOne({ user: vendorId });
+    if (!existingVendor) {
+      return validationErrorResponse(res, "Vendor not found", 204);
+    }
+    const hasProofAfterUpdate = (keys) => {
+      return keys.some((key) => {
+        // new upload in this request
+        if (
+          uploadedFiles[key] &&
+          Array.isArray(uploadedFiles[key]) &&
+          uploadedFiles[key].length > 0
+        ) {
+          return true;
+        }
+
+        // already exists in DB
+        return !!existingVendor[key];
+      });
+    };
+
+    const hasAddressProof = hasProofAfterUpdate(ADDRESS_PROOFS);
+    const hasBusinessProof = hasProofAfterUpdate(BUSINESS_PROOFS);
+
+    if (!hasAddressProof) {
+      return validationErrorResponse(res,"At least one address proof document must be available",400);
+    }
+
+    if (!hasBusinessProof) {
+      return validationErrorResponse(res,"At least one business proof document must be available",400);
+    }
 
     const makeFileUrl = (fieldName) => {
       if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0)
@@ -274,9 +387,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
     };
 
-    // -----------------------------
-    // 2) Parse body fields
-    // -----------------------------
     const {
       business_name,
       city,
@@ -298,9 +408,46 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       avatar
     } = req.body;
 
-    // -----------------------------
-    // 3) Safe ObjectId casting
-    // -----------------------------
+    let normalizedWeeklyOffDay;
+
+    if (weekly_off_day !== undefined) {
+      let parsedValue = weekly_off_day;
+
+      // If multipart/form-data sends it as string
+      if (typeof parsedValue === "string") {
+        try {
+          parsedValue = JSON.parse(parsedValue);
+        } catch (err) {
+          return validationErrorResponse(
+            res,
+            "Invalid weekly_off_day format. Must be an array of dates",
+            400
+          );
+        }
+      }
+
+      if (!Array.isArray(parsedValue)) {
+        return validationErrorResponse(
+          res,
+          "weekly_off_day must be an array",
+          400
+        );
+      }
+
+      normalizedWeeklyOffDay = parsedValue
+        .map((d) => new Date(d))
+        .filter((d) => !isNaN(d.getTime()));
+
+      // Optional: strict mode (reject if any invalid date was sent)
+      if (normalizedWeeklyOffDay.length !== parsedValue.length) {
+        return validationErrorResponse(
+          res,
+          "weekly_off_day contains invalid date values",
+          400
+        );
+      }
+    }
+
     const safeObjectId = (val) => {
       if (!val) return undefined;
       return mongoose.isValidObjectId(val.trim())
@@ -308,18 +455,12 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
         : undefined;
     };
 
-    // -----------------------------
-    // 4) Update User model
-    // -----------------------------
     await User.findByIdAndUpdate(
       vendorId,
       { name, email, avatar },
       { new: true }
     );
 
-    // -----------------------------
-    // 5) Prepare vendor update payload
-    // -----------------------------
     const vendorUpdateData = {
       business_name,
       city,
@@ -335,15 +476,23 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       address,
       gst_number,
       opening_hours,
-      weekly_off_day,
+      weekly_off_day: normalizedWeeklyOffDay,
       business_register,
       email,
 
       // Update only if new file uploaded
+      // Address proofs
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
+      driving_license: makeFileUrl("driving_license"),
+      passport: makeFileUrl("passport"),
+
+      // Business proofs
       gst_certificate: makeFileUrl("gst_certificate"),
+      udhyam: makeFileUrl("udhyam"),
+      trade_license: makeFileUrl("trade_license"),
+      shop_license: makeFileUrl("shop_license"),
       business_logo: makeFileUrl("business_logo"),
     };
 
@@ -352,9 +501,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       if (vendorUpdateData[key] === undefined) delete vendorUpdateData[key];
     });
 
-    // -----------------------------
-    // 6) Update Vendor model
-    // -----------------------------
     const vendordata = await Vendor.findOneAndUpdate(
       { user: vendorId },
       vendorUpdateData,
@@ -398,25 +544,73 @@ exports.VendorStatus = catchAsync(async (req, res) => {
   }
 });
 
-// Offer Management 
+const safeJsonParse = (value) => {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (err) {
+      throw new Error("Invalid JSON format for inclusion/exclusion");
+    }
+  }
+  return value; // already an object/array
+};
+
+const calculateOfferAmount = ({ type, discountPercentage, maxDiscountCap }) => {
+  let baseValue = 0;
+  if (type === "flat") {
+    if (!discountPercentage || discountPercentage <= 0) return 20;
+    baseValue = discountPercentage * 0.10;
+  }
+  if (type === "percentage") {
+    if (!maxDiscountCap || maxDiscountCap <= 0) return 20;
+    baseValue = maxDiscountCap * 0.10;
+  }
+  const roundedToNearest10 = Math.ceil(baseValue / 10) * 10;
+  return Math.max(roundedToNearest10, 20);
+};
+
 // Add Offer 
 exports.AddOffer = catchAsync(async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return validationErrorResponse(res, "UserId Not Found", 500);
+      return validationErrorResponse(res, "UserId Not Found", 400);
     }
 
-    const {
+    const user = await User.findById(userId);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
+
+    let {
       title,
       description,
       expiryDate,
       discountPercentage,
       maxDiscountCap,
       minBillAmount,
-      amount,
-      type
+      // amount,
+      type,
+      inclusion,
+      exclusion,
     } = req.body;
+
+    inclusion = safeJsonParse(inclusion);
+    exclusion = safeJsonParse(exclusion);
+
+    if (expiryDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const expiry = new Date(expiryDate);
+      expiry.setHours(0, 0, 0, 0);
+
+      if (expiry <= today) {
+        return validationErrorResponse(res, "Expiry date must be a future date", 400);
+      }
+    }
 
     // ✅ Check if file is present
     if (!req.file || !req.file.filename) {
@@ -429,12 +623,18 @@ exports.AddOffer = catchAsync(async (req, res) => {
     // ✅ Create offer based on type
     let offerRecord;
 
+    const amount = calculateOfferAmount({
+      type,
+      discountPercentage,
+      maxDiscountCap,
+    });
+
     if (type === "flat") {
       const newOffer = new FlatOffer({
         title,
         description,
         expiryDate,
-        amount, // flat amount
+        amount, 
         minBillAmount,
         offer_image: fileUrl,
         status: "active",
@@ -463,7 +663,9 @@ exports.AddOffer = catchAsync(async (req, res) => {
       flat: type === "flat" ? offerRecord._id : null,
       percentage: type === "percentage" ? offerRecord._id : null,
       vendor: userId,
-      type: type
+      type: type,
+      inclusion,
+      exclusion
     });
 
     const data = await combinedOffer.save();
@@ -527,9 +729,14 @@ exports.GetOffer = catchAsync(async (req, res) => {
 // Offer Status 
 exports.OfferStatus = catchAsync(async (req, res) => {
   try {
-    console.log(req.params)
+    // console.log(req.params)
     const offerId = req.params.id;
     const status = req.params.status;
+    const user = await User.findById(req.user.id);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
     const record = await Offer.findByIdAndUpdate(
       offerId,
       { status },
@@ -548,11 +755,17 @@ exports.OfferStatus = catchAsync(async (req, res) => {
 exports.OfferDelete = catchAsync(async (req, res) => {
   try {
     const offerId = req.params.id;
-    console.log("Offer ID:", offerId);
+    // console.log("Offer ID:", offerId);
+
+    const user = await User.findById(req.user.id);
+
+    if(user?.deleted_at){
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
 
     // Find the offer first
     const offer = await Offer.findById(offerId);
-    console.log("Offer found:", offer);
+    // console.log("Offer found:", offer);
 
     if (!offer) {
       return validationErrorResponse(res, "Offer not found", 404);
@@ -578,51 +791,109 @@ exports.OfferDelete = catchAsync(async (req, res) => {
   }
 });
 
-// Edit Offer 
+// Edit Offer
 exports.EditOffer = catchAsync(async (req, res) => {
   try {
-    const Id = req.params.id;
-    const {
+    const id = req.params.id;
+    const userId = req.user.id;
+    const offerId = new mongoose.Types.ObjectId(id);
+
+    let {
       title,
       description,
       expiryDate,
       discountPercentage,
       maxDiscountCap,
       minBillAmount,
-      amount,
+      inclusion,
+      exclusion,
     } = req.body;
 
-    const record = await Offer.findById(Id);
+    inclusion = safeJsonParse(inclusion);
+    exclusion = safeJsonParse(exclusion);
+
+    const user = await User.findById(userId);
+    if (user?.deleted_at) {
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
+
+    const record = await Offer.findById(offerId);
     if (!record) {
       return errorResponse(res, "Offer not found", 404);
     }
 
+    let isExpired;
+    if (expiryDate) {
+      const expiryEndOfDay = new Date(expiryDate);
+      expiryEndOfDay.setHours(23, 59, 59, 999);
+
+      isExpired = new Date() > expiryEndOfDay;
+    }
+
+    // 🔹 Fetch existing offer (flat / percentage)
+    const existingOffer =
+      record.type === "flat"
+        ? await FlatOffer.findById(record.flat)
+        : await PercentageOffer.findById(record.percentage);
+
+    if (!existingOffer) {
+      return errorResponse(res, "Offer data not found", 404);
+    }
+
+    // 🔹 Prepare update payload
     const updateData = {
       title,
       description,
       expiryDate,
-      discountPercentage,
-      maxDiscountCap,
       minBillAmount,
-      amount,
+      discountPercentage:
+        discountPercentage !== undefined
+          ? discountPercentage
+          : existingOffer.discountPercentage,
+      maxDiscountCap:
+        maxDiscountCap !== undefined
+          ? maxDiscountCap
+          : existingOffer.maxDiscountCap,
     };
 
-    if (req.file && req.file.filename) {
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-      updateData.offer_image = fileUrl;
+    // 🔹 Recalculate amount safely
+    updateData.amount = calculateOfferAmount({
+      type: record.type,
+      discountPercentage: updateData.discountPercentage,
+      maxDiscountCap: updateData.maxDiscountCap,
+    });
+
+    if (typeof isExpired === "boolean") {
+      updateData.isExpired = isExpired;
     }
 
+    if (req.file?.filename) {
+      updateData.offer_image = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
+    // 🔹 Update correct offer collection
     let updatedOffer;
     if (record.type === "flat") {
-      updatedOffer = await FlatOffer.findByIdAndUpdate(record.flat, updateData, {
-        new: true,
-      });
+      updatedOffer = await FlatOffer.findByIdAndUpdate(
+        record.flat,
+        updateData,
+        { new: true }
+      );
     } else {
       updatedOffer = await PercentageOffer.findByIdAndUpdate(
         record.percentage,
         updateData,
         { new: true }
       );
+    }
+
+    // 🔹 Update inclusion & exclusion on main Offer doc
+    const offerUpdate = {};
+    if (inclusion !== undefined) offerUpdate.inclusion = inclusion;
+    if (exclusion !== undefined) offerUpdate.exclusion = exclusion;
+
+    if (Object.keys(offerUpdate).length) {
+      await Offer.findByIdAndUpdate(record._id, offerUpdate);
     }
 
     return successResponse(res, "Offer updated successfully", 200, updatedOffer);
@@ -674,11 +945,30 @@ exports.Dashboard = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Please provide id", 200);
     }
 
+    let { start, end } = req.query;
+    const now = new Date();
+
+    let startDate, endDate;
+
+    // Treat empty strings as undefined
+    start = start?.trim() || null;
+    end = end?.trim() || null;
+
+    if (start && end) {
+      startDate = new Date(start);
+      endDate = new Date(end);
+    } else {
+      // Default: last 7 days
+      endDate = now;
+      startDate = new Date();
+      startDate.setDate(now.getDate() - 6);
+    }
+
     const Vendors = await Vendor.findOne({ user: userId });
 
     // ✅ Aggregation for overall stats
     const offerBuyStats = await OfferBuy.aggregate([
-      { $match: { vendor: new mongoose.Types.ObjectId(userId) } },
+      { $match: { vendor: new mongoose.Types.ObjectId(userId), status: { $ne: "upgraded" } } },
       {
         $group: {
           _id: null,
@@ -691,18 +981,23 @@ exports.Dashboard = catchAsync(async (req, res) => {
               ]
             }
           },
-          users: { $addToSet: "$user" },
+          // users: { $addToSet: "$user" },
           redeemedCount: {
             $sum: { $cond: [{ $eq: ["$vendor_bill_status", true] }, 1, 0] },
+          },
+          totalVouchers: {
+            $sum: 1,
           },
         },
       },
     ]);
 
+    // console.log("offerBuyStats", offerBuyStats);
+
     const statsData = offerBuyStats[0] || {
       totalSales: 0,
-      users: [],
       redeemedCount: 0,
+      totalVouchers: 0,
     };
 
     const activeOffersCount = await Offer.countDocuments({
@@ -710,16 +1005,11 @@ exports.Dashboard = catchAsync(async (req, res) => {
       status: "active",
     });
 
-    const now = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(now.getDate() - 6);
-
-    // ✅ Fetch offer sales grouped by day (last 7 days)
     const dailySales = await OfferBuy.aggregate([
       {
         $match: {
           vendor: new mongoose.Types.ObjectId(userId),
-          createdAt: { $gte: sevenDaysAgo, $lte: now },
+          createdAt: { $gte: startDate, $lte: endDate },
         },
       },
       {
@@ -730,24 +1020,28 @@ exports.Dashboard = catchAsync(async (req, res) => {
           offers_sold: { $sum: 1 },
         },
       },
-      { $sort: { "_id": 1 } },
+      { $sort: { _id: 1 } },
     ]);
 
-    // ✅ Ensure all 7 days are present even if 0 sales
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
+    // console.log("dailySales", dailySales);
+
+    const salesByDate = [];
+    for (
+      let d = new Date(startDate);
+      d <= endDate;
+      d.setDate(d.getDate() + 1)
+    ) {
       const dayKey = d.toISOString().split("T")[0];
       const match = dailySales.find((x) => x._id === dayKey);
-      last7Days.push({
+
+      salesByDate.push({
         date: dayKey,
         offers_sold: match ? match.offers_sold : 0,
       });
     }
 
     // ✅ Last 5 Purchases
-    const lastFivePurchases = await OfferBuy.find({ vendor: userId })
+    const lastFivePurchases = await OfferBuy.find({ vendor: userId, vendor_bill_status: true })
       .populate("user", "name email")
       .populate({
         path: "offer",
@@ -818,9 +1112,9 @@ exports.Dashboard = catchAsync(async (req, res) => {
         total_sales: statsData.totalSales || 0,
         redeemed_offeres: statsData.redeemedCount || 0,
         active_offers: activeOffersCount || 0,
-        total_customers: statsData.users.length || 0,
+        totalVouchers: statsData.totalVouchers || 0,
       },
-      last_7_days_sales: last7Days, // 👈 this replaces the number-only stat
+      last_7_days_sales: salesByDate,
       vendors: Vendors,
       last_five_purchases: lastFivePurchases,
       top_offers: topOffers,
@@ -875,7 +1169,7 @@ exports.VendorOrder = catchAsync(async (req, res) => {
     if (!vendorId) {
       return validationErrorResponse(res, "Vendor not authenticated", 401);
     }
-    const allPurchases = await OfferBuy.find({ vendor: vendorId })
+    const allPurchases = await OfferBuy.find({ vendor: vendorId, status: {$ne : "upgraded"} })
       .populate("user", "name email phone")
       .populate({
         path: "offer",
@@ -948,41 +1242,33 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
   try {
     const vendorId = req.user.id;
     const { offerId, page = 1, limit = 20 } = req.query;
-    // ✅ Validate inputs
+
     if (!vendorId || !offerId) {
-      return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 404);
+      return validationErrorResponse(res, "Vendor ID and Offer ID are required.", 400);
     }
 
-    // ✅ Build query
     const query = {
       vendor: new mongoose.Types.ObjectId(vendorId),
       offer: new mongoose.Types.ObjectId(offerId),
     };
-    console.log("query", query)
-    // ✅ Pagination
+
     const skip = (page - 1) * limit;
 
-    // ✅ Fetch records
     const allPurchases = await OfferBuy.find(query)
       .populate("user", "name email phone")
       .populate({
         path: "offer",
-        // select: "title description discountPercentage", // only needed fields
         populate: [
           { path: "flat", select: "title discount" },
           { path: "percentage", select: "title discount" },
         ],
       })
-      .populate({
-        path: "payment_id",
-        // select: "payment_id method amount currency status createdAt",
-      })
+      .populate("payment_id")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
-    // console.log("allPurchases", allPurchases)
-    // ✅ Count total records
     const total_records = await OfferBuy.countDocuments(query);
     const total_pages = Math.ceil(total_records / limit);
 
@@ -990,36 +1276,91 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "No purchase found", 200);
     }
 
-    // ✅ Format response
-    // const purchased_customers = allPurchases.map((purchase) => ({
-    //     offer_buy: {
-    //         purchase_id: purchase._id,
-    //         final_amount: purchase.final_amount,
-    //         status: purchase.status,
-    //         vendor_bill_status: purchase.vendor_bill_status,
-    //         description: purchase?.description || "",
-    //         createdAt: purchase?.createdAt || ""
-    //     },
-    //     customer: {
-    //         id: purchase.user?._id,
-    //         name: purchase.user?.name,
-    //         email: purchase.user?.email,
-    //         phone: purchase.user?.phone,
-    //     },
-    //     payment: {
-    //         id: purchase.payment_id?._id,
-    //         payment_id: purchase.payment_id?.payment_id,
-    //         method: purchase.payment_id?.method,
-    //         amount: purchase.payment_id?.amount,
-    //         currency: purchase.payment_id?.currency,
-    //         status: purchase.payment_id?.status,
-    //         date: purchase.payment_id?.createdAt,
-    //     },
-    // }));
+    /** 🔹 Fetch all vendor-related purchases (for linking) */
+    const allRelated = await OfferBuy.find({
+      vendor: vendorId,
+    })
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [
+          { path: "flat", select: "title discount" },
+          { path: "percentage", select: "title discount" },
+        ],
+      })
+      .lean();
 
+    /** 🔹 Build lookup maps */
+    const byIdMap = new Map();
+    const upgradedToMap = new Map(); // upgraded_from → OfferBuy
+
+    allRelated.forEach((doc) => {
+      byIdMap.set(doc._id.toString(), doc);
+      if (doc.upgraded_from) {
+        upgradedToMap.set(doc.upgraded_from.toString(), doc);
+      }
+    });
+
+    /** 🔹 Attach upgrade data */
+    const enrichedPurchases = allPurchases.map((purchase) => {
+      let updatedPurchase = { ...purchase };
+
+      /** CASE 1: upgraded_from exists → build full history */
+      if (purchase.upgraded_from) {
+        const history = [];
+        let current = byIdMap.get(purchase.upgraded_from.toString());
+
+        while (current) {
+          history.push(current);
+          current = current.upgraded_from
+            ? byIdMap.get(current.upgraded_from.toString())
+            : null;
+        }
+
+        history.reverse(); // root → latest previous
+        updatedPurchase.upgraded_from = history;
+      }
+
+      /** CASE 2: status === upgraded → find upgrade_to */
+      if (purchase.status === "upgraded") {
+        const upgradeTo = upgradedToMap.get(purchase._id.toString()) || null;
+        updatedPurchase.upgrade_to = upgradeTo;
+      }
+
+      return updatedPurchase;
+    });
+
+    const sanitizeVendorBill = (record) => {
+      if (!record || typeof record !== "object") return record;
+
+      const sanitized = {
+        ...record,
+        ...(record.vendor_bill_status === false && {
+          discount: null,
+          total_amount: null,
+          final_amount: null,
+        }),
+      };
+
+      // Recursively sanitize upgraded_from
+      if (Array.isArray(sanitized.upgraded_from)) {
+        sanitized.upgraded_from = sanitized.upgraded_from.map(sanitizeVendorBill);
+      } else if (sanitized.upgraded_from) {
+        sanitized.upgraded_from = sanitizeVendorBill(sanitized.upgraded_from);
+      }
+
+      // Recursively sanitize upgrade_to
+      if (sanitized.upgrade_to) {
+        sanitized.upgrade_to = sanitizeVendorBill(sanitized.upgrade_to);
+      }
+
+      return sanitized;
+    };
+
+    const sanitizedPurchases = enrichedPurchases.map(sanitizeVendorBill);
 
     return successResponse(res, "Vendor amount updated successfully", 200, {
-      purchased_customers: allPurchases,
+      purchased_customers: sanitizedPurchases,
       total_records,
       current_page: Number(page),
       per_page: Number(limit),
@@ -1029,7 +1370,10 @@ exports.getPurchasedCustomers = catchAsync(async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching purchased customers:", error);
-    return res.status(500).json({ message: "Server error", error: error.message });
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 });
 
@@ -1064,11 +1408,21 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Total amount must be a valid number", 400);
     }
 
+    const user = await User.findById(req.user.id);
+
+    if(user?.deleted_at){
+      return errorResponse(res, "Your account is blocked", 403);
+    }
+
     // Fetch record + offer details (same as Function 2)
     const record = await OfferBuy.findById(id).populate({
       path: "offer",
       populate: [{ path: "flat" }, { path: "percentage" }]
-    });
+    }).populate("vendor");
+
+    if(req?.user?.id != record?.vendor?._id){
+      return validationErrorResponse(res, "You are not authorized to update this record", 405);
+    }
 
     if (!record) {
       return validationErrorResponse(res, "Offer not found for this vendor", 404);
@@ -1097,7 +1451,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
           (offerData.discountPercentage * total_amount) / 100
         );
 
-        final = total_amount - discount;
+        final = total_amount - discount - record?.offer_paid_amount;
       }
       else if (record?.offer?.type === "flat") {
         const offerData = record.offer.flat;
@@ -1111,7 +1465,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
         }
 
         discount = offerData.discountPercentage;
-        final = total_amount - discount;
+        final = total_amount - discount - record?.offer_paid_amount;
       }
       else {
         console.log("Invalid offer type");
@@ -1269,7 +1623,6 @@ exports.deleteGallery = catchAsync(async (req, res) => {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
-
 
 exports.vendorphoneUpdate = catchAsync(async (req, res) => {
   try {

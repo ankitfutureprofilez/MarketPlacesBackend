@@ -1,36 +1,37 @@
 const Offer = require("../model/Offer");
 const Payment = require("../model/Payment");
 const User = require("../model/User");
+const bcrypt = require("bcrypt");
 const Vendor = require("../model/Vendor");
 const OfferBuy = require("../model/OfferBuy.js");
 const Category = require("../model/categories");
 const SubCategory = require("../model/SubCategory");
+const FlatOffer = require("../model/FlatOffer.js");
+const PercentageOffer = require("../model/PercentageOffer.js");
 const catchAsync = require("../utils/catchAsync");
-const {
-  errorResponse,
-  successResponse,
-  validationErrorResponse,
-} = require("../utils/ErrorHandling");
+const { errorResponse, successResponse, validationErrorResponse} = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const deleteUploadedFiles = require("../utils/fileDeleter.js");
 
 exports.Login = catchAsync(async (req, res) => {
   try {
     const { email, password, role } = req.body;
-    console.log(req.body);
     if (!email || !password || !role) {
       return validationErrorResponse(
         res,
-        "email , password and role all are required",
-        401
+        "Email, password and role all are required",
+        400
       );
     }
-    const user = await User.findOne({ email: email, password: password });
+    const user = await User.findOne({ email: email });
     if (!user) {
-      return validationErrorResponse(res, "Invalid email or password", 401);
+      return validationErrorResponse(res, "Invalid email", 400);
     }
-
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return errorResponse(res, "Invalid password", 400);
+    }
     const token = jwt.sign(
       { id: user._id, role: user.role, email: user.email },
       process.env.JWT_SECRET_KEY,
@@ -41,7 +42,6 @@ exports.Login = catchAsync(async (req, res) => {
       token: token,
       role: user?.role,
     });
-
     // Verify OTP with Twilio
     // const verificationCheck = await client.verify.v2
     //   .services(process.env.TWILIO_VERIFY_SID)
@@ -71,8 +71,8 @@ exports.UserGet = catchAsync(async (req, res) => {
     }
     const customerIds = customers.map((c) => c._id);
     const purchaseCounts = await OfferBuy.aggregate([
-      { $match: { user: { $in: customerIds } } },
-      { $group: { _id: "$user", total: { $sum: 1 } } }
+      { $match: { user: { $in: customerIds }, status: {$ne : "upgraded"} } },
+      { $group: { _id: "$user", total: { $sum: 1 } } },
     ]);
     const countMap = {};
     purchaseCounts.forEach((p) => {
@@ -80,9 +80,162 @@ exports.UserGet = catchAsync(async (req, res) => {
     });
     const finalData = customers.map((cust) => ({
       ...cust.toObject(),
-      purchases_count: countMap[cust._id.toString()] || 0
+      purchases_count: countMap[cust._id.toString()] || 0,
     }));
-    return successResponse(res, "Customers fetched successfully", 200, finalData);
+    return successResponse(
+      res,
+      "Customers fetched successfully",
+      200,
+      finalData
+    );
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.CustomerGetId = catchAsync(async (req, res) => {
+  try {
+    const id = req.params.id;
+    const userObjectId = new mongoose.Types.ObjectId(id);
+    if (!id) {
+      return errorResponse(res, "Vendor ID is required", 400);
+    }
+    const record = await User.findById(id);
+    if (!record) {
+      return validationErrorResponse(res, "User not found", 200);
+    }
+
+    const offerBuys = await OfferBuy.find({
+      user: id,
+      status: { $ne: "upgraded" },
+    })
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .populate("vendor")
+      .populate("payment_id")
+      .populate("upgrade_chain_root")
+      .sort({ createdAt: -1 });
+
+    /** 2️⃣ Fetch ALL related purchases to build lookup map */
+    const allRelated = await OfferBuy.find({ user: id })
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    /** 3️⃣ Build fast lookup map */
+    const offerBuyMap = new Map();
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** 4️⃣ Attach upgrade history */
+    const formattedPurchases = offerBuys.map((purchase) => {
+      const purchaseObj = purchase.toObject();
+
+      // No upgrade
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchaseObj,
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+
+        // Stop at root
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() ===
+            purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse(); // root → latest
+
+      return {
+        ...purchaseObj,
+        upgraded_from: history,
+      };
+    });
+
+    // console.log("id", id);
+
+    const stats = await OfferBuy.aggregate([
+      {
+        $match: {
+          user: userObjectId,
+          status: {$ne: "upgraded"}
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+
+          vendorBillTrueCount: {
+            $sum: {
+              $cond: [{ $eq: ["$vendor_bill_status", true] }, 1, 0],
+            },
+          },
+
+          vendorBillFalseCount: {
+            $sum: {
+              $cond: [{ $eq: ["$vendor_bill_status", false] }, 1, 0],
+            },
+          },
+
+          totalDiscount: {
+            $sum: {
+              $cond: [
+                { $eq: ["$vendor_bill_status", true] },
+                { $ifNull: ["$discount", 0] },
+                0,
+              ],
+            },
+          },
+
+          totalFinalAmountPaid: {
+            $sum: {
+              $cond: [
+                { $eq: ["$vendor_bill_status", true] },
+                { $ifNull: ["$final_amount", 0] },
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    // console.log("stats", stats);
+
+    const summary = stats[0] || {
+      totalCount: 0,
+      vendorBillTrueCount: 0,
+      vendorBillFalseCount: 0,
+      totalFinalAmountPaid: 0,
+      totalDiscount: 0
+    };
+
+    return successResponse(res, "Vendor details fetched successfully", 200, {
+      record,
+      offerBuys: formattedPurchases,
+      stats: summary,
+    });
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -144,8 +297,7 @@ exports.SalesList = catchAsync(async (req, res) => {
       $or: [{ deleted_at: null }, { deleted_at: { $exists: false } }],
     };
 
-    const record = await User.find(query)
-      .sort({ createdAt: -1 });
+    const record = await User.find(query).sort({ createdAt: -1 });
 
     return successResponse(res, "Sales team fetched successfully", 200, record);
   } catch (error) {
@@ -216,7 +368,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     let {
       business_name,
       city,
-      categroy,   // original spelling maintained
+      categroy, // original spelling maintained
       subcategory,
       state,
       pincode,
@@ -238,7 +390,15 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     if (!name || !phone)
       return errorResponse(res, "Name and phone are required", 400);
 
-    if (!business_name || !city || !categroy || !subcategory || !state || !pincode || !area) {
+    if (
+      !business_name ||
+      !city ||
+      !categroy ||
+      !subcategory ||
+      !state ||
+      !pincode ||
+      !area
+    ) {
       return errorResponse(res, "All vendor details are required", 400);
     }
     // console.log("Hello");
@@ -263,7 +423,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     const uploadedFiles = req.files || {};
 
     const makeFileUrl = (field) => {
-      if (!uploadedFiles[field] || uploadedFiles[field].length === 0) return null;
+      if (!uploadedFiles[field] || uploadedFiles[field].length === 0)
+        return null;
       const file = uploadedFiles[field][0];
       return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
     };
@@ -321,8 +482,12 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       return errorResponse(res, "Failed to create vendor", 500);
     }
 
-    return successResponse(res, "Vendor created successfully", 201, savedVendor);
-
+    return successResponse(
+      res,
+      "Vendor created successfully",
+      201,
+      savedVendor
+    );
   } catch (error) {
     console.error(error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -341,7 +506,8 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 
     const uploadedFiles = req.files || {};
     const makeFileUrl = (field) => {
-      if (!uploadedFiles[field] || uploadedFiles[field].length === 0) return vendor[field];
+      if (!uploadedFiles[field] || uploadedFiles[field].length === 0)
+        return vendor[field];
       const file = uploadedFiles[field][0];
       return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
     };
@@ -434,11 +600,9 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       (key) => updateFields[key] === undefined && delete updateFields[key]
     );
 
-    const vendordata = await Vendor.findByIdAndUpdate(
-      id,
-      updateFields,
-      { new: true }
-    ).populate("user");
+    const vendordata = await Vendor.findByIdAndUpdate(id, updateFields, {
+      new: true,
+    }).populate("user");
 
     return successResponse(res, "Vendor updated successfully", 200, vendordata);
   } catch (error) {
@@ -449,8 +613,8 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 
 exports.adminGet = catchAsync(async (req, res) => {
   try {
-    const adminId = req.user?.id || null;
-    const admins = await User.findOne({ role: "admin" }).select("-password");
+    const adminId = req.user?.id;
+    const admins = await User.findById(adminId).select("-password");
 
     if (!admins || admins.length === 0) {
       return validationErrorResponse(res, "No admin users found", 404);
@@ -487,17 +651,68 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 
     const vendorId = record.user._id;
 
-    const totalOffers = await Offer.countDocuments({ vendor: vendorId, status: "active" });
+    const data = await Offer.aggregate([
+      {
+        $match: {
+          vendor: vendorId,
+          status: "active",
+        },
+      },
+      {
+        $lookup: {
+          from: "flats",
+          localField: "flat",
+          foreignField: "_id",
+          as: "flatData",
+        },
+      },
+      {
+        $lookup: {
+          from: "percentageoffers",
+          localField: "percentage",
+          foreignField: "_id",
+          as: "percentageData",
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { flatData: { $elemMatch: { isExpired: false } } },
+            { percentageData: { $elemMatch: { isExpired: false } } },
+          ],
+        },
+      },
+      {
+        $count: "totalOffers",
+      },
+    ]);
+
+    const totalOffers = data?.[0]?.totalOffers || 0;
 
     const vendorBillsTrue = await OfferBuy.countDocuments({
       vendor: vendorId,
-      vendor_bill_status: true
+      vendor_bill_status: true,
     });
 
     const vendorBillsFalse = await OfferBuy.countDocuments({
       vendor: vendorId,
-      vendor_bill_status: false
+      vendor_bill_status: false,
     });
+
+    const totalEarning = await OfferBuy.aggregate([
+      {
+        $match: {
+          vendor: vendorId,
+          vendor_bill_status: true,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalEarning: { $sum: "$final_amount" },
+        },
+      },
+    ]);
 
     const uniqueUsers = await OfferBuy.distinct("user", { vendor: vendorId });
     const totalUniqueUsers = uniqueUsers.length;
@@ -513,10 +728,177 @@ exports.VendorGetId = catchAsync(async (req, res) => {
         total_offers: totalOffers,
         vendor_bill_true: vendorBillsTrue,
         vendor_bill_false: vendorBillsFalse,
-        unique_customers: totalUniqueUsers
-      }
+        unique_customers: totalUniqueUsers,
+        totalEarning: totalEarning[0] ? totalEarning[0].totalEarning : 0,
+      },
+    });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.AdminGetOfferId = catchAsync(async (req, res) => {
+  try {
+    const offerId = req.params.id;
+    const record = await Offer.findById(offerId)
+      .populate("vendor")
+      .populate("flat")
+      .populate("percentage");
+    if (!record) {
+      return validationErrorResponse(res, "Offer not found", 404);
+    }
+
+    return successResponse(res, "Offer details retrieved successfully", 200, record);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+const safeJsonParse = (value) => {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch (err) {
+      throw new Error("Invalid JSON format for inclusion/exclusion");
+    }
+  }
+  return value; // already an object/array
+};
+
+const calculateOfferAmount = ({ type, discountPercentage, maxDiscountCap }) => {
+  let baseValue = 0;
+  if (type === "flat") {
+    if (!discountPercentage || discountPercentage <= 0) return 20;
+    baseValue = discountPercentage * 0.10;
+  }
+  if (type === "percentage") {
+    if (!maxDiscountCap || maxDiscountCap <= 0) return 20;
+    baseValue = maxDiscountCap * 0.10;
+  }
+  const roundedToNearest10 = Math.ceil(baseValue / 10) * 10;
+  return Math.max(roundedToNearest10, 20);
+};
+
+const toNumber = (value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  const num = Number(value);
+  return isNaN(num) ? undefined : num;
+};
+
+exports.AdminEditOffer = catchAsync(async (req, res) => {
+  try {
+    const id = req.params.id;
+    const userId = req.user.id;
+    const offerId = new mongoose.Types.ObjectId(id);
+
+    let {
+      title,
+      description,
+      expiryDate,
+      discountPercentage,
+      maxDiscountCap,
+      minBillAmount,
+      inclusion,
+      exclusion,
+    } = req.body;
+
+    // 🔹 Parse arrays
+    inclusion = safeJsonParse(inclusion);
+    exclusion = safeJsonParse(exclusion);
+
+    // 🔹 Convert numeric fields
+    discountPercentage = toNumber(discountPercentage);
+    maxDiscountCap = toNumber(maxDiscountCap);
+    minBillAmount = toNumber(minBillAmount);
+
+    const user = await User.findById(userId);
+    if (user?.deleted_at) {
+      return validationErrorResponse(res, "Your account is blocked", 403);
+    }
+
+    const record = await Offer.findById(offerId);
+    if (!record) {
+      return errorResponse(res, "Offer not found", 404);
+    }
+
+    let isExpired;
+    if (expiryDate) {
+      const expiryEndOfDay = new Date(expiryDate);
+      expiryEndOfDay.setHours(23, 59, 59, 999);
+      isExpired = new Date() > expiryEndOfDay;
+    }
+
+    const existingOffer =
+      record.type === "flat"
+        ? await FlatOffer.findById(record.flat)
+        : await PercentageOffer.findById(record.percentage);
+
+    if (!existingOffer) {
+      return errorResponse(res, "Offer data not found", 404);
+    }
+
+    // 🔹 Prepare update payload (numbers guaranteed)
+    const updateData = {
+      title,
+      description,
+      expiryDate,
+      minBillAmount:
+        minBillAmount !== undefined
+          ? minBillAmount
+          : existingOffer.minBillAmount,
+
+      discountPercentage:
+        discountPercentage !== undefined
+          ? discountPercentage
+          : existingOffer.discountPercentage,
+
+      maxDiscountCap:
+        maxDiscountCap !== undefined
+          ? maxDiscountCap
+          : existingOffer.maxDiscountCap,
+    };
+
+    // 🔹 Recalculate amount using numbers
+    updateData.amount = calculateOfferAmount({
+      type: record.type,
+      discountPercentage: updateData.discountPercentage,
+      maxDiscountCap: updateData.maxDiscountCap,
     });
 
+    if (typeof isExpired === "boolean") {
+      updateData.isExpired = isExpired;
+    }
+
+    if (req.file?.filename) {
+      updateData.offer_image = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+
+    let updatedOffer;
+    if (record.type === "flat") {
+      updatedOffer = await FlatOffer.findByIdAndUpdate(
+        record.flat,
+        updateData,
+        { new: true, runValidators: true }
+      );
+    } else {
+      updatedOffer = await PercentageOffer.findByIdAndUpdate(
+        record.percentage,
+        updateData,
+        { new: true, runValidators: true }
+      );
+    }
+
+    // 🔹 Update inclusion/exclusion on main Offer
+    const offerUpdate = {};
+    if (Array.isArray(inclusion)) offerUpdate.inclusion = inclusion;
+    if (Array.isArray(exclusion)) offerUpdate.exclusion = exclusion;
+
+    if (Object.keys(offerUpdate).length) {
+      await Offer.findByIdAndUpdate(record._id, offerUpdate);
+    }
+
+    return successResponse(res, "Offer updated successfully", 200, updatedOffer);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
@@ -538,71 +920,33 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
         select: "name email phone role deleted_at",
       });
 
-    const active_offers = await Offer.countDocuments({
-      status: "active",
+    const active_offers = await Offer.countDocuments({ status: "active" });
+
+    const total_offer_buys = await OfferBuy.countDocuments({
+      status: { $ne: "upgraded" },
     });
 
-    const total_offer_buys = await OfferBuy.countDocuments();
+    const total_customers = await User.countDocuments({
+      role: "customer",
+      deleted_at: null,
+    });
+
     const total_vendors = await Vendor.aggregate([
-    {
-      $match: {
-        status: "active",
-      },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "user",
-        foreignField: "_id",
-        as: "user",
-      },
-    },
-    { $unwind: "$user" },
-    {
-      $match: {
-        "user.deleted_at": null,
-      },
-    },
-    {
-      $count: "total_vendors",
-    },
-  ]);
-
-  const count = total_vendors.length ? total_vendors[0].total_vendors : 0;
-
-    const now = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(now.getDate() - 6);
-
-    const dailySales = await OfferBuy.aggregate([
+      { $match: { status: "active" } },
       {
-        $match: {
-          //   vendor: new mongoose.Types.ObjectId(userId),
-          createdAt: { $gte: sevenDaysAgo, $lte: now },
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
         },
       },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
-          },
-          offers_sold: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
+      { $unwind: "$user" },
+      { $match: { "user.deleted_at": null } },
+      { $count: "total_vendors" },
     ]);
 
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      const dayKey = d.toISOString().split("T")[0];
-      const match = dailySales.find((x) => x._id === dayKey);
-      last7Days.push({
-        date: dayKey,
-        offers_sold: match ? match.offers_sold : 0,
-      });
-    }
+    const count = total_vendors.length ? total_vendors[0].total_vendors : 0;
 
     return successResponse(
       res,
@@ -610,17 +954,101 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
       200,
       {
         vendors,
-        last7Days,
         stats: {
           total_vendors: count,
           total_sales,
           active_offers,
-          total_offer_buys,
+          total_customers,
         },
       }
     );
   } catch (error) {
     console.error("AdminDashboard error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.AdminSalesStats = catchAsync(async (req, res) => {
+  try {
+    let { start, end } = req.query;
+    const now = new Date();
+
+    let startDate, endDate;
+
+    // Treat empty strings as undefined
+    start = start?.trim() || null;
+    end = end?.trim() || null;
+
+    if (start && end) {
+      startDate = new Date(start);
+      startDate.setHours(0, 0, 0, 0);
+
+      endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 29);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    // console.log("startDate", startDate);
+    // console.log("endDate", endDate);
+
+    // Aggregate daily sales
+    const dailySales = await OfferBuy.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate },
+          status: { $ne: "upgraded" },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          offers_sold: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // console.log("dailySales", dailySales);
+
+    // Build lookup for faster access
+    const salesMap = {};
+    dailySales.forEach((d) => {
+      salesMap[d._id] = d.offers_sold;
+    });
+
+    // Normalize loop dates
+    const dateArray = [];
+    let current = new Date(startDate);
+    current.setHours(0, 0, 0, 0);
+
+    const last = new Date(endDate);
+    last.setHours(0, 0, 0, 0);
+
+    while (current <= last) {
+      const dayKey = current.toISOString().slice(0, 10);
+
+      dateArray.push({
+        date: dayKey,
+        offers_sold: salesMap[dayKey] || 0,
+      });
+
+      current.setDate(current.getDate() + 1);
+    }
+
+    return successResponse(
+      res,
+      "Admin sales stats fetched successfully",
+      200,
+      dateArray
+    );
+  } catch (error) {
+    console.error("adminSalesStats error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
@@ -656,31 +1084,27 @@ exports.AssignStaff = catchAsync(async (req, res) => {
 
 exports.AddSalesPersons = catchAsync(async (req, res) => {
   try {
-    // console.log("req.body", req.body);
     const { phone, otp, role, name, email } = req.body;
-    // Validate required fields
     if (!phone || !otp || !name || !email) {
       return validationErrorResponse(
         res,
         "Phone number, OTP, Name, and Email are required.",
-        401
+        400
       );
     }
-    // OTP validation
-    if (otp !== "111111") {
+    if (otp !== "123456") {
       return validationErrorResponse(
         res,
         "Invalid or expired OTP. Please try again.",
         400
       );
     }
-    // Check if user already exists
     const existingUser = await User.findOne({ phone });
     if (existingUser) {
       return errorResponse(
         res,
-        "A Sales Person with this phone number already exists.",
-        200,
+        "An account with this phone number already exists.",
+        409,
         { role: role }
       );
     }
@@ -689,11 +1113,11 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
     }
     let avatar;
     if (req.file && req.file.filename) {
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
+        req.file.filename
+      }`;
       avatar = fileUrl;
     }
-
-    // Create new Sales Person
     const newUser = new User({
       name,
       email,
@@ -704,20 +1128,9 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
 
     const record = await newUser.save();
 
-    // Success response
-    return successResponse(res, "Sales Person registered successfully.", 200, {
+    return successResponse(res, "Account created successfully.", 200, {
       record,
     });
-
-    // Optional: Verify OTP with Twilio (currently unreachable)
-    // const verificationCheck = await client.verify.v2
-    //     .services(process.env.TWILIO_VERIFY_SID)
-    //     .verificationChecks.create({ to: phone, code: otp });
-    // if (verificationCheck.status === "approved") {
-    //     return successResponse(res, "OTP verified successfully", 200);
-    // } else {
-    //     return validationErrorResponse(res, "Invalid or expired OTP", 400);
-    // }
   } catch (error) {
     console.error("AddSalesPersons error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
@@ -727,16 +1140,22 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
 exports.EditSalesPerson = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, role, status } = req.body;
+    const { name, email, phone, role, status, otp } = req.body;
 
     const user = await User.findById(id);
-    // if (!user || user.deleted_at) {
-    //   return validationErrorResponse(res, "Sales Person not found.", 404);
-    // }
+    if (phone && phone != user.phone) {
+      if (!otp || otp !== "123456") {
+        return validationErrorResponse(
+          res,
+          "Invalid or expired OTP. Please try again.",
+          400
+        );
+      }
+      user.phone = phone;
+    }
 
     if (name) user.name = name;
     if (email) user.email = email;
-    if (phone) user.phone = phone;
     if (role) user.role = role;
     if (status) user.status = status;
 
@@ -749,7 +1168,9 @@ exports.EditSalesPerson = catchAsync(async (req, res) => {
         }
       }
 
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
+        req.file.filename
+      }`;
       user.avatar = fileUrl;
     }
 
@@ -757,7 +1178,7 @@ exports.EditSalesPerson = catchAsync(async (req, res) => {
 
     return successResponse(
       res,
-      "Sales Person updated successfully.",
+      `Profile updated successfully.`,
       200,
       updatedUser
     );
@@ -815,7 +1236,9 @@ exports.EditAdmin = catchAsync(async (req, res) => {
         }
       }
 
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
+        req.file.filename
+      }`;
       user.avatar = fileUrl;
     }
 
@@ -851,100 +1274,352 @@ exports.resetpassword = catchAsync(async (req, res) => {
 exports.SalesAdminGetId = catchAsync(async (req, res) => {
   try {
     const salesId = req.params.id;
-
-    const sales = await User.findOne({ _id: salesId, role: "sales" });
-
+    const sales = await User.findById(salesId);
     if (!sales) {
       return errorResponse(res, "Sales user not found", 404);
     }
-
     const vendors = await Vendor.find({ assign_staff: salesId });
-
     if (!vendors || vendors.length === 0) {
       return errorResponse(res, "No vendors assigned to this sales person", 404);
     }
+    const vendorIds = vendors.map((v) => v.user);
 
-    const vendorIds = vendors.map(v => v.user);
+    const offers = await Offer.find({ vendor: { $in: vendorIds } }).populate("flat").populate("percentage");
 
-    const offerStatusCount = await OfferBuy.aggregate([
-      { $match: { vendor: { $in: vendorIds } } },
+    const activeOffers = await Offer.aggregate([
       {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 }
-        }
-      }
+        $match: {
+          vendor: { $in: vendorIds },
+          status: "active",
+        },
+      },
+
+      // Lookup Flat Offers
+      {
+        $lookup: {
+          from: "flats",
+          localField: "flat",
+          foreignField: "_id",
+          as: "flatOffer",
+        },
+      },
+
+      // Lookup Percentage Offers
+      {
+        $lookup: {
+          from: "percentageoffers",
+          localField: "percentage",
+          foreignField: "_id",
+          as: "percentageOffer",
+        },
+      },
+
+      {
+        $addFields: {
+          offerData: {
+            $cond: [
+              { $eq: ["$type", "flat"] },
+              { $arrayElemAt: ["$flatOffer", 0] },
+              { $arrayElemAt: ["$percentageOffer", 0] },
+            ],
+          },
+        },
+      },
+
+      {
+        $match: {
+          "offerData.isExpired": false,
+        },
+      },
+      {
+        $project: {
+          flatOffer: 0,
+          percentageOffer: 0,
+        },
+      },
     ]);
 
-    const statusList = ["active", "expired", "redeemed", "under-dispute"];
+    const offerBuyStatsAgg = await OfferBuy.aggregate([
+      {
+        $match: {
+          vendor: { $in: vendorIds },
+          status: { $ne: "upgraded" },
+        },
+      },
+      {
+        $facet: {
+          total: [
+            { $count: "count" }
+          ],
+          billed: [
+            { $match: { vendor_bill_status: true } },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+                amount: { $sum: "$final_amount" },
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          totalOfferBuys: {
+            $ifNull: [{ $arrayElemAt: ["$total.count", 0] }, 0],
+          },
+          vendorBilledCount: {
+            $ifNull: [{ $arrayElemAt: ["$billed.count", 0] }, 0],
+          },
+          vendorBilledAmount: {
+            $ifNull: [{ $arrayElemAt: ["$billed.amount", 0] }, 0],
+          },
+        },
+      },
+    ]);
 
-    const total_stats = {};
-    statusList.forEach(st => {
-      const found = offerStatusCount.find(x => x._id === st);
-      total_stats[st] = found ? found.count : 0;
+    const offerBuyStats = offerBuyStatsAgg[0] || {
+      totalOfferBuys: 0,
+      vendorBilledCount: 0,
+      vendorBilledAmount: 0,
+    };
+
+    const allPurchases = await OfferBuy.find({
+      vendor: { $in: vendorIds },
+      status: { $ne: "upgraded" },
+    })
+      .populate("user")
+      .populate("vendor")
+      .populate("payment_id")
+      .populate("upgrade_chain_root")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .sort({ createdAt: -1 });
+
+    /** 🔁 Build upgrade lookup map (only vendor scope) */
+    const offerBuyMap = new Map();
+
+    const allRelated = await OfferBuy.find({
+      vendor: { $in: vendorIds },
+    })
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
     });
 
-    const vendor_status_list = [];
+    /** 🧠 Attach upgrade history */
+    const formattedPurchases = allPurchases.map((purchase) => {
+      const purchaseObj = purchase.toObject();
+      delete purchaseObj.upgraded_from;
 
-    for (let vendor of vendors) {
-      const stats = await OfferBuy.aggregate([
-        { $match: { vendor: vendor.user } },
-        {
-          $group: {
-            _id: "$status",
-            count: { $sum: 1 }
-          }
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchaseObj,
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() === purchase.upgrade_chain_root.toString()
+        ) {
+          break;
         }
-      ]);
 
-      const formattedVendorStatus = {};
-      statusList.forEach(st => {
-        const f = stats.find(x => x._id === st);
-        formattedVendorStatus[st] = f ? f.count : 0;
-      });
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
 
-      vendor_status_list.push({
-        vendors: vendor,
-        // vendors: vendors,
-        status_count: formattedVendorStatus
-      });
-    }
+      history.reverse();
+
+      return {
+        ...purchaseObj,
+        upgraded_from: history,
+      };
+    });
+
+
+
+    const offersCount = {
+      activeOffers: activeOffers.length,
+      totalOfferBuys: offerBuyStats.totalOfferBuys,
+      redeemedOffers: offerBuyStats.vendorBilledCount,
+      totalAmount: offerBuyStats.vendorBilledAmount,
+    };
 
     return successResponse(res, "Sales & vendor status details", 200, {
       sales,
-      // vendors,
-      total_offer_stats: total_stats,
-      vendors: vendor_status_list,
+      total_offer_stats: offersCount,
+      offers : offers,
+      vendors: vendors,
+      purchases: formattedPurchases,
     });
-
   } catch (error) {
     console.log(error);
     return errorResponse(res, "Failed to fetch vendor details", 500);
   }
 });
 
+const attachVendorData = async (records) => {
+  return Promise.all(
+    records && records?.map(async (item) => {
+      const vendorUserId = item?.vendor?._id;
+      if (!vendorUserId) {
+        return item;
+      }
+      const vendorData = await Vendor.findOne({ user: vendorUserId }).lean();
+      item.vendor= {...item?.vendor, ...vendorData};
+      return item;
+    })
+  );
+};
+
 exports.BroughtOffers = catchAsync(async (req, res) => {
   try {
-    const id = req?.user?.id;
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+    let page = Number(req.query.page) || 1;
+    let limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const total_records = await OfferBuy.countDocuments({ user: id });
-    const total_pages = Math.ceil(total_records / limit);
-    const allPurchases = await OfferBuy.find()
+    const { search, status } = req.query;
+
+    const filter = {
+      status: { $ne: "upgraded" },
+    };
+
+    if (status && status.trim() !== "") {
+      filter.vendor_bill_status = status === "pending" ? false : true;
+    }
+
+    const isSearching = search && search.trim() !== "";
+
+    /** 📦 Fetch purchases (NO pagination if searching) */
+    let allPurchasesQuery = OfferBuy.find(filter)
       .populate("user")
-      .populate("offer")
       .populate("vendor")
       .populate("payment_id")
+      .populate("upgrade_chain_root")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
       })
-      .skip(skip)
-      .limit(limit)
       .sort({ createdAt: -1 });
+
+    // ✅ Apply pagination ONLY if not searching
+    if (!isSearching) {
+      allPurchasesQuery = allPurchasesQuery.skip(skip).limit(limit);
+    }
+
+    let allPurchases = await allPurchasesQuery;
+    allPurchases = await attachVendorData(allPurchases);
+
+    // console.log("allPurchases", allPurchases);
+    // console.log("search", search);
+    // console.log("isSearching", isSearching);
+
+    /** 🔍 SEARCH (after populate) */
+    if (isSearching) {
+      const needle = search.trim().toLowerCase();
+
+      allPurchases = allPurchases.filter((purchase) => {
+        // console.log("purchase?.vendor", purchase?.vendor);
+        const vendorName = purchase?.vendor?.name?.toString().toLowerCase() || "";
+        const businessName = purchase?.vendor?.business_name?.toString().toLowerCase() || "";
+        const userName = purchase?.user?.name?.toString().toLowerCase() || "";
+
+        // console.log("vendorName", vendorName);
+        // console.log("businessName", businessName);
+        // console.log("needle", needle);
+
+        return (
+          vendorName.includes(needle) ||
+          businessName.includes(needle) ||
+          userName.includes(needle)
+        );
+      });
+    }
+
+  //  console.log("allPurchasesafter", allPurchases);
+
+
+    /** 🔁 Build upgrade lookup map */
+    const offerBuyMap = new Map();
+
+    const allRelated = await OfferBuy.find()
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** 🧠 Attach upgrade history */
+    const formattedPurchases = allPurchases.map((purchase) => {
+      const purchaseObj = purchase.toObject();
+      delete purchaseObj.upgraded_from;
+
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchaseObj,
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() === purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse();
+
+      return {
+        ...purchaseObj,
+        upgraded_from: history,
+      };
+    });
+
+    /** 📊 Pagination meta */
+    let total_records, total_pages;
+
+    if (isSearching) {
+      total_records = formattedPurchases.length;
+      total_pages = 1;
+      page = 1;
+    } else {
+      total_records = await OfferBuy.countDocuments(filter);
+      total_pages = Math.ceil(total_records / limit);
+    }
+
     return successResponse(res, "Brought offers fetched successfully", 200, {
-      purchased: allPurchases,
+      purchased: formattedPurchases,
       total_records,
       current_page: page,
       per_page: limit,
@@ -965,8 +1640,8 @@ exports.AdminGetCategories = catchAsync(async (req, res) => {
           from: "subcategories",
           localField: "_id",
           foreignField: "category_id",
-          as: "subcategories"
-        }
+          as: "subcategories",
+        },
       },
       {
         $addFields: {
@@ -976,18 +1651,221 @@ exports.AdminGetCategories = catchAsync(async (req, res) => {
               $filter: {
                 input: "$subcategories",
                 as: "sub",
-                cond: { $eq: ["$$sub.deleted_at", null] }
-              }
-            }
-          }
-        }
+                cond: { $eq: ["$$sub.deleted_at", null] },
+              },
+            },
+          },
+        },
       },
       {
-        $sort: { id: 1 }
-      }
+        $sort: { id: 1 },
+      },
     ]);
 
     return successResponse(res, "Category show", 201, categories);
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.addVendorGallery = catchAsync(async (req, res) => {
+  try {
+    const user = req.params.id;
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "No files uploaded" });
+    }
+    const fileUrls = req.files.map(
+      (file) => `${req.protocol}://${req.get("host")}/uploads/${file.filename}`
+    );
+    const vendor = await Vendor.findOne({ user: user });
+    if (!vendor) {
+      return validationErrorResponse(res, "Vendor not found", 404);
+    }
+    if (!Array.isArray(vendor.business_image)) {
+      vendor.business_image = [];
+    }
+    vendor.business_image = vendor.business_image.concat(fileUrls);
+    await vendor.save();
+    return successResponse(res, "Files uploaded successfully", 201, {
+      count: req.files.length,
+      data: fileUrls
+    });
+  } catch (error) {
+    console.log("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.deleteVendorGallery = catchAsync(async (req, res) => {
+  try {
+    const user = req.params.id;
+    const { files } = req.body; // expecting an array of file URLs
+
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ message: "No files provided" });
+    }
+
+    const vendor = await Vendor.findOne({ user });
+    if (!vendor) {
+      return validationErrorResponse(res, "Vendor not found", 404);
+    }
+
+    // ✅ Ensure vendor.gallery exists and is an array
+    if (!Array.isArray(vendor.business_image)) {
+      vendor.business_image = [];
+    }
+
+    // Delete the physical files from the server
+    deleteUploadedFiles(files);
+
+    // Filter out deleted files from vendor.business_image
+    vendor.business_image = vendor.business_image.filter(
+      (imageUrl) => !files.includes(imageUrl)
+    );
+
+    await vendor.save();
+    
+    return successResponse(res, "Files deleted successfully", 201, {
+      deletedCount: files.length,
+      remainingbusiness_image: vendor.business_image,
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.AddSubAdmin = catchAsync(async (req, res) => {
+  try {
+    const { name, email, phone, password, permissions } = req.body;
+    if (!name || !email || !phone || !password) {
+      return validationErrorResponse(
+        res,
+        "Name, Email, Phone and Password are required.",
+        400
+      );
+    }
+    const existingUser = await User.findOne({ phone });
+    if (existingUser) {
+      return errorResponse(
+        res,
+        "An account with this phone number already exists.",
+        409
+      );
+    }
+    let parsedPermissions = [];
+    if (permissions) {
+      try {
+        parsedPermissions = JSON.parse(permissions);
+        if (!Array.isArray(parsedPermissions)) {
+          return validationErrorResponse(
+            res,
+            "Permissions must be an array.",
+            400
+          );
+        }
+      } catch (err) {
+        return validationErrorResponse(res, "Invalid permissions format.", 400);
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    let avatar = null;
+    if (req.file && req.file.filename) {
+      avatar = `${req.protocol}://${req.get("host")}/uploads/${
+        req.file.filename
+      }`;
+    }
+
+    const newUser = new User({
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+      role: "sub-admin",
+      permissions: parsedPermissions,
+      avatar,
+    });
+
+    const record = await newUser.save();
+    return successResponse(res, "Sub-admin created successfully.", 201, {
+      record,
+    });
+  } catch (error) {
+    console.error("AddSubAdmin error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.UpdateSubAdmin = catchAsync(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, password, permissions } = req.body;
+
+    const user = await User.findOne({ _id: id, role: "sub-admin" });
+    if (!user) {
+      return errorResponse(res, "Sub-admin not found.", 404);
+    }
+
+    let parsedPermissions;
+    if (permissions !== undefined) {
+      try {
+        parsedPermissions = JSON.parse(permissions);
+        if (!Array.isArray(parsedPermissions)) {
+          return validationErrorResponse(
+            res,
+            "Permissions must be an array.",
+            400
+          );
+        }
+      } catch (err) {
+        return validationErrorResponse(res, "Invalid permissions format.", 400);
+      }
+    }
+
+    if (password) {
+      user.password = await bcrypt.hash(password, 12);
+    }
+
+    // console.log("req.file", req.file);
+    if (req.file && req.file.filename) {
+      user.avatar = `${req.protocol}://${req.get("host")}/uploads/${
+        req.file.filename
+      }`;
+    }
+
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (phone) user.phone = phone;
+    if (parsedPermissions !== undefined) {
+      user.permissions = parsedPermissions;
+    }
+    const record = await user.save();
+    return successResponse(res, "Sub-admin updated successfully.", 200, {
+      record,
+    });
+  } catch (error) {
+    console.error("UpdateSubAdmin error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.SubAdminGet = catchAsync(async (req, res) => {
+  try {
+    const { search = "" } = req.query;
+
+    let query = { role: "sub-admin" };
+
+    if (search.trim() !== "") {
+      const regex = { $regex: search.trim(), $options: "i" };
+      query.$or = [{ name: regex }, { email: regex }];
+    }
+    const data = await User.find(query).lean();
+    if (!data || data.length === 0) {
+      return validationErrorResponse(res, "No sub-admins found", 404);
+    }
+    return successResponse(res, "Sub-Admins fetched successfully", 200, data);
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }

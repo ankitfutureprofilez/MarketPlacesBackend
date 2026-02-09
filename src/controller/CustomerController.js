@@ -106,7 +106,7 @@ exports.VendorOfferGet = catchAsync(async (req, res) => {
 
 exports.GetOfferById = catchAsync(async (req, res) => {
   try {
-    const userId = req.query?.user_id;
+    const userId = req.query?.user_id; // optional
     const offerId = req.params.id.trim();
 
     const record = await Offer.findById(offerId)
@@ -118,12 +118,13 @@ exports.GetOfferById = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Offer not found", 404);
     }
 
-    const existingBuy = await OfferBuy.findOne({
-      offer: offerId,
-      user: userId,
-    });
+    // Conditionally add user filter only if userId exists
+    const query = { offer: offerId };
+    if (userId) {
+      query.user = userId;
+    }
 
-    console.log("existingBuy", existingBuy);
+    const existingBuy = await OfferBuy.findOne(query);
 
     const userOfferStatus = existingBuy ? true : false;
 
@@ -138,7 +139,6 @@ exports.GetOfferById = catchAsync(async (req, res) => {
     const pendingCount = offerBuys.filter((b) => b.status === "active").length;
     const expiredCount = offerBuys.filter((b) => b.status === "expired").length;
 
-    // ✅ 6. Send unified response
     return successResponse(res, "Offer details fetched successfully", 200, {
       record,
       purchase_status: userOfferStatus,
@@ -307,16 +307,20 @@ exports.getVendorById = catchAsync(async (req, res) => {
 
     console.log("record", record);
     const updatedOffers = await Promise.all(
-      offers.map(async (offer) => {
-        const existingBuy = await OfferBuy.findOne({
-          offer: offer._id,
-          user: user_id,
-        });
+  offers.map(async (offer) => {
+    const query = { offer: offer._id };
 
-        const purchase_status = existingBuy ? true : false;
-        return { ...offer.toObject(), purchase_status };
-      })
-    );
+    // only add user to query if user_id exists
+    if (user_id) {
+      query.user = user_id;
+    }
+
+    const existingBuy = await OfferBuy.findOne(query);
+
+    const purchase_status = existingBuy ? true : false;
+    return { ...offer.toObject(), purchase_status };
+  })
+);
 
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
@@ -667,23 +671,25 @@ exports.OfferBrought = catchAsync(async (req, res) => {
   try {
     const id = req?.user?.id;
 
-    // Pagination inputs
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Total records
-    const total_records = await OfferBuy.countDocuments({ user: id });
+    const total_records = await OfferBuy.countDocuments({
+      user: id,
+      status: { $ne: "upgraded" },
+    });
 
-    // Calculate total pages
     const total_pages = Math.ceil(total_records / limit);
 
-    // Fetch paginated records
-    const allPurchases = await OfferBuy.find({ user: id })
+    const allPurchases = await OfferBuy.find({
+      user: id,
+      status: { $ne: "upgraded" },
+    })
       .populate("user")
-      .populate("offer")
       .populate("vendor")
       .populate("payment_id")
+      .populate("upgrade_chain_root")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
@@ -692,9 +698,58 @@ exports.OfferBrought = catchAsync(async (req, res) => {
       .limit(limit)
       .sort({ createdAt: -1 });
 
-    // Always return 200, even if no data for this page
+    /** Build upgrade history map (performance-safe) */
+    const offerBuyMap = new Map();
+
+    const allRelated = await OfferBuy.find({
+      user: id,
+    })
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** Attach upgrade history */
+    const formattedPurchases = allPurchases.map((purchase) => {
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchase.toObject(),
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() ===
+            purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse(); // root → latest
+
+      return {
+        ...purchase.toObject(),
+        upgraded_from: history,
+      };
+    });
+
     return successResponse(res, "Brought offers fetched successfully", 200, {
-      purchased_customers: allPurchases,
+      purchased_customers: formattedPurchases,
       total_records,
       current_page: page,
       per_page: limit,
@@ -710,27 +765,77 @@ exports.OfferBrought = catchAsync(async (req, res) => {
 exports.OfferBroughtById = catchAsync(async (req, res) => {
   try {
     const id = req?.params?.id;
+
     const record = await OfferBuy.findById(id)
       .populate("user")
-      .populate("offer")
       .populate("vendor")
+      .populate("payment_id")
+      .populate("upgrade_chain_root")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      });
+
+    if (!record) {
+      return validationErrorResponse(res, "Brought Offer not found", 404);
+    }
+
+    /** 🧠 If no upgrade, normalize upgraded_from */
+    if (!record.upgraded_from) {
+      return successResponse(
+        res,
+        "Brought Offer Detail fetched successfully",
+        200,
+        {
+          ...record.toObject(),
+          upgraded_from: [],
+        }
+      );
+    }
+
+    /** 🔁 Build full upgrade history (same logic as OfferBrought) */
+    const offerBuyMap = new Map();
+
+    const allRelated = await OfferBuy.find({
+      user: record.user,
+    })
       .populate("payment_id")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
       });
-    console.log("record", record);
-    if (!record) {
-      return validationErrorResponse(res, " Brought Offer not found", 404);
+
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    const history = [];
+    let current = offerBuyMap.get(record.upgraded_from.toString());
+
+    while (current) {
+      history.push(current);
+
+      if (
+        record.upgrade_chain_root &&
+        current._id.toString() === record.upgrade_chain_root.toString()
+      ) {
+        break;
+      }
+
+      current = current.upgraded_from
+        ? offerBuyMap.get(current.upgraded_from.toString())
+        : null;
     }
-    return successResponse(
-      res,
-      "Brought Offer Detail fetched successfully",
-      200,
-      record
-    );
+
+    history.reverse(); // root → latest
+
+    return successResponse(res, "Brought Offer Detail fetched successfully", 200,
+      {
+        ...record.toObject(),
+        upgraded_from: history,
+      });
   } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
+    return errorResponse(error.message || "Internal Server Error", 500);
   }
 });
 
@@ -766,13 +871,19 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
     if (!id) {
       return validationErrorResponse(res, "User ID is required", 400);
     }
+
     const skip = (page - 1) * limit;
 
-    let record = await OfferBuy.find({ user: id, vendor_bill_status: true })
+    let record = await OfferBuy.find({
+      user: id,
+      vendor_bill_status: true,
+      status: { $ne: "upgraded" },
+    })
       .populate("user")
       .populate("offer")
       .populate("vendor")
       .populate("payment_id")
+      .populate("upgrade_chain_root")
       .populate({
         path: "offer",
         populate: [{ path: "flat" }, { path: "percentage" }],
@@ -782,13 +893,64 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
+    /** 🔹 Build lookup map for upgrade history */
+    const allRelated = await OfferBuy.find({ user: id })
+      .populate("payment_id")
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .lean();
+
+    const offerBuyMap = new Map();
+    allRelated.forEach((doc) => {
+      offerBuyMap.set(doc._id.toString(), doc);
+    });
+
+    /** 🔹 Attach upgrade history to upgraded_from */
+    record = record.map((purchase) => {
+      if (!purchase.upgraded_from) {
+        return {
+          ...purchase,
+          upgraded_from: [],
+        };
+      }
+
+      const history = [];
+      let current = offerBuyMap.get(purchase.upgraded_from.toString());
+
+      while (current) {
+        history.push(current);
+
+        if (
+          purchase.upgrade_chain_root &&
+          current._id.toString() ===
+            purchase.upgrade_chain_root.toString()
+        ) {
+          break;
+        }
+
+        current = current.upgraded_from
+          ? offerBuyMap.get(current.upgraded_from.toString())
+          : null;
+      }
+
+      history.reverse(); // root → latest
+
+      return {
+        ...purchase,
+        upgraded_from: history,
+      };
+    });
+
+    /** 🔹 Existing logic (untouched) */
     record = await attachVendorLogos(record);
 
-    // ✅ Count total records
     const total_records = await OfferBuy.countDocuments({
       user: id,
       vendor_bill_status: true,
     });
+
     const total_pages = Math.ceil(total_records / limit);
 
     if (!record) {
@@ -831,8 +993,8 @@ exports.AddPayment = catchAsync(async (req, res) => {
     console.log("req.body", req.body);
 
     const razorpay = new Razorpay({
-      key_id: "rzp_test_RQ3O3IWq0ayjsg",
-      key_secret: "RcwuasbTHAdmm1mrZTiigw2x",
+      key_id: "rzp_test_Rxncr3PhssgP4K",
+      key_secret: "3EFVLS4DwGe1lwEayh3HzzNx",
     });
 
     // ✅ Pehle ORDER create karen with notes
@@ -949,7 +1111,7 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
         (offerData.discountPercentage * total_amount) / 100
       );
 
-      final = total_amount - discount;
+      final = total_amount - discount - record?.offer_paid_amount;
     } else if (record?.offer?.type === "flat") {
       const offerData = record.offer.flat;
       if (total_amount < offerData.minBillAmount) {
@@ -960,7 +1122,7 @@ exports.UpdateCustomerAmount = catchAsync(async (req, res) => {
         );
       }
       discount = offerData?.discountPercentage;
-      final = total_amount - discount;
+      final = total_amount - discount - record?.offer_paid_amount;
     } else {
       console.log("invalid offer type");
     }
@@ -1054,7 +1216,7 @@ exports.customerphoneUpdate = catchAsync(async (req, res) => {
     }
     const { phone, otp } = req.body;
     if (!otp) {
-      return validationErrorResponse(res, "Phone number is required", 401);
+      return validationErrorResponse(res, "Phone number is required", 400);
     }
     if (otp !== "123456") {
       return validationErrorResponse(res, "Invalid OTP", 400);
@@ -1067,6 +1229,378 @@ exports.customerphoneUpdate = catchAsync(async (req, res) => {
     return successResponse(res, "Customer updated successfully", 200, {
       vendordata,
     });
+  } catch (error) {
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+// Old api commented kyonki bhim convince nhi hai. Now sending all eligible offers instead of one
+// exports.eligibleOffers = catchAsync(async (req, res) => {
+//   try {
+//     const { vendorId, offerId, bill } = req.query;
+
+//     if (!vendorId || !offerId || !bill) {
+//       return validationErrorResponse(
+//         res,
+//         "vendorId, offerId and bill are required",
+//         400
+//       );
+//     }
+
+//     const billAmount = Number(bill);
+//     if (isNaN(billAmount) || billAmount <= 0) {
+//       return validationErrorResponse(res, "Invalid bill amount", 400);
+//     }
+
+//     const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
+//     const currentOfferId = new mongoose.Types.ObjectId(offerId);
+
+//     const currentOffer = await Offer.findById(currentOfferId)
+//       .populate("percentage")
+//       .populate("flat");
+
+//     if (!currentOffer) {
+//       return validationErrorResponse(res, "Current offer not found", 400);
+//     }
+
+//     const currentOfferAmount =
+//       currentOffer.type === "percentage"
+//         ? currentOffer.percentage?.amount || 0
+//         : currentOffer.flat?.amount || 0;
+
+//     // console.log("currentOfferAmount", currentOfferAmount);
+
+//     let currentDiscount = 0;
+
+//     if (currentOffer.type === "percentage" && currentOffer.percentage) {
+//       const o = currentOffer.percentage;
+//       currentDiscount = Math.min(
+//         o.maxDiscountCap,
+//         (o.discountPercentage * billAmount) / 100
+//       );
+//     } else if (currentOffer.type === "flat" && currentOffer.flat) {
+//       currentDiscount = currentOffer.flat.discountPercentage;
+//     }
+
+//     // console.log("currentDiscount", currentDiscount);
+
+//     const offers = await Offer.find({
+//       vendor: vendorObjectId,
+//       status: "active",
+//       _id: { $ne: currentOfferId },
+//     })
+//       .populate("percentage")
+//       .populate("flat");
+
+//     // console.log("offers", offers);
+
+//     let bestOffer = null;
+
+//     for (const offer of offers) {
+//       let targetAmount = 0;
+//       let discount = 0;
+//       let minimum_bill_amount = 0;
+
+//       if (offer.type === "percentage" && offer.percentage) {
+//         const o = offer.percentage;
+//         if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
+//         targetAmount = o.amount || 0;
+//         discount = Math.min(o.maxDiscountCap,(o.discountPercentage*billAmount)/100);
+//         minimum_bill_amount = offer?.percentage?.minBillAmount;
+//       }
+//       else if (offer.type === "flat" && offer.flat) {
+//         const o = offer.flat;
+//         if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
+//         targetAmount = o.amount || 0;
+//         discount = o.discountPercentage;
+//         minimum_bill_amount = offer?.flat?.minBillAmount;
+//       }
+
+//       // console.log("targetAmount", targetAmount);
+//       // console.log("discount", discount);
+
+//       if (targetAmount <= currentOfferAmount) continue;
+//       if (discount <= currentDiscount) continue;
+
+//       const amountRequiredToUpgrade = targetAmount - currentOfferAmount;
+//       const additionalAmountToShop = Math.max(0, minimum_bill_amount - billAmount);
+
+//       if (!bestOffer || amountRequiredToUpgrade < bestOffer.amount_required_to_upgrade) {
+//         bestOffer = {
+//           offer,
+//           // discount,
+//           additionalAmountToShop,
+//           amount_required_to_upgrade: amountRequiredToUpgrade,
+//           new_offer_amount: targetAmount,
+//         };
+//       }
+//     }
+//     return successResponse(res,"Eligible upgrade offer fetched successfully",200,{eligibleOffer: bestOffer,});
+//   } catch (error) {
+//     return errorResponse(res, error.message || "Internal Server Error", 500);
+//   }
+// });
+
+exports.eligibleOffers = catchAsync(async (req, res) => {
+  try {
+    const { vendorId, offerId, bill } = req.query;
+
+    if (!vendorId || !offerId || !bill) {
+      return validationErrorResponse(
+        res,
+        "vendorId, offerId and bill are required",
+        400
+      );
+    }
+
+    const billAmount = Number(bill);
+    if (isNaN(billAmount) || billAmount < 0) {
+      return validationErrorResponse(res, "Invalid bill amount", 400);
+    }
+
+    const vendorObjectId = new mongoose.Types.ObjectId(vendorId);
+    const currentOfferId = new mongoose.Types.ObjectId(offerId);
+
+    const currentOffer = await Offer.findById(currentOfferId)
+      .populate("percentage")
+      .populate("flat");
+
+    if (!currentOffer) {
+      return validationErrorResponse(res, "Current offer not found", 400);
+    }
+
+    let currentOfferMinPrice = currentOffer?.percentage?.minBillAmount || currentOffer?.flat?.minBillAmount;
+
+    if(currentOfferMinPrice>billAmount){
+      return successResponse(res, "Price less then min amount of current offer", 200, { eligibleOffers:[] });
+    }
+
+
+    /** Current offer price */
+    const currentOfferAmount =
+      currentOffer.type === "percentage"
+        ? currentOffer?.percentage?.amount || 0
+        : currentOffer?.flat?.amount || 0;
+
+    /** Fetch all other active offers of vendor */
+    const offers = await Offer.find({
+      vendor: vendorObjectId,
+      status: "active",
+      _id: { $ne: currentOfferId },
+    })
+      .populate("percentage")
+      .populate("flat");
+
+    // console.log("offers", offers);
+    const eligibleOffers = [];
+
+    for (const offer of offers) {
+      let offerAmount = 0;
+      let minBillAmount = 0;
+
+      /** Percentage Offer */
+      if (offer.type === "percentage" && offer.percentage) {
+        const o = offer.percentage;
+        if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
+
+        offerAmount = o.amount || 0;
+        minBillAmount = o.minBillAmount || 0;
+      }
+
+      /** Flat Offer */
+      else if (offer.type === "flat" && offer.flat) {
+        const o = offer.flat;
+        if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
+
+        offerAmount = o.amount || 0;
+        minBillAmount = o.minBillAmount || 0;
+      } else {
+        continue;
+      }
+
+      /** Only higher and equally priced offers */
+      if (offerAmount < currentOfferAmount) continue;
+
+      /** Need to shop (never negative) */
+      const needToShop = Math.max(0, minBillAmount - billAmount);
+
+      /** Upgrade price (always positive here) */
+      const upgradePrice = Math.max(1, offerAmount - currentOfferAmount);
+
+      eligibleOffers.push({
+        offer,
+        needToShop,
+        upgradePrice,
+        newOfferAmount: offerAmount,
+        currentOfferAmount,
+      });
+    }
+
+    return successResponse(
+      res,
+      "Eligible upgrade offers fetched successfully",
+      200,
+      { eligibleOffers }
+    );
+  } catch (error) {
+    return errorResponse(
+      res,
+      error.message || "Internal Server Error",
+      500
+    );
+  }
+});
+
+exports.offerUpgrade = catchAsync(async (req, res) => {
+  try {
+    // const userId = req.body.userId;
+    const userId = req.user.id;
+    const { old_offer_buy_id, new_offer_id, currency } = req.body;
+
+    if (!old_offer_buy_id || !new_offer_id) {
+      return errorResponse(res, "Old Offer Id and New Offer Id are required", 400);
+    }
+
+    // 1️⃣ Fetch the exact offer the user wants to upgrade
+    const currentOfferBuy = await OfferBuy.findById(old_offer_buy_id).populate("offer vendor payment_id");
+
+    if (!currentOfferBuy) {
+      return errorResponse(res, "Offer not found or not eligible for upgrade", 400);
+    }
+
+    // 2️⃣ Fetch new offer
+    const newOffer = await Offer.findById(new_offer_id).populate("vendor flat percentage");
+
+    if (!newOffer) {
+      return errorResponse(res, "New offer not found", 200);
+    }
+
+    // 3️⃣ Vendor validation (CRITICAL)
+    if (currentOfferBuy.vendor._id.toString() !== newOffer.vendor._id.toString()) {
+      return errorResponse(res, "Cross-vendor upgrade not allowed", 400);
+    }
+
+    // 4️⃣ Price calculation
+    const oldAmount = currentOfferBuy?.payment_id?.amount || 0;
+
+    // ⚠️ Replace this with your actual pricing logic
+    const newAmount = newOffer?.flat?.amount || newOffer?.percentage?.amount || 0;
+
+    if (newAmount < oldAmount) {
+      return errorResponse(res, "Upgrade amount must be greater than current offer", 400);
+    }
+
+    const upgradeAmount = Math.max(1, newAmount - oldAmount);
+
+    // 5️⃣ Resolve upgrade chain root
+    const upgradeChainRoot =
+      currentOfferBuy.upgrade_chain_root || currentOfferBuy._id;
+
+    // 6️⃣ Razorpay instance
+    const razorpay = new Razorpay({
+      key_id: "rzp_test_Rxncr3PhssgP4K",
+      key_secret: "3EFVLS4DwGe1lwEayh3HzzNx",
+    });
+
+    // 7️⃣ Create Razorpay order
+    const orderOptions = {
+      amount: upgradeAmount * 100,
+      currency: currency || "INR",
+      receipt: `upgrade_${Date.now()}`,
+      payment_capture: 1,
+      notes: {
+        payment_type: "upgrade",
+        userid: userId,
+        vendor_id: currentOfferBuy.vendor._id.toString(),
+        old_offer_buy_id: currentOfferBuy._id.toString(),
+        new_offer_id: new_offer_id,
+        upgrade_chain_root: upgradeChainRoot.toString(),
+      },
+    };
+
+    const order = await razorpay.orders.create(orderOptions);
+
+    return successResponse(res, "Upgrade order created successfully", 200, {
+      order,
+      upgradeAmount,
+      oldOffer: currentOfferBuy.offer,
+      newOffer,
+    });
+  } catch (error) {
+    console.error("❌ Offer upgrade error:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+});
+
+exports.getTransactions = catchAsync(async (req, res) => {
+  try {
+    const userId = req?.user?.id;
+
+    const offerBuys = await OfferBuy.find({ user: userId })
+      .populate({
+        path: "payment_id",
+        select: "amount payment_type payment_date payment_id",
+      })
+      .populate({
+        path: "offer",
+        populate: [{ path: "flat" }, { path: "percentage" }],
+      })
+      .populate({
+        path: "upgraded_from",
+        populate: {
+          path: "offer",
+          populate: [{ path: "flat" }, { path: "percentage" }],
+        },
+      })
+      .sort({ createdAt: -1 });
+
+    let transactions = [];
+
+    offerBuys.forEach((ob) => {
+      const payment = ob.payment_id;
+
+      if (payment && !ob.upgraded_from) {
+        transactions.push({
+          type: "OFFER_BUY",
+          amount: payment.amount,
+          offerBuyId: ob._id,
+          offerName: ob.offer?.flat?.title || ob.offer?.percentage?.title || null,
+          paymentId: payment.payment_id,
+          createdAt: ob.createdAt,
+        });
+      }
+
+      if (payment && ob.upgraded_from) {
+        transactions.push({
+          type: "OFFER_UPGRADE",
+          amount: payment.amount,
+          offerBuyId: ob._id,
+          // offerId: ob.offer?._id || null,
+          offerName: ob.offer?.flat?.title || ob.offer?.percentage?.title || null,
+          paymentId: payment.payment_id,
+          upgradedFrom: ob?.upgraded_from?.offer?.flat?.title || ob?.upgraded_from?.offer?.percentage?.title,
+          createdAt: ob.createdAt,
+        });
+      }
+
+      if (ob.vendor_bill_status === true && ob.final_amount && ob.used_time) {
+        transactions.push({
+          type: "OFFLINE_PAYMENT",
+          amount: ob.final_amount,
+          offerBuyId: ob._id,
+          // offerId: ob.offer?._id || null,
+          offerName: ob.offer?.flat?.title || ob.offer?.percentage?.title || null,
+          paymentId: null,
+          createdAt: ob.used_time,
+        });
+      }
+    });
+
+    // Sort final timeline by time DESC
+    transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    return successResponse(res, "User transactions fetched successfully", 200, transactions,
+    );
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }

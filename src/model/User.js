@@ -41,24 +41,18 @@ const UserSchema = new mongoose.Schema({
         type: String,
         minlength: [8, "Password must be at least 8 characters long"],
     },
-    OTP: {
-        type: String,
-        maxlength: [6, "OTP must be at most 6 digits"],
-    },
-    // status: {
-    //     type: String,
-    //     values: ["active", "inactive"],
-    //     enums: ["active", "inactive"],
-    //     default: "active",
-    // },
     role: {
         type: String,
         enum: {
-            values: ["admin", "customer", "sales", "vendor"],
-            enums: ["admin", "customer", "sales", "vendor"],
-            message: "Role must be admin, customer, saless, or vendor"
+            values: ["admin", "customer", "sales", "vendor", "sub-admin"],
+            enums: ["admin", "customer", "sales", "vendor", "sub-admin"],
+            message: "Role must be admin, sub-admin, customer, sales, or vendor"
         },
         default: "customer",
+    },
+    permissions: {
+        type: [String],
+        default: [],
     },
     deleted_at: {
         type: Date,
