@@ -15,14 +15,22 @@ const client = twilio(
 
 exports.SendOtp = catchAsync(async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, role } = req.body;
     if (!phone) {
-      return validationErrorResponse(res, "Phone number is required", 401);
+      return validationErrorResponse(res, "Phone number is required", 400);
     }
+
+    if(phone.length != 10){
+      return validationErrorResponse(res, "Invalid phone number", 400);
+    }
+
     const user = await User.findOne({phone: phone});
+    if(role == "sales" && !user){
+      return errorResponse(res, "Account does not exist", 404);
+    }
     if (user) {
-      if (user?.deleted_at != null) {
-        return errorResponse(res, "This account is blocked", 200);
+      if (user?.deleted_at != null && role != "customer") {
+        return errorResponse(res, "This account is blocked", 403);
       }
     }
 
@@ -52,11 +60,11 @@ exports.Login = catchAsync(async (req, res) => {
       return validationErrorResponse(
         res,
         "Phone number, OTP and role all are required",
-        401
+        400
       );
     }
     if (otp !== "123456") {
-        return validationErrorResponse(res, "Invalid or expired OTP", 400);
+        return validationErrorResponse(res, "Invalid or expired OTP", 200);
     }
     const user = await User.findOne({phone: phone});
     if (!user) {
@@ -66,16 +74,16 @@ exports.Login = catchAsync(async (req, res) => {
     }
     
     if(user?.role !== role){
-      return errorResponse(res, "Invalid role selected", 401);
+      return errorResponse(res, "Invalid role selected", 403);
     }
 
     if (user?.deleted_at != null) {
-      return errorResponse(res, "This account is blocked", 200);
+      return errorResponse(res, "This account is blocked", 403);
     }
 
     const token = jwt.sign(
       { id: user._id, role: user.role, email: user.email },
-      process.env.JWT_SECRET_KEY,
+      process.env.JWT_SECRET_KEY, 
       { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
     );
     // console.log("token" ,token)
@@ -106,7 +114,7 @@ exports.signup = catchAsync(async (req, res) => {
 
     // Check if required fields are provided
     if (!name || !role) {
-      return res.status(401).json({
+      return res.status(400).json({
         status: false,
         message: "All fields are required",
       });
