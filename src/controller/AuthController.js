@@ -16,6 +16,7 @@ const client = twilio(
 exports.SendOtp = catchAsync(async (req, res) => {
   try {
     const { phone, role } = req.body;
+    console.log("phone :", phone)
     if (!phone) {
       return validationErrorResponse(res, "Phone number is required", 400);
     }
@@ -34,18 +35,18 @@ exports.SendOtp = catchAsync(async (req, res) => {
       }
     }
 
-
     return successResponse(res, "OTP sent successfully", 200);
 
-    const verification = await client.verify.v2
-      .services(process.env.TWILIO_VERIFY_SID)
-      .verifications.create({ to: phone, channel: "sms" });
+    // const verification = await client.verify.v2
+    //   .services(process.env.TWILIO_VERIFY_SID)
+    //   .verifications.create({ to: phone, channel: "sms" });
 
-    if (verification.status === "pending") {
-      return successResponse(res, "OTP sent successfully", 200);
-    } else {
-      return errorResponse(res, "Failed to send OTP", 500);
-    }
+    // if (verification.status === "pending") {
+    //   return successResponse(res, "OTP sent successfully", 200);
+    // } 
+    // else {
+    //   return errorResponse(res, "Failed to send OTP", 500);
+    // }
   } catch (error) {
     console.error("SendOtp error:", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
