@@ -65,7 +65,7 @@ exports.UserGet = catchAsync(async (req, res) => {
       const regex = { $regex: search.trim(), $options: "i" };
       query.$or = [{ name: regex }, { email: regex }];
     }
-    const customers = await User.find(query);
+    const customers = await User.find(query).sort({createdAt: -1});
     if (!customers || customers.length === 0) {
       return validationErrorResponse(res, "No Users found", 404);
     }
@@ -928,7 +928,7 @@ exports.AdminDashboard = catchAsync(async (req, res) => {
 
     const total_customers = await User.countDocuments({
       role: "customer",
-      deleted_at: null,
+      // deleted_at: null,
     });
 
     const total_vendors = await Vendor.aggregate([
