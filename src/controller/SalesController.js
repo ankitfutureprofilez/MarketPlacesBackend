@@ -18,10 +18,28 @@ exports.SalesGetId = catchAsync(async (req, res) => {
     }
 })
 
+const ADDRESS_PROOFS = [
+  "aadhaar_front",
+  "aadhaar_back",
+  "pan_card_image",
+  "driving_license",
+  "passport",
+];
+
+const BUSINESS_PROOFS = [
+  "gst_certificate",
+  "udhyam",
+  "trade_license",
+  "shop_license",
+];
+
 exports.VendorRegister = catchAsync(async (req, res) => {
+  let savedUser;
+
   try {
-    const StaffID =  req.user.id;
-    const {
+    const StaffID = req.user.id;
+
+    let {
       business_name,
       city,
       category,
@@ -38,7 +56,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       opening_hours,
       weekly_off_day,
       business_register,
-      email
+      email,
     } = req.body;
 
     // 🔹 Check if user already exists
@@ -47,29 +65,85 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       return errorResponse(res, "Phone number already exists", 400);
     }
 
-    // 🔹 Uploaded files handling
+    // 🔹 Normalize weekly_off_day (same as vendor)
+    if (weekly_off_day) {
+      if (typeof weekly_off_day === "string") {
+        try {
+          weekly_off_day = JSON.parse(weekly_off_day);
+        } catch (err) {
+          return errorResponse(res, "Invalid weekly_off_day format", 400);
+        }
+      }
+
+      if (!Array.isArray(weekly_off_day)) {
+        return errorResponse(res, "weekly_off_day must be an array", 400);
+      }
+
+      weekly_off_day = weekly_off_day
+        .map((d) => new Date(d))
+        .filter((d) => !isNaN(d.getTime()));
+    }
+
+    // 🔹 Uploaded files
     const uploadedFiles = req.files || {};
+
+    const hasAtLeastOneFile = (keys) =>
+      keys.some(
+        (key) =>
+          uploadedFiles[key] &&
+          Array.isArray(uploadedFiles[key]) &&
+          uploadedFiles[key].length > 0
+      );
+
+    const hasAddressProof = hasAtLeastOneFile(ADDRESS_PROOFS);
+    const hasBusinessProof = hasAtLeastOneFile(BUSINESS_PROOFS);
+
+    if (!hasAddressProof) {
+      return errorResponse(
+        res,
+        "At least one address proof document is required",
+        400
+      );
+    }
+
+    if (!hasBusinessProof) {
+      return errorResponse(
+        res,
+        "At least one business proof document is required",
+        400
+      );
+    }
+
     const makeFileUrl = (fieldName) => {
-      if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0) return null;
+      if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0)
+        return null;
       const file = uploadedFiles[fieldName][0];
       return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
     };
 
-    // 🔹 Create user first
-    const user = new User({ name, phone, role: "vendor", email });
-    const savedUser = await user.save();
+    // 🔹 Create user
+    const user = new User({
+      name,
+      phone,
+      role: "vendor",
+      email,
+    });
+
+    savedUser = await user.save();
     if (!savedUser) {
       return errorResponse(res, "Failed to create user", 500);
     }
 
-    // 🔹 Safely cast category/subcategory to ObjectId (if valid)
+    // 🔹 Safe ObjectId cast
     const safeObjectId = (val) => {
       if (!val) return null;
       const trimmed = val.trim();
-      return mongoose.isValidObjectId(trimmed) ? new mongoose.Types.ObjectId(trimmed) : null;
+      return mongoose.isValidObjectId(trimmed)
+        ? new mongoose.Types.ObjectId(trimmed)
+        : null;
     };
 
-    // 🔹 Create vendor with file URLs
+    // 🔹 Create vendor
     const vendor = new Vendor({
       business_name,
       city,
@@ -80,7 +154,6 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       email,
       area,
       user: savedUser._id,
-      added_by: null,
       address,
       lat,
       long,
@@ -88,13 +161,22 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       opening_hours,
       weekly_off_day,
       business_register,
+      // Address proofs
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
+      driving_license: makeFileUrl("driving_license"),
+      passport: makeFileUrl("passport"),
+      // Business proofs
       gst_certificate: makeFileUrl("gst_certificate"),
+      udhyam: makeFileUrl("udhyam"),
+      trade_license: makeFileUrl("trade_license"),
+      shop_license: makeFileUrl("shop_license"),
+      // Business logo
       business_logo: makeFileUrl("business_logo"),
-      assign_staff : StaffID,
-      added_by :StaffID
+      // Sales-specific
+      assign_staff: StaffID,
+      added_by: StaffID,
     });
 
     const savedVendor = await vendor.save();
@@ -106,9 +188,9 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       user: savedVendor,
       role: savedUser.role,
     });
-
   } catch (error) {
-    console.error("Vendor registration failed:", error);
+    console.error("Sales vendor registration failed:", error);
+
     if (savedUser && savedUser._id) {
       await User.findByIdAndDelete(savedUser._id);
     }
@@ -350,30 +432,30 @@ exports.OTPVerify = catchAsync(async (req, res) => {
 //Vendor Update Api
 exports.vendorUpdate = catchAsync(async (req, res) => {
   try {
-    const vendorId = req.params.id;
+    const vendorUserId = req.params.id;
+    const salesId = req.user?.id;
 
-    const salesId =   req.user?.id 
-
-    if (!vendorId) {
+    if (!vendorUserId) {
       return validationErrorResponse(res, "Vendor ID missing", 400);
     }
 
     // -----------------------------
-    // 1) Handle uploaded files
+    // 1) Uploaded files
     // -----------------------------
     const uploadedFiles = req.files || {};
 
     const makeFileUrl = (fieldName) => {
       if (!uploadedFiles[fieldName] || uploadedFiles[fieldName].length === 0)
-        return undefined; // IMPORTANT → undefined means do not update field
+        return undefined; // 👈 do not overwrite existing value
 
       const file = uploadedFiles[fieldName][0];
       return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
     };
+
     // -----------------------------
-    // 2) Parse body fields
+    // 2) Parse & normalize body
     // -----------------------------
-    const {
+    let {
       business_name,
       city,
       state,
@@ -391,30 +473,58 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       weekly_off_day,
       business_register,
       email,
-      avatar
+      avatar,
     } = req.body;
+
+    // Normalize weekly_off_day (same as vendor register)
+    if (weekly_off_day) {
+      if (typeof weekly_off_day === "string") {
+        try {
+          weekly_off_day = JSON.parse(weekly_off_day);
+        } catch {
+          return validationErrorResponse(
+            res,
+            "Invalid weekly_off_day format",
+            400
+          );
+        }
+      }
+
+      if (!Array.isArray(weekly_off_day)) {
+        return validationErrorResponse(
+          res,
+          "weekly_off_day must be an array",
+          400
+        );
+      }
+
+      weekly_off_day = weekly_off_day
+        .map((d) => new Date(d))
+        .filter((d) => !isNaN(d.getTime()));
+    }
 
     // -----------------------------
     // 3) Safe ObjectId casting
     // -----------------------------
     const safeObjectId = (val) => {
       if (!val) return undefined;
-      return mongoose.isValidObjectId(val.trim())
-        ? new mongoose.Types.ObjectId(val.trim())
+      const trimmed = val.trim();
+      return mongoose.isValidObjectId(trimmed)
+        ? new mongoose.Types.ObjectId(trimmed)
         : undefined;
     };
 
     // -----------------------------
-    // 4) Update User model
+    // 4) Update User (basic info)
     // -----------------------------
     await User.findByIdAndUpdate(
-      vendorId,
+      vendorUserId,
       { name, email, avatar },
       { new: true }
     );
 
     // -----------------------------
-    // 5) Prepare vendor update payload
+    // 5) Vendor update payload
     // -----------------------------
     const vendorUpdateData = {
       business_name,
@@ -424,7 +534,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       subcategory: safeObjectId(subcategory),
       pincode,
       area,
-      name,
       phone,
       lat,
       long,
@@ -434,24 +543,40 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       weekly_off_day,
       business_register,
       email,
-      // Update only if new file uploaded
+
+      // Address proofs
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
+      driving_license: makeFileUrl("driving_license"),
+      passport: makeFileUrl("passport"),
+
+      // Business proofs
       gst_certificate: makeFileUrl("gst_certificate"),
+      udhyam: makeFileUrl("udhyam"),
+      trade_license: makeFileUrl("trade_license"),
+      shop_license: makeFileUrl("shop_license"),
+
+      // Business logo
       business_logo: makeFileUrl("business_logo"),
-      added_by:salesId, 
-      assign_staff :salesId
+
+      // Sales metadata
+      added_by: salesId,
+      assign_staff: salesId,
     };
-    // Remove undefined fields (means frontend didn't send + no file uploaded)
+
+    // 🔹 Remove undefined fields (no overwrite)
     Object.keys(vendorUpdateData).forEach((key) => {
-      if (vendorUpdateData[key] === undefined) delete vendorUpdateData[key];
+      if (vendorUpdateData[key] === undefined) {
+        delete vendorUpdateData[key];
+      }
     });
+
     // -----------------------------
-    // 6) Update Vendor model
+    // 6) Update Vendor
     // -----------------------------
     const vendordata = await Vendor.findOneAndUpdate(
-      { user: vendorId },
+      { user: vendorUserId },
       vendorUpdateData,
       { new: true, runValidators: true }
     ).populate("user");
@@ -463,7 +588,6 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     return successResponse(res, "Vendor updated successfully", 200, {
       vendordata,
     });
-
   } catch (error) {
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }

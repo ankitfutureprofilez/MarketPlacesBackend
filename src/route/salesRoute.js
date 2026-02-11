@@ -5,22 +5,38 @@ const router = require("express").Router();
 
 router.get("/sales/vendor", verifyToken, VendorGetAll);
 router.post("/sales/vendor_status", VendorStatus);
-router.post("/sales/vendor-add", verifyToken,
-    upload.fields([
-        { name: "aadhaar_front", maxCount: 1 },
-        { name: "aadhaar_back", maxCount: 1 },
-        { name: "pan_card_image", maxCount: 1 },
-        { name: "gst_certificate", maxCount: 1 },
-        { name: "business_logo", maxCount: 1 },
-    ]), VendorRegister);
+router.post("/sales/vendor-add",verifyToken,
+  upload.fields([
+    // Address proofs
+    { name: "aadhaar_front", maxCount: 1 },
+    { name: "aadhaar_back", maxCount: 1 },
+    { name: "pan_card_image", maxCount: 1 },
+    { name: "driving_license", maxCount: 1 },
+    { name: "passport", maxCount: 1 },
+    // Business proofs
+    { name: "gst_certificate", maxCount: 1 },
+    { name: "udhyam", maxCount: 1 },
+    { name: "trade_license", maxCount: 1 },
+    { name: "shop_license", maxCount: 1 },
+    // Business logo
+    { name: "business_logo", maxCount: 1 },
+  ]),VendorRegister);
 router.post("/sales/vendor-update/:id", verifyToken,
-    upload.fields([
-        { name: "aadhaar_front", maxCount: 1 },
-        { name: "aadhaar_back", maxCount: 1 },
-        { name: "pan_card_image", maxCount: 1 },
-        { name: "gst_certificate", maxCount: 1 },
-        { name: "business_logo", maxCount: 1 },
-    ]), vendorUpdate);
+  upload.fields([
+    // Address proofs
+    { name: "aadhaar_front", maxCount: 1 },
+    { name: "aadhaar_back", maxCount: 1 },
+    { name: "pan_card_image", maxCount: 1 },
+    { name: "driving_license", maxCount: 1 },
+    { name: "passport", maxCount: 1 },
+    // Business proofs
+    { name: "gst_certificate", maxCount: 1 },
+    { name: "udhyam", maxCount: 1 },
+    { name: "trade_license", maxCount: 1 },
+    { name: "shop_license", maxCount: 1 },
+    // Business logo
+    { name: "business_logo", maxCount: 1 },
+  ]), vendorUpdate);
 router.get("/sales/dashboard", verifyToken, Dashboard);
 
 router.get("/sales/sales_id/:id", SalesGetId);
