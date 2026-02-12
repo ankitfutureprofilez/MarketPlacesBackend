@@ -1258,16 +1258,43 @@ exports.EditAdmin = catchAsync(async (req, res) => {
 
 exports.resetpassword = catchAsync(async (req, res) => {
   try {
-    const { email, newPassword } = req.body;
-    const user = await User.findOne({ email });
+    const { email, oldPassword, newPassword } = req.body;
+
+    // Validation
+    if (!email || !oldPassword || !newPassword) {
+      return res.status(400).json({
+        message: "Email, old password and new password are required",
+      });
+    }
+
+    // Find user by email and explicitly get password
+    const user = await User.findOne({ email }).select("+password");
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    user.password = newPassword;
+
+    // Compare old password
+    const isPasswordValid = await bcrypt.compare(
+      oldPassword,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Old password is incorrect",});
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Save new password
+    user.password = hashedPassword;
     await user.save();
-    res.json({ message: "Password has been reset successfully!" });
+
+    return res.status(200).json({message: "Password updated successfully!",});
   } catch (error) {
-    res.status(500).json({ message: "Error resetting password", error });
+    console.error("Reset password error:", error);
+    return res.status(500).json({ message: "Error resetting password", error: error.message,});
   }
 });
 
