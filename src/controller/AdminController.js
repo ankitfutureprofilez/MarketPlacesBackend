@@ -353,7 +353,8 @@ exports.AdminVendorGet = catchAsync(async (req, res) => {
       .populate("user")
       .populate("category")
       .populate("subcategory")
-      .populate("assign_staff");
+      .populate("assign_staff")
+      .sort({ createdAt: -1 });
 
     return res.json({
       message: "Vendor Get!!",
