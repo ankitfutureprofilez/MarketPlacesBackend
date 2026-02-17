@@ -217,6 +217,10 @@ exports.CustomerGetId = catchAsync(async (req, res) => {
               ],
             },
           },
+
+          totalOfferPaidAmount: {
+            $sum: { $ifNull: ["$offer_paid_amount", 0] },
+          },
         },
       },
     ]);
@@ -228,7 +232,8 @@ exports.CustomerGetId = catchAsync(async (req, res) => {
       vendorBillTrueCount: 0,
       vendorBillFalseCount: 0,
       totalFinalAmountPaid: 0,
-      totalDiscount: 0
+      totalDiscount: 0,
+      totalOfferPaidAmount: 0,
     };
 
     return successResponse(res, "Vendor details fetched successfully", 200, {
