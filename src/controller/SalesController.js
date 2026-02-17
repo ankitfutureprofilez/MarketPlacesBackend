@@ -674,7 +674,7 @@ exports.VendorSalesGetId = catchAsync(async (req, res) => {
       driving_license_reason: records?.driving_license_reason ?? null,
       passport_reason: records?.passport_reason ?? null,
       udhyam_reason: records?.udhyam_reason ?? null,
-      trade_license_reason: record?.trade_license_reason ?? null,
+      trade_license_reason: records?.trade_license_reason ?? null,
     };
 
     const businessObj = {
@@ -788,6 +788,7 @@ exports.VendorSalesGetId = catchAsync(async (req, res) => {
     return successResponse(res, "Vendor details fetched successfully", 200, transformed);
 
   } catch (error) {
+    console.log("error", error);
     return errorResponse(res, error.message || "Internal Server Error", 500);
   }
 });
