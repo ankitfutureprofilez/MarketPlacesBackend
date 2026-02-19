@@ -9,7 +9,7 @@ exports.createEnquiry = catchAsync(async (req, res) => {
 
         const isExist = await Enquiry.findOne({ phone: phone })
         if (isExist) {
-            return errorResponse(res, "This enquiry is already exist");
+            return errorResponse(res, "Your enquiry is already exist");
         }
 
         if (!firstName || !lastName || !email || !phone || !message || !role) {
@@ -25,7 +25,7 @@ exports.createEnquiry = catchAsync(async (req, res) => {
             role
         })
         const saveEnquiry = await enquiry.save();
-        return successResponse(res, "Enquiry created successfully.", 201, saveEnquiry)
+        return successResponse(res, "Enquiry send successfully.", 201, saveEnquiry)
     } catch (error) {
         console.log(error)
         return errorResponse(res, "Internal server error", 500)
