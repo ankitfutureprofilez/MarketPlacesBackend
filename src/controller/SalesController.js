@@ -60,7 +60,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       email,
     } = req.body;
 
-    logger.info("req sales vendor api", req.body);
+    console.log("req sales vendor api", req.body);
 
     // 🔹 Check if user already exists
     const existingUser = await User.findOne({ phone });
@@ -69,7 +69,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     }
 
     // 🔹 Normalize weekly_off_day (same as vendor)
-    logger.info("weekly_off_day sales vendor api", JSON.stringify(weekly_off_day));
+    console.log("weekly_off_day sales vendor api", JSON.stringify(weekly_off_day));
     if (weekly_off_day) {
       if (typeof weekly_off_day === "string") {
         try {
