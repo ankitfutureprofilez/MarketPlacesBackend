@@ -60,6 +60,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       email,
     } = req.body;
 
+    logger.info("req sales vendor api", req.body);
+
     // 🔹 Check if user already exists
     const existingUser = await User.findOne({ phone });
     if (existingUser) {
