@@ -258,7 +258,7 @@ exports.SalesGet = catchAsync(async (req, res) => {
     }
 
     // 1. Get all sales users
-    const salesUsers = await User.find(query).lean();
+    const salesUsers = await User.find(query).sort({createdAt : -1}).lean();
 
     if (!salesUsers || salesUsers.length === 0) {
       return validationErrorResponse(res, "No sales users found", 404);

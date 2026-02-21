@@ -1,4 +1,5 @@
-const Enquiry = require('../model/enquiry.js')
+const Enquiry = require('../model/enquiry.js');
+const { options } = require('../route/AdminRoute.js');
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse } = require("../utils/ErrorHandling");
 
@@ -8,10 +9,10 @@ exports.createEnquiry = catchAsync(async (req, res) => {
 
         const isExist = await Enquiry.findOne({ phone: phone })
         if (isExist) {
-            return errorResponse(res, "This enquiry is already exist");
+            return errorResponse(res, "Your enquiry is already exist");
         }
 
-        if(!firstName || !lastName || !email || !phone || !message || !role){
+        if (!firstName || !lastName || !email || !phone || !message || !role) {
             return errorResponse(res, "Fields are required", 400);
         }
 
@@ -24,7 +25,7 @@ exports.createEnquiry = catchAsync(async (req, res) => {
             role
         })
         const saveEnquiry = await enquiry.save();
-        return successResponse(res, "Enquiry created successfully.", 201, saveEnquiry)
+        return successResponse(res, "Enquiry send successfully.", 201, saveEnquiry)
     } catch (error) {
         console.log(error)
         return errorResponse(res, "Internal server error", 500)
@@ -33,9 +34,19 @@ exports.createEnquiry = catchAsync(async (req, res) => {
 
 exports.getEnquiry = catchAsync(async (req, res) => {
     try {
-        const enquiries = await Enquiry.find();
-        if (!enquiries) {
-            return errorResponse(res, "Failed to fetch enquiries.")
+        const { search } = req.query;
+        const filter = {};
+
+        if (search) {
+            filter.$or = [
+                { firstName: { $regex: search.trim(), $options: "i" } },
+                { lastName: { $regex: search.trim(), $options: "i" } }
+            ]
+        }
+        const enquiries = await Enquiry.find(filter).lean();
+
+        if (!enquiries.length) {
+            return errorResponse(res, "No enquiries found.")
         }
         return successResponse(res, "All Enquiries fetched successfully", 200, enquiries)
     } catch (error) {
