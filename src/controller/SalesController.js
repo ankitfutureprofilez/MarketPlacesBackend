@@ -67,7 +67,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     }
 
     // 🔹 Normalize weekly_off_day (same as vendor)
-    logger.info("weekly_off_day sales vendor api", weekly_off_day);
+    logger.info("weekly_off_day sales vendor api", JSON.stringify(weekly_off_day));
     if (weekly_off_day) {
       if (typeof weekly_off_day === "string") {
         try {
