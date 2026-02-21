@@ -5,6 +5,7 @@ const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
 const { default: mongoose } = require("mongoose");
+const logger = require("../utils/Logger");
 
 
 exports.SalesGetId = catchAsync(async (req, res) => {
