@@ -12,12 +12,12 @@ const UserSchema = new mongoose.Schema({
         type: Number,
         required: [true, "Phone number is required"],
         unique: true,
-        validate: {
-            validator: function (v) {
-                return /^[0-9]{10}$/.test(v);
-            },
-            message: "Phone number must be exactly 10 digits"
-        }
+        // validate: {
+        //     validator: function (v) {
+        //         return /^[0-9]{10}$/.test(v);
+        //     },
+        //     message: "Phone number must be exactly 10 digits"
+        // }
     },
     email: {
         type: String,
