@@ -9,7 +9,7 @@ const SubCategory = require("../model/SubCategory");
 const FlatOffer = require("../model/FlatOffer.js");
 const PercentageOffer = require("../model/PercentageOffer.js");
 const catchAsync = require("../utils/catchAsync");
-const { errorResponse, successResponse, validationErrorResponse} = require("../utils/ErrorHandling");
+const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const deleteUploadedFiles = require("../utils/fileDeleter.js");
@@ -65,13 +65,13 @@ exports.UserGet = catchAsync(async (req, res) => {
       const regex = { $regex: search.trim(), $options: "i" };
       query.$or = [{ name: regex }, { email: regex }];
     }
-    const customers = await User.find(query).sort({createdAt: -1});
+    const customers = await User.find(query).sort({ createdAt: -1 });
     if (!customers || customers.length === 0) {
       return validationErrorResponse(res, "No Users found", 404);
     }
     const customerIds = customers.map((c) => c._id);
     const purchaseCounts = await OfferBuy.aggregate([
-      { $match: { user: { $in: customerIds }, status: {$ne : "upgraded"} } },
+      { $match: { user: { $in: customerIds }, status: { $ne: "upgraded" } } },
       { $group: { _id: "$user", total: { $sum: 1 } } },
     ]);
     const countMap = {};
@@ -154,7 +154,7 @@ exports.CustomerGetId = catchAsync(async (req, res) => {
         if (
           purchase.upgrade_chain_root &&
           current._id.toString() ===
-            purchase.upgrade_chain_root.toString()
+          purchase.upgrade_chain_root.toString()
         ) {
           break;
         }
@@ -178,7 +178,7 @@ exports.CustomerGetId = catchAsync(async (req, res) => {
       {
         $match: {
           user: userObjectId,
-          status: {$ne: "upgraded"}
+          status: { $ne: "upgraded" }
         },
       },
       {
@@ -258,7 +258,7 @@ exports.SalesGet = catchAsync(async (req, res) => {
     }
 
     // 1. Get all sales users
-    const salesUsers = await User.find(query).sort({createdAt : -1}).lean();
+    const salesUsers = await User.find(query).sort({ createdAt: -1 }).lean();
 
     if (!salesUsers || salesUsers.length === 0) {
       return validationErrorResponse(res, "No sales users found", 404);
@@ -506,6 +506,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     const id = req.params.id;
 
     const vendor = await Vendor.findById(id);
+
     if (!vendor) {
       return validationErrorResponse(res, "Vendor not found", 404);
     }
@@ -543,7 +544,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     if (opening_hours) {
       try {
         opening_hours = JSON.parse(opening_hours);
-      } catch {}
+      } catch { }
     }
 
     // Convert Category IDs safely
@@ -606,7 +607,15 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       (key) => updateFields[key] === undefined && delete updateFields[key]
     );
 
-    const vendordata = await Vendor.findByIdAndUpdate(id, updateFields, {
+    weekly_off_day = [];
+
+    if (req.body.weekly_off_day) {
+      weekly_off_day = JSON.parse(req.body.weekly_off_day);
+
+      weekly_off_day = weekly_off_day.map(d => new Date(d));
+    }
+
+    const vendordata = await Vendor.findByIdAndUpdate(id, {updateFields, weekly_off_day}, {
       new: true,
     }).populate("user");
 
@@ -1119,9 +1128,8 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
     }
     let avatar;
     if (req.file && req.file.filename) {
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
-        req.file.filename
-      }`;
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename
+        }`;
       avatar = fileUrl;
     }
     const newUser = new User({
@@ -1174,9 +1182,8 @@ exports.EditSalesPerson = catchAsync(async (req, res) => {
         }
       }
 
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
-        req.file.filename
-      }`;
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename
+        }`;
       user.avatar = fileUrl;
     }
 
@@ -1242,9 +1249,8 @@ exports.EditAdmin = catchAsync(async (req, res) => {
         }
       }
 
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
-        req.file.filename
-      }`;
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename
+        }`;
       user.avatar = fileUrl;
     }
 
@@ -1287,7 +1293,7 @@ exports.resetpassword = catchAsync(async (req, res) => {
     );
 
     if (!isPasswordValid) {
-      return res.status(400).json({ message: "Old password is incorrect",});
+      return res.status(400).json({ message: "Old password is incorrect", });
     }
 
     // Hash new password
@@ -1297,10 +1303,10 @@ exports.resetpassword = catchAsync(async (req, res) => {
     user.password = hashedPassword;
     await user.save();
 
-    return res.status(200).json({message: "Password updated successfully!",});
+    return res.status(200).json({ message: "Password updated successfully!", });
   } catch (error) {
     console.error("Reset password error:", error);
-    return res.status(500).json({ message: "Error resetting password", error: error.message,});
+    return res.status(500).json({ message: "Error resetting password", error: error.message, });
   }
 });
 
@@ -1497,7 +1503,7 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
     return successResponse(res, "Sales & vendor status details", 200, {
       sales,
       total_offer_stats: offersCount,
-      offers : offers,
+      offers: offers,
       vendors: vendors,
       purchases: formattedPurchases,
     });
@@ -1515,7 +1521,7 @@ const attachVendorData = async (records) => {
         return item;
       }
       const vendorData = await Vendor.findOne({ user: vendorUserId }).lean();
-      item.vendor= {...item?.vendor, ...vendorData};
+      item.vendor = { ...item?.vendor, ...vendorData };
       return item;
     })
   );
@@ -1584,7 +1590,7 @@ exports.BroughtOffers = catchAsync(async (req, res) => {
       });
     }
 
-  //  console.log("allPurchasesafter", allPurchases);
+    //  console.log("allPurchasesafter", allPurchases);
 
 
     /** 🔁 Build upgrade lookup map */
@@ -1757,7 +1763,7 @@ exports.deleteVendorGallery = catchAsync(async (req, res) => {
     );
 
     await vendor.save();
-    
+
     return successResponse(res, "Files deleted successfully", 201, {
       deletedCount: files.length,
       remainingbusiness_image: vendor.business_image,
@@ -1806,9 +1812,8 @@ exports.AddSubAdmin = catchAsync(async (req, res) => {
 
     let avatar = null;
     if (req.file && req.file.filename) {
-      avatar = `${req.protocol}://${req.get("host")}/uploads/${
-        req.file.filename
-      }`;
+      avatar = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename
+        }`;
     }
 
     const newUser = new User({
@@ -1863,9 +1868,8 @@ exports.UpdateSubAdmin = catchAsync(async (req, res) => {
 
     // console.log("req.file", req.file);
     if (req.file && req.file.filename) {
-      user.avatar = `${req.protocol}://${req.get("host")}/uploads/${
-        req.file.filename
-      }`;
+      user.avatar = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename
+        }`;
     }
 
     if (name) user.name = name;
