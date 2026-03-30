@@ -347,7 +347,7 @@ exports.AdminVendorGet = catchAsync(async (req, res) => {
       query.Verify_status = "verify";
     } else if (status === "unverify") {
       query.Verify_status = "unverify";
-    } else if(status === "pending"){
+    } else if (status === "pending") {
       query.Verify_status = "pending"
     }
 
@@ -617,7 +617,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       weekly_off_day = weekly_off_day.map(d => new Date(d));
     }
 
-    const vendordata = await Vendor.findByIdAndUpdate(id, {updateFields, weekly_off_day}, {
+    const vendordata = await Vendor.findByIdAndUpdate(id, { updateFields, weekly_off_day }, {
       new: true,
     }).populate("user");
 
