@@ -347,6 +347,8 @@ exports.AdminVendorGet = catchAsync(async (req, res) => {
       query.Verify_status = "verify";
     } else if (status === "unverify") {
       query.Verify_status = "unverify";
+    } else if(status === "pending"){
+      query.Verify_status = "pending"
     }
 
     const vendor = await Vendor.find(query)
