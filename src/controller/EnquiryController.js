@@ -12,7 +12,7 @@ exports.createEnquiry = catchAsync(async (req, res) => {
             return errorResponse(res, "Your enquiry is already exist");
         }
 
-        if (!firstName || !lastName || !email || !phone || !message || !role) {
+        if (!firstName || !email || !phone || !role) {
             return errorResponse(res, "Fields are required", 400);
         }
 
