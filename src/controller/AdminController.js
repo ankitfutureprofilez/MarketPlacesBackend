@@ -1320,9 +1320,9 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
       return errorResponse(res, "Sales user not found", 404);
     }
     const vendors = await Vendor.find({ assign_staff: salesId });
-    if (!vendors || vendors.length === 0) {
-      return errorResponse(res, "No vendors assigned to this sales person", 404);
-    }
+    // if (!vendors || vendors.length === 0) {
+    //   return errorResponse(res, "No vendors assigned to this sales person", 404);
+    // }
     const vendorIds = vendors.map((v) => v.user);
 
     const offers = await Offer.find({ vendor: { $in: vendorIds } }).populate("flat").populate("percentage");
