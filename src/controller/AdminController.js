@@ -32,6 +32,11 @@ exports.Login = catchAsync(async (req, res) => {
     if (!isPasswordValid) {
       return errorResponse(res, "Invalid password", 400);
     }
+
+    if (user.role === "sub-admin" && user.deleted_at !== null) {
+      return errorResponse(res, "This account is blocked", 400)
+    }
+    
     const token = jwt.sign(
       { id: user._id, role: user.role, email: user.email },
       process.env.JWT_SECRET_KEY,
