@@ -157,8 +157,10 @@ exports.GetOfferById = catchAsync(async (req, res) => {
 });
 
 const getVendorsWithMaxOffer = async (vendors) => {
+
+  const vendorsFilters = vendors && vendors.filter((item)=>item?.user !== null);
   return await Promise.all(
-    vendors.map(async (vendor) => {
+    vendorsFilters.map(async (vendor) => {
 
         // console.log(vendor?.user);
         if(!vendor?.user?._id){
