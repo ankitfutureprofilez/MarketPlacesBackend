@@ -1219,11 +1219,11 @@ exports.DeleteUser = catchAsync(async (req, res) => {
     if (user.deleted_at) {
       user.deleted_at = null; // undelete (restore)
       await user.save();
-      return successResponse(res, "Person blocked successfully.", 200);
+      return successResponse(res, "Person Unblocked successfully.", 200);
     } else {
       user.deleted_at = new Date(); // soft delete
       await user.save();
-      return successResponse(res, "Person unblocked successfully.", 200);
+      return successResponse(res, "Person blocked successfully.", 200);
     }
   } catch (error) {
     console.error("DeleteSalesPerson error:", error);
