@@ -326,7 +326,7 @@ exports.VendorGet = catchAsync(async (req, res) => {
     if (!vendors || vendors.length === 0) {
       return validationErrorResponse(res, "No vendors found", 200);
     }
-    return successResponse(res, "Vendors fetched successfully", vendors);
+    return successResponse(res, "Vendors fetched successfully", 200);
   } catch (error) {
     console.log("error",error)
     return errorResponse(res, error.message || "Internal Server Error", 200);
