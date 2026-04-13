@@ -322,16 +322,17 @@ exports.VendorGetId = catchAsync(async (req, res) => {
 
 exports.VendorGet = catchAsync(async (req, res) => {
   try {
-    const vendors = await Vendor.find(query).populate("user");
+    const vendors = await Vendor.find().populate("user");
     if (!vendors || vendors.length === 0) {
       return validationErrorResponse(res, "No vendors found", 200);
     }
     return successResponse(res, "Vendors fetched successfully", vendors);
   } catch (error) {
-    return errorResponse(res, error.message || "Internal Server Error", 500);
+    console.log("error",error)
+    return errorResponse(res, error.message || "Internal Server Error", 200);
   }
 });
-
+ 
 exports.vendorUpdate = catchAsync(async (req, res) => {
   try {
     const vendorId = req.user?.id || req.params.id;
