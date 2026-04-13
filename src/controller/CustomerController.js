@@ -161,8 +161,9 @@ const getVendorsWithMaxOffer = async (vendors) => {
     vendors.map(async (vendor) => {
 
         // console.log(vendor?.user);
+        console.log("vendor?.user?._id",vendor?.user?._id);
         const vendorId = vendor?.user?._id ? new mongoose.Types.ObjectId(vendor?.user?._id) : '';
-        console.log("vendor",vendorId);
+        // console.log("vendor",vendorId);
         // Fetch all active offers for the vendor
         const offers = await Offer.find({ vendor: vendorId, status: "active" })
           .populate("flat")
