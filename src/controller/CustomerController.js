@@ -198,16 +198,19 @@ const getVendorsWithMaxOffer = async (vendors) => {
             maxOfferType = offer.type;
           }
         });
+        return {
+          vendor,
+          maxOffer:
+          maxDiscountValue > 0
+          ? { amount: maxDiscountValue, type: maxOfferType }
+          : null,
+          activeOffersCount,
+        };
+      } else { 
+        
+        return null
       }
 
-      return {
-        vendor,
-        maxOffer:
-          maxDiscountValue > 0
-            ? { amount: maxDiscountValue, type: maxOfferType }
-            : null,
-        activeOffersCount,
-      };
     })
   );
 };
