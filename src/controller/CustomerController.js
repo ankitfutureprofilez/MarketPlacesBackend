@@ -166,10 +166,7 @@ const getVendorsWithMaxOffer = async (vendors) => {
         const userId = vendor?.user?._id || vendor?.user;
 
         if (!userId) {
-          return res.json({
-            success: true,
-            activeOffersCount: 0,
-          });
+          return null
         }
 
         const vendorId = new mongoose.Types.ObjectId(userId);
