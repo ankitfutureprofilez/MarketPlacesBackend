@@ -1,4 +1,4 @@
-const winston = require('winston');
+const winston = require("winston");
 
 const levelFilter = (level) => {
   return winston.format((info) => {
@@ -7,48 +7,59 @@ const levelFilter = (level) => {
 };
 
 const logger = winston.createLogger({
-  levels: winston.config.npm.levels, 
+  levels: winston.config.npm.levels,
   format: winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.printf(({ timestamp, level, message }) => {
-      return `${timestamp} [${level.toUpperCase()}]: ${message}`;
-    })
+    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+    winston.format.splat(), // ⭐ IMPORTANT
+    winston.format.metadata({ fillExcept: ["message", "level", "timestamp"] }),
+    winston.format.printf(({ timestamp, level, message, metadata }) => {
+      let extra = "";
+
+      // If exactly one extra argument was passed
+      if (metadata && metadata[0] !== undefined) {
+        const value = metadata[0];
+        extra =
+          typeof value === "string" ? ` ${value}` : ` ${JSON.stringify(value)}`;
+      }
+
+      return `${timestamp} [${level.toUpperCase()}]: ${message}${extra}`;
+    }),
   ),
   transports: [
     new winston.transports.File({
-      filename: 'logs/error.log',
-      level: 'error',
-      format: levelFilter('error'),
+      filename: "logs/info.log",
+      level: "info",
+      format: levelFilter("info"),
     }),
     new winston.transports.File({
-      filename: 'logs/warn.log',
-      level: 'warn',
-      format: levelFilter('warn'),
+      filename: "logs/error.log",
+      level: "error",
+      format: levelFilter("error"),
     }),
     new winston.transports.File({
-      filename: 'logs/info.log',
-      level: 'info',
-      format: levelFilter('info'),
+      filename: "logs/warn.log",
+      level: "warn",
+      format: levelFilter("warn"),
     }),
     new winston.transports.File({
-      filename: 'logs/http.log',
-      level: 'http',
-      format: levelFilter('http'),
+      filename: "logs/http.log",
+      level: "http",
+      format: levelFilter("http"),
     }),
     new winston.transports.File({
-      filename: 'logs/verbose.log',
-      level: 'verbose',
-      format: levelFilter('verbose'),
+      filename: "logs/verbose.log",
+      level: "verbose",
+      format: levelFilter("verbose"),
     }),
     new winston.transports.File({
-      filename: 'logs/debug.log',
-      level: 'debug',
-      format: levelFilter('debug'),
+      filename: "logs/debug.log",
+      level: "debug",
+      format: levelFilter("debug"),
     }),
     new winston.transports.File({
-      filename: 'logs/silly.log',
-      level: 'silly',
-      format: levelFilter('silly'),
+      filename: "logs/silly.log",
+      level: "silly",
+      format: levelFilter("silly"),
     }),
   ],
 });

@@ -19,19 +19,35 @@ router.post("/admin/sales/delete/:id", verifyToken, DeleteUser);
 router.get("/admin/profile-token", verifyToken, adminGet);
 router.post("/admin/vendor-add", verifyToken,
     upload.fields([
-        { name: "aadhaar_front", maxCount: 1 },
-        { name: "aadhaar_back", maxCount: 1 },
-        { name: "pan_card_image", maxCount: 1 },
-        { name: "gst_certificate", maxCount: 1 },
-        { name: "business_logo", maxCount: 1 },
+    // Address proofs
+    { name: "aadhaar_front", maxCount: 1 },
+    { name: "aadhaar_back", maxCount: 1 },
+    { name: "pan_card_image", maxCount: 1 },
+    { name: "driving_license", maxCount: 1 },
+    { name: "passport", maxCount: 1 },
+    // Business Proofs
+    { name: "gst_certificate", maxCount: 1 },
+    { name: "udhyam", maxCount: 1 },
+    { name: "trade_license", maxCount: 1 },
+    { name: "shop_license", maxCount: 1 },
+    // Business logo
+    { name: "business_logo", maxCount: 1 },
     ]), VendorRegister);
 router.post("/admin/vendor-Edit/:id", verifyToken,
     upload.fields([
-        { name: "aadhaar_front", maxCount: 1 },
-        { name: "aadhaar_back", maxCount: 1 },
-        { name: "pan_card_image", maxCount: 1 },
-        { name: "gst_certificate", maxCount: 1 },
-        { name: "business_logo", maxCount: 1 },
+    // Address proofs
+    { name: "aadhaar_front", maxCount: 1 },
+    { name: "aadhaar_back", maxCount: 1 },
+    { name: "pan_card_image", maxCount: 1 },
+    { name: "driving_license", maxCount: 1 },
+    { name: "passport", maxCount: 1 },
+    // Business Proofs
+    { name: "gst_certificate", maxCount: 1 },
+    { name: "udhyam", maxCount: 1 },
+    { name: "trade_license", maxCount: 1 },
+    { name: "shop_license", maxCount: 1 },
+    // Business logo
+    { name: "business_logo", maxCount: 1 },
     ]), vendorUpdate);
 router.post("/admin/vendor/gallery/upload/:id", verifyToken, upload.array("files", 10), addVendorGallery);
 router.post("/admin/vendor/gallery/delete/:id", verifyToken, deleteVendorGallery);

@@ -5,6 +5,7 @@ const Vendor = require("../model/Vendor");
 const catchAsync = require("../utils/catchAsync");
 const { errorResponse, successResponse, validationErrorResponse } = require("../utils/ErrorHandling");
 const { default: mongoose } = require("mongoose");
+const logger = require("../utils/Logger");
 
 
 exports.SalesGetId = catchAsync(async (req, res) => {
@@ -59,6 +60,8 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       email,
     } = req.body;
 
+    console.log("req sales vendor api", req.body);
+
     // 🔹 Check if user already exists
     const existingUser = await User.findOne({ phone });
     if (existingUser) {
@@ -66,6 +69,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     }
 
     // 🔹 Normalize weekly_off_day (same as vendor)
+    console.log("weekly_off_day sales vendor api", JSON.stringify(weekly_off_day));
     if (weekly_off_day) {
       if (typeof weekly_off_day === "string") {
         try {

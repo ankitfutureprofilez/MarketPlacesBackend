@@ -373,6 +373,21 @@ exports.AdminVendorGet = catchAsync(async (req, res) => {
   }
 });
 
+const ADDRESS_PROOFS = [
+  "aadhaar_front",
+  "aadhaar_back",
+  "pan_card_image",
+  "driving_license",
+  "passport",
+];
+
+const BUSINESS_PROOFS = [
+  "gst_certificate",
+  "udhyam",
+  "trade_license",
+  "shop_license",
+];
+
 exports.VendorRegister = catchAsync(async (req, res) => {
   try {
     // console.log("req.body", req.body);
@@ -435,6 +450,25 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     // =============== FILE HANDLING ===============
     const uploadedFiles = req.files || {};
 
+    const hasAtLeastOneFile = (keys) =>
+      keys.some(
+        (key) =>
+          uploadedFiles[key] &&
+          Array.isArray(uploadedFiles[key]) &&
+          uploadedFiles[key].length > 0
+      );
+
+    const hasAddressProof = hasAtLeastOneFile(ADDRESS_PROOFS);
+    const hasBusinessProof = hasAtLeastOneFile(BUSINESS_PROOFS);
+
+    if (!hasAddressProof) {
+      return errorResponse(res, "At least one address proof document is required", 400);
+    }
+
+    if (!hasBusinessProof) {
+      return errorResponse(res, "At least one business proof document is required", 400);
+    }
+
     const makeFileUrl = (field) => {
       if (!uploadedFiles[field] || uploadedFiles[field].length === 0)
         return null;
@@ -448,6 +482,24 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     }
     if (opening_hours && typeof opening_hours !== "object") {
       return errorResponse(res, "Opening hours must be a valid object", 400);
+    }
+
+    if (weekly_off_day) {
+      if (typeof weekly_off_day === "string") {
+        try {
+          weekly_off_day = JSON.parse(weekly_off_day);
+        } catch (err) {
+          return errorResponse(res, "Invalid weekly_off_day format", 400);
+        }
+      }
+
+      if (!Array.isArray(weekly_off_day)) {
+        return errorResponse(res, "weekly_off_day must be an array", 400);
+      }
+
+      weekly_off_day = weekly_off_day
+        .map((d) => new Date(d))
+        .filter((d) => !isNaN(d.getTime()));
     }
 
     // =============== CONVERT CATEGORY IDs SAFELY ===============
@@ -482,11 +534,19 @@ exports.VendorRegister = catchAsync(async (req, res) => {
       landmark,
       added_by: adminid,
 
-      // FILES ↓↓↓ ONLY THESE
+      // Address proofs
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
+      driving_license: makeFileUrl("driving_license"),
+      passport: makeFileUrl("passport"),
+
+      // Business proofs
       gst_certificate: makeFileUrl("gst_certificate"),
+      udhyam: makeFileUrl("udhyam"),
+      trade_license: makeFileUrl("trade_license"),
+      shop_license: makeFileUrl("shop_license"),
+      // Business logo
       business_logo: makeFileUrl("business_logo"),
     });
 
@@ -519,9 +579,48 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     }
 
     const uploadedFiles = req.files || {};
+
+    // ✅ SAME AS CODE 1
+    const hasProofAfterUpdate = (keys) => {
+      return keys.some((key) => {
+        // new upload
+        if (
+          uploadedFiles[key] &&
+          Array.isArray(uploadedFiles[key]) &&
+          uploadedFiles[key].length > 0
+        ) {
+          return true;
+        }
+
+        // already exists
+        return !!vendor[key];
+      });
+    };
+
+    const hasAddressProof = hasProofAfterUpdate(ADDRESS_PROOFS);
+    const hasBusinessProof = hasProofAfterUpdate(BUSINESS_PROOFS);
+
+    if (!hasAddressProof) {
+      return validationErrorResponse(
+        res,
+        "At least one address proof document must be available",
+        400
+      );
+    }
+
+    if (!hasBusinessProof) {
+      return validationErrorResponse(
+        res,
+        "At least one business proof document must be available",
+        400
+      );
+    }
+
+    // ✅ SAME AS CODE 1 (IMPORTANT CHANGE)
     const makeFileUrl = (field) => {
       if (!uploadedFiles[field] || uploadedFiles[field].length === 0)
-        return vendor[field];
+        return undefined; // ❗ DO NOT overwrite
+
       const file = uploadedFiles[field][0];
       return `${req.protocol}://${req.get("host")}/uploads/${file.filename}`;
     };
@@ -592,11 +691,19 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       landmark,
       added_by: adminid,
 
-      // FILES HANDLED SAFELY
+     // ✅ ADDRESS PROOFS
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
+      driving_license: makeFileUrl("driving_license"),
+      passport: makeFileUrl("passport"),
+
+      // ✅ BUSINESS PROOFS
       gst_certificate: makeFileUrl("gst_certificate"),
+      udhyam: makeFileUrl("udhyam"),
+      trade_license: makeFileUrl("trade_license"),
+      shop_license: makeFileUrl("shop_license"),
+
       business_logo: makeFileUrl("business_logo"),
     };
 
