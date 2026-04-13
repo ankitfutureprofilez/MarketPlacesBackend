@@ -159,57 +159,44 @@ exports.GetOfferById = catchAsync(async (req, res) => {
 const getVendorsWithMaxOffer = async (vendors) => {
   return await Promise.all(
     vendors.map(async (vendor) => {
-      const vendorId = new mongoose.Types.ObjectId(vendor.user._id);
 
-      const offers = await Offer.find({
-        vendor: vendorId,
-        status: "active",
-      })
-        .populate({
-          path: "percentage",
-          match: { isExpired: false,},
-        })
-        .populate({
-          path: "flat",
-          match: {isExpired: false,},
+      if(vendor.user){
+
+        const vendorId = vendor?.user?._id ? new mongoose.Types.ObjectId(vendor?.user?._id) : '';
+        // console.log("vendor",vendorId);
+        // Fetch all active offers for the vendor
+        const offers = await Offer.find({ vendor: vendorId, status: "active" })
+          .populate("flat")
+          .populate("percentage");
+  
+        const activeOffersCount = offers.length;
+  
+        if (activeOffersCount === 0) {
+          return { vendor, maxOffer: null, activeOffersCount: 0 };
+        }
+  
+        // Calculate effective discount for each offer
+        let maxOffer = null;
+        let maxDiscountValue = -1;
+        let maxOfferType = null;
+  
+        offers.forEach((offer) => {
+          let discountValue = 0;
+  
+          if (offer.type === "flat" && offer.flat) {
+            discountValue = offer.flat.amount || 0;
+          } else if (offer.type === "percentage" && offer.percentage) {
+            const percentage = offer.percentage.discountPercentage || 0;
+            const cap = offer.percentage.maxDiscountCap || 0;
+            // For simplicity, assume minBillAmount is met
+            discountValue = cap > 0 ? Math.min(cap, percentage) : percentage;
+          }
+  
+          if (discountValue > maxDiscountValue) {
+            maxDiscountValue = discountValue;
+            maxOfferType = offer.type;
+          }
         });
-
-      const activeOffersCount = offers.length;
-
-      if (activeOffersCount === 0) {
-        return { vendor, maxOffer: null, activeOffersCount: 0 };
-      }
-
-      let maxDiscountValue = -1;
-      let maxOfferType = null;
-
-      for (const offer of offers) {
-        let discountValue = 0;
-
-        /** Percentage Offer */
-        if (offer.type === "percentage" && offer.percentage) {
-          const o = offer.percentage;
-
-          if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
-
-          discountValue = o.amount || 0;
-        }
-
-        /** Flat Offer */
-        else if (offer.type === "flat" && offer.flat) {
-          const o = offer.flat;
-
-          if (o.isExpired || new Date(o.expiryDate) < new Date()) continue;
-
-          discountValue = o.amount || 0;
-        } else {
-          continue;
-        }
-
-        if (discountValue > maxDiscountValue) {
-          maxDiscountValue = discountValue;
-          maxOfferType = offer.type;
-        }
       }
 
       return {
@@ -489,7 +476,7 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
 
     // Count offers for popularity
     const result = await OfferBuy.aggregate([
-      { $match: { status: "active", vendor:{$ne:null} } },
+      { $match: { status: "active" } },
       {
         $group: {
           _id: "$vendor",
