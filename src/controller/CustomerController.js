@@ -480,7 +480,7 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
 
     // Count offers for popularity
     const result = await OfferBuy.aggregate([
-      { $match: { status: "active" } },
+      { $match: { status: "active", vendor:{$ne:null} } },
       {
         $group: {
           _id: "$vendor",
