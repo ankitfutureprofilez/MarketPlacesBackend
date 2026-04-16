@@ -30,6 +30,10 @@ const percentageOfferSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        validDays: {
+            type: Number,
+            required: [true, "Valid days are required"],
+        },
         expiryDate: {
             type: Date,
             required: [true, "Expiry date is required"],
@@ -38,7 +42,7 @@ const percentageOfferSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
-      
+
         isExpired: {
             type: Boolean,
             default: false,

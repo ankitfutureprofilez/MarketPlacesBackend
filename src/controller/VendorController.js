@@ -588,6 +588,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
     let {
       title,
       description,
+      validDays,
       expiryDate,
       discountPercentage,
       maxDiscountCap,
@@ -634,6 +635,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
       const newOffer = new FlatOffer({
         title,
         description,
+        validDays,
         expiryDate,
         amount, 
         minBillAmount,
@@ -647,6 +649,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
       const newOffer = new PercentageOffer({
         title,
         description,
+        validDays,
         expiryDate,
         amount,
         discountPercentage,
