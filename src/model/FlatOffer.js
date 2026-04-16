@@ -25,6 +25,10 @@ const flatoffer = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        validDays: {
+            type: Number,
+            required: [true, "Valid days are required"],
+        },
         expiryDate: {
             type: Date,
             required: true,

@@ -36,7 +36,7 @@ exports.Login = catchAsync(async (req, res) => {
     if (user.role === "sub-admin" && user.deleted_at !== null) {
       return errorResponse(res, "This account is blocked", 400)
     }
-    
+
     const token = jwt.sign(
       { id: user._id, role: user.role, email: user.email },
       process.env.JWT_SECRET_KEY,
@@ -350,14 +350,15 @@ exports.AdminVendorGet = catchAsync(async (req, res) => {
 
     if (status === "verify") {
       query.Verify_status = "verify";
-    } else if (status === "unverify") {
-      query.Verify_status = "unverify";
+    } else if (status === "rejected") {
+      query.Verify_status = "rejected";
     } else if (status === "pending") {
       query.Verify_status = "pending"
     }
 
     const vendor = await Vendor.find(query)
       .populate("user")
+      .populate("added_by")
       .populate("category")
       .populate("subcategory")
       .populate("assign_staff")
@@ -691,7 +692,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
       landmark,
       added_by: adminid,
 
-     // ✅ ADDRESS PROOFS
+      // ✅ ADDRESS PROOFS
       aadhaar_front: makeFileUrl("aadhaar_front"),
       aadhaar_back: makeFileUrl("aadhaar_back"),
       pan_card_image: makeFileUrl("pan_card_image"),
@@ -771,6 +772,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     // Fetch vendor details
     const record = await Vendor.findById(id)
       .populate("user")
+      .populate("added_by")
       .populate("category")
       .populate("subcategory");
 
@@ -1214,10 +1216,10 @@ exports.AssignStaff = catchAsync(async (req, res) => {
 exports.AddSalesPersons = catchAsync(async (req, res) => {
   try {
     const { phone, otp, role, name, email } = req.body;
-    if (!phone || !otp || !name || !email) {
+    if (!phone || !otp || !name) {
       return validationErrorResponse(
         res,
-        "Phone number, OTP, Name, and Email are required.",
+        "Phone number, OTP, Name are required.",
         400
       );
     }
