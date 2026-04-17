@@ -16,7 +16,6 @@ const client = twilio(
 exports.SendOtp = catchAsync(async (req, res) => {
   try {
     const { phone, role } = req.body;
-    console.log("phone :", phone)
     if (!phone) {
       return validationErrorResponse(res, "Phone number is required", 400);
     }
