@@ -94,7 +94,7 @@ exports.VendorRegister = catchAsync(async (req, res) => {
     }
 
     if (!hasBusinessProof) {
-      return errorResponse(res, "At least one business proof document is required",400);
+      return errorResponse(res, "At least one business proof document is required", 400);
     }
 
     const makeFileUrl = (fieldName) => {
@@ -191,7 +191,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     }
     // console.log("record", record);
 
-   const calcPercentage = (obj) => {
+    const calcPercentage = (obj) => {
       if (!obj || typeof obj !== "object") return 0;
       const keys = Object.keys(obj);
       const total = keys.length;
@@ -289,7 +289,7 @@ exports.VendorGetId = catchAsync(async (req, res) => {
     const timingPercentage = timingObj?.opening_hours && Object.keys(timingObj.opening_hours).length > 1 ? 25 : 0;
     const imageCount = businessObj?.business_image?.length || 0;
     const imagePercentage = imageCount > 4 ? 25 : Math.round((imageCount / 4) * 25);
-    
+
     const percentages = {
       business_details: 25,
       document: docPercentage,
@@ -328,11 +328,11 @@ exports.VendorGet = catchAsync(async (req, res) => {
     }
     return successResponse(res, "Vendors fetched successfully", 200);
   } catch (error) {
-    console.log("error",error)
+    console.log("error", error)
     return errorResponse(res, error.message || "Internal Server Error", 200);
   }
 });
- 
+
 exports.vendorUpdate = catchAsync(async (req, res) => {
   try {
     const vendorId = req.user?.id || req.params.id;
@@ -343,7 +343,7 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
 
     const user = await User.findById(vendorId);
 
-    if(user?.deleted_at){
+    if (user?.deleted_at) {
       return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
@@ -373,11 +373,11 @@ exports.vendorUpdate = catchAsync(async (req, res) => {
     const hasBusinessProof = hasProofAfterUpdate(BUSINESS_PROOFS);
 
     if (!hasAddressProof) {
-      return validationErrorResponse(res,"At least one address proof document must be available",400);
+      return validationErrorResponse(res, "At least one address proof document must be available", 400);
     }
 
     if (!hasBusinessProof) {
-      return validationErrorResponse(res,"At least one business proof document must be available",400);
+      return validationErrorResponse(res, "At least one business proof document must be available", 400);
     }
 
     const makeFileUrl = (fieldName) => {
@@ -581,7 +581,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
 
     const user = await User.findById(userId);
 
-    if(user?.deleted_at){
+    if (user?.deleted_at) {
       return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
@@ -601,6 +601,12 @@ exports.AddOffer = catchAsync(async (req, res) => {
 
     inclusion = safeJsonParse(inclusion);
     exclusion = safeJsonParse(exclusion);
+
+    validDays = Number(validDays);
+
+    if (!validDays || validDays <= 0) {
+      return validationErrorResponse(res, "validDays must be greater than 0", 400);
+    }
 
     if (expiryDate) {
       const today = new Date();
@@ -637,7 +643,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
         description,
         validDays,
         expiryDate,
-        amount, 
+        amount,
         minBillAmount,
         offer_image: fileUrl,
         status: "active",
@@ -738,7 +744,7 @@ exports.OfferStatus = catchAsync(async (req, res) => {
     const status = req.params.status;
     const user = await User.findById(req.user.id);
 
-    if(user?.deleted_at){
+    if (user?.deleted_at) {
       return validationErrorResponse(res, "Your account is blocked", 403);
     }
     const record = await Offer.findByIdAndUpdate(
@@ -763,7 +769,7 @@ exports.OfferDelete = catchAsync(async (req, res) => {
 
     const user = await User.findById(req.user.id);
 
-    if(user?.deleted_at){
+    if (user?.deleted_at) {
       return validationErrorResponse(res, "Your account is blocked", 403);
     }
 
@@ -805,6 +811,7 @@ exports.EditOffer = catchAsync(async (req, res) => {
     let {
       title,
       description,
+      validDays,
       expiryDate,
       discountPercentage,
       maxDiscountCap,
@@ -848,6 +855,7 @@ exports.EditOffer = catchAsync(async (req, res) => {
     const updateData = {
       title,
       description,
+      validDays,
       expiryDate,
       minBillAmount,
       discountPercentage:
@@ -1173,7 +1181,7 @@ exports.VendorOrder = catchAsync(async (req, res) => {
     if (!vendorId) {
       return validationErrorResponse(res, "Vendor not authenticated", 401);
     }
-    const allPurchases = await OfferBuy.find({ vendor: vendorId, status: {$ne : "upgraded"} })
+    const allPurchases = await OfferBuy.find({ vendor: vendorId, status: { $ne: "upgraded" } })
       .populate("user", "name email phone")
       .populate({
         path: "offer",
@@ -1414,7 +1422,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
 
     const user = await User.findById(req.user.id);
 
-    if(user?.deleted_at){
+    if (user?.deleted_at) {
       return errorResponse(res, "Your account is blocked", 403);
     }
 
@@ -1424,7 +1432,7 @@ exports.UpdateAmount = catchAsync(async (req, res) => {
       populate: [{ path: "flat" }, { path: "percentage" }]
     }).populate("vendor");
 
-    if(req?.user?.id != record?.vendor?._id){
+    if (req?.user?.id != record?.vendor?._id) {
       return validationErrorResponse(res, "You are not authorized to update this record", 405);
     }
 
@@ -1636,13 +1644,13 @@ exports.vendorphoneUpdate = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Vendor ID missing", 400);
     }
 
-   const { phone, otp } = req.body;
-   if (!otp) {
-     return validationErrorResponse(res, "Phone number is required", 401);
-   }
-   if(otp !== "123456"){
+    const { phone, otp } = req.body;
+    if (!otp) {
+      return validationErrorResponse(res, "Phone number is required", 401);
+    }
+    if (otp !== "123456") {
       return validationErrorResponse(res, "Invalid OTP", 400);
-   }
+    }
     const vendordata = await User.findByIdAndUpdate(
       vendorId,
       { phone },

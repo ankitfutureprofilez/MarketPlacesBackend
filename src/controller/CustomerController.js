@@ -156,57 +156,57 @@ exports.GetOfferById = catchAsync(async (req, res) => {
   }
 });
 
- 
+
 const getVendorsWithMaxOffer = async (vendors) => {
 
-  const vendorsFilters = vendors && vendors.filter((item)=>item?.user !== null);
+  const vendorsFilters = vendors && vendors.filter((item) => item?.user !== null);
   return await Promise.all(
     vendorsFilters.map(async (vendor) => {
 
-        const vendorId = vendor?.user?._id ? new mongoose.Types.ObjectId(vendor?.user?._id) : '';
-        // console.log("vendor",vendorId);
-        // Fetch all active offers for the vendor
-        const offers = await Offer.find({ vendor: vendorId, status: "active" })
-          .populate("flat")
-          .populate("percentage");
-  
-        const activeOffersCount = offers.length;
-  
-        if (activeOffersCount === 0) {
-          return { vendor, maxOffer: null, activeOffersCount: 0 };
+      const vendorId = vendor?.user?._id ? new mongoose.Types.ObjectId(vendor?.user?._id) : '';
+      // console.log("vendor",vendorId);
+      // Fetch all active offers for the vendor
+      const offers = await Offer.find({ vendor: vendorId, status: "active" })
+        .populate("flat")
+        .populate("percentage");
+
+      const activeOffersCount = offers.length;
+
+      if (activeOffersCount === 0) {
+        return { vendor, maxOffer: null, activeOffersCount: 0 };
+      }
+
+      // Calculate effective discount for each offer
+      let maxOffer = null;
+      let maxDiscountValue = -1;
+      let maxOfferType = null;
+
+      offers.forEach((offer) => {
+        let discountValue = 0;
+
+        if (offer.type === "flat" && offer.flat) {
+          discountValue = offer.flat.amount || 0;
+        } else if (offer.type === "percentage" && offer.percentage) {
+          const percentage = offer.percentage.discountPercentage || 0;
+          const cap = offer.percentage.maxDiscountCap || 0;
+          // For simplicity, assume minBillAmount is met
+          discountValue = cap > 0 ? Math.min(cap, percentage) : percentage;
         }
-  
-        // Calculate effective discount for each offer
-        let maxOffer = null;
-        let maxDiscountValue = -1;
-        let maxOfferType = null;
-  
-        offers.forEach((offer) => {
-          let discountValue = 0;
-  
-          if (offer.type === "flat" && offer.flat) {
-            discountValue = offer.flat.amount || 0;
-          } else if (offer.type === "percentage" && offer.percentage) {
-            const percentage = offer.percentage.discountPercentage || 0;
-            const cap = offer.percentage.maxDiscountCap || 0;
-            // For simplicity, assume minBillAmount is met
-            discountValue = cap > 0 ? Math.min(cap, percentage) : percentage;
-          }
-  
-          if (discountValue > maxDiscountValue) {
-            maxDiscountValue = discountValue;
-            maxOfferType = offer.type;
-          }
-        });
-        return {
-          vendor,
-          maxOffer:
+
+        if (discountValue > maxDiscountValue) {
+          maxDiscountValue = discountValue;
+          maxOfferType = offer.type;
+        }
+      });
+      return {
+        vendor,
+        maxOffer:
           maxDiscountValue > 0
-          ? { amount: maxDiscountValue, type: maxOfferType }
-          : null,
-          activeOffersCount,
-        };
-       
+            ? { amount: maxDiscountValue, type: maxOfferType }
+            : null,
+        activeOffersCount,
+      };
+
 
     })
   );
@@ -311,20 +311,20 @@ exports.getVendorById = catchAsync(async (req, res) => {
     }
 
     const updatedOffers = await Promise.all(
-  offers.map(async (offer) => {
-    const query = { offer: offer._id };
+      offers.map(async (offer) => {
+        const query = { offer: offer._id };
 
-    // only add user to query if user_id exists
-    if (user_id) {
-      query.user = user_id;
-    }
+        // only add user to query if user_id exists
+        if (user_id) {
+          query.user = user_id;
+        }
 
-    const existingBuy = await OfferBuy.findOne(query);
+        const existingBuy = await OfferBuy.findOne(query);
 
-    const purchase_status = existingBuy ? true : false;
-    return { ...offer.toObject(), purchase_status };
-  })
-);
+        const purchase_status = existingBuy ? true : false;
+        return { ...offer.toObject(), purchase_status };
+      })
+    );
 
     const vendorsWithActiveOffers = await Offer.distinct("vendor", {
       status: "active",
@@ -356,8 +356,8 @@ exports.getVendorById = catchAsync(async (req, res) => {
         let arg =
           Math.sin(toRad(record.lat)) * Math.sin(toRad(vendorLat)) +
           Math.cos(toRad(record.lat)) *
-            Math.cos(toRad(vendorLat)) *
-            Math.cos(toRad(vendorLong) - toRad(record.long));
+          Math.cos(toRad(vendorLat)) *
+          Math.cos(toRad(vendorLong) - toRad(record.long));
         arg = Math.min(1, Math.max(-1, arg));
         distance = R * Math.acos(arg);
         distance = Math.round(distance * 100) / 100;
@@ -476,7 +476,7 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
 
     // Count offers for popularity
     const result = await OfferBuy.aggregate([
-      { $match: { status: "active", vendor:{$ne:null} } },
+      { $match: { status: "active", vendor: { $ne: null } } },
       {
         $group: {
           _id: "$vendor",
@@ -517,9 +517,9 @@ exports.CustomerDashboard = catchAsync(async (req, res) => {
           R *
           Math.acos(
             Math.sin(toRad(lat)) * Math.sin(toRad(vendorLat)) +
-              Math.cos(toRad(lat)) *
-                Math.cos(toRad(vendorLat)) *
-                Math.cos(toRad(vendorLong) - toRad(long))
+            Math.cos(toRad(lat)) *
+            Math.cos(toRad(vendorLat)) *
+            Math.cos(toRad(vendorLong) - toRad(long))
           );
 
         distance = Math.round(d * 100) / 100; // 2 decimal places
@@ -720,10 +720,29 @@ exports.OfferBrought = catchAsync(async (req, res) => {
 
     /** Attach upgrade history */
     const formattedPurchases = allPurchases.map((purchase) => {
+      const actualOffer =
+        purchase.offer?.flat || purchase.offer?.percentage;
+
+      let validTill = null;
+      let isExpired = false;
+
+      if (actualOffer?.validDays) {
+        const purchaseDate = new Date(purchase.createdAt);
+
+        validTill = new Date(purchaseDate);
+        validTill.setDate(
+          purchaseDate.getDate() + Number(actualOffer.validDays)
+        );
+
+        isExpired = new Date() > validTill;
+      }
+
       if (!purchase.upgraded_from) {
         return {
           ...purchase.toObject(),
           upgraded_from: [],
+          validTill,
+          isExpired,
         };
       }
 
@@ -735,7 +754,7 @@ exports.OfferBrought = catchAsync(async (req, res) => {
         if (
           purchase.upgrade_chain_root &&
           current._id.toString() ===
-            purchase.upgrade_chain_root.toString()
+          purchase.upgrade_chain_root.toString()
         ) {
           break;
         }
@@ -749,6 +768,8 @@ exports.OfferBrought = catchAsync(async (req, res) => {
       return {
         ...purchase.toObject(),
         upgraded_from: history,
+        validTill,
+        isExpired,
       };
     });
 
@@ -784,6 +805,29 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "Brought Offer not found", 404);
     }
 
+    const actualOffer =
+      record.offer?.flat || record.offer?.percentage || null;
+
+    let validTill = null;
+    let isExpired = false;
+
+    if (actualOffer && actualOffer.validDays) {
+      const purchaseDate = new Date(record.createdAt);
+
+      validTill = new Date(purchaseDate);
+      validTill.setDate(
+        purchaseDate.getDate() + Number(actualOffer.validDays)
+      );
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const expiry = new Date(validTill);
+      expiry.setHours(0, 0, 0, 0);
+
+      isExpired = today > expiry;
+    }
+
     /** 🧠 If no upgrade, normalize upgraded_from */
     if (!record.upgraded_from) {
       return successResponse(
@@ -793,6 +837,8 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
         {
           ...record.toObject(),
           upgraded_from: [],
+          validTill,
+          isExpired,
         }
       );
     }
@@ -837,6 +883,8 @@ exports.OfferBroughtById = catchAsync(async (req, res) => {
       {
         ...record.toObject(),
         upgraded_from: history,
+        validTill,
+        isExpired,
       });
   } catch (error) {
     return errorResponse(error.message || "Internal Server Error", 500);
@@ -929,7 +977,7 @@ exports.RedeemedOffers = catchAsync(async (req, res) => {
         if (
           purchase.upgrade_chain_root &&
           current._id.toString() ===
-            purchase.upgrade_chain_root.toString()
+          purchase.upgrade_chain_root.toString()
         ) {
           break;
         }
@@ -1048,9 +1096,8 @@ exports.EditCustomerPerson = catchAsync(async (req, res) => {
         }
       }
 
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
-        req.file.filename
-      }`;
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename
+        }`;
       user.avatar = fileUrl;
     }
 
@@ -1178,9 +1225,8 @@ exports.CustomerAddBill = catchAsync(async (req, res) => {
       }
     }
 
-    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
-      req.file.filename
-    }`;
+    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename
+      }`;
     record.bill = fileUrl;
 
     await record.save();
@@ -1375,8 +1421,8 @@ exports.eligibleOffers = catchAsync(async (req, res) => {
 
     let currentOfferMinPrice = currentOffer?.percentage?.minBillAmount || currentOffer?.flat?.minBillAmount;
 
-    if(currentOfferMinPrice>billAmount){
-      return successResponse(res, "Price less then min amount of current offer", 200, { eligibleOffers:[] });
+    if (currentOfferMinPrice > billAmount) {
+      return successResponse(res, "Price less then min amount of current offer", 200, { eligibleOffers: [] });
     }
 
 
