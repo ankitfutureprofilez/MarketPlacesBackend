@@ -595,6 +595,7 @@ exports.AddOffer = catchAsync(async (req, res) => {
       minBillAmount,
       // amount,
       type,
+      image,
       inclusion,
       exclusion,
     } = req.body;
@@ -620,13 +621,34 @@ exports.AddOffer = catchAsync(async (req, res) => {
       }
     }
 
-    // ✅ Check if file is present
-    if (!req.file || !req.file.filename) {
-      return validationErrorResponse(res, "Image file is required", 400);
+    let fileUrl = null;
+
+    // ✅ Case 1: File upload
+    if (req.file && req.file.filename) {
+      fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    }
+    // ✅ Case 2: URL or string
+    else if (image) {
+      const cleanImage = image.replace(/^"|"$/g, "").trim();
+
+      if (cleanImage.startsWith("http://") || cleanImage.startsWith("https://")) {
+        fileUrl = cleanImage;
+      } else {
+        fileUrl = `${req.protocol}://${req.get("host")}/uploads/${cleanImage}`;
+      }
+    }
+    // ❌ No image at all
+    else {
+      return validationErrorResponse(res, "Image is required", 400);
     }
 
+    // ✅ Check if file is present
+    // if (!req.file || !req.file.filename) {
+    //   return validationErrorResponse(res, "Image file is required", 400);
+    // }
+
     // ✅ Construct the public file URL (same pattern as CustomerAddBill)
-    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    // const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
 
     // ✅ Create offer based on type
     let offerRecord;
