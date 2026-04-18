@@ -1213,21 +1213,30 @@ exports.CustomerAddBill = catchAsync(async (req, res) => {
       return validationErrorResponse(res, "No offer found", 404);
     }
 
+    if (record.bill_uploaded_by) {
+      return validationErrorResponse(
+        res,
+        `Bill already uploaded by ${record.bill_uploaded_by}`,
+        400
+      );
+    }
+
     if (!req.file || !req.file.filename) {
       return validationErrorResponse(res, "Bill file is required", 400);
     }
 
-    if (record.bill) {
-      try {
-        await deleteUploadedFiles([record.bill]);
-      } catch (err) {
-        console.log("Failed to delete old bill:", err.message);
-      }
-    }
+    // if (record.bill) {
+    //   try {
+    //     await deleteUploadedFiles([record.bill]);
+    //   } catch (err) {
+    //     console.log("Failed to delete old bill:", err.message);
+    //   }
+    // }
 
     const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename
       }`;
     record.bill = fileUrl;
+    record.bill_uploaded_by = "customer";
 
     await record.save();
 

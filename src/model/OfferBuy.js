@@ -51,6 +51,11 @@ const OfferBuySchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    bill_uploaded_by:{
+      type: String,
+      enum: ["customer", "vendor"],
+      default: null
+    },
     offer_paid_amount: {
       type: Number,
       default: 0,

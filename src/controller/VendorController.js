@@ -1272,6 +1272,70 @@ exports.VendorOrder = catchAsync(async (req, res) => {
   }
 });
 
+exports.VendorAddBill = catchAsync(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const vendorId = req.user?.id;
+
+    if (!id) {
+      return validationErrorResponse(res, "ID is required", 400);
+    }
+
+    const record = await OfferBuy.findById(id).populate({
+      path: "offer",
+      populate: [{ path: "flat" }, { path: "percentage" }],
+    });
+
+    if (!record) {
+      return validationErrorResponse(res, "No offer found", 404);
+    }
+
+    // ✅ Vendor ownership check
+    if (record.vendor?.toString() !== vendorId) {
+      return validationErrorResponse(res, "Unauthorized", 403);
+    }
+
+     if (record.bill_uploaded_by) {
+      return validationErrorResponse(
+        res,
+        `Bill already uploaded by ${record.bill_uploaded_by}`,
+        400
+      );
+    }
+
+    if (!req.file || !req.file.filename) {
+      return validationErrorResponse(res, "Bill file is required", 400);
+    }
+
+    // Delete old bill (safety)
+    // if (record.bill) {
+    //   try {
+    //     await deleteUploadedFiles([record.bill]);
+    //   } catch (err) {
+    //     console.log("Failed to delete old bill:", err.message);
+    //   }
+    // }
+
+    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    record.bill = fileUrl;
+    record.bill_uploaded_by = "vendor";
+    record.vendor_bill_status = true;
+
+    await record.save();
+
+    return successResponse(
+      res,
+      "Vendor bill added successfully",
+      200,
+      record
+    );
+
+  } catch (error) {
+    console.error("Error in VendorAddBill:", error);
+    return errorResponse(res, error.message || "Internal Server Error", 500);
+  }
+})
+
 exports.getPurchasedCustomers = catchAsync(async (req, res) => {
   try {
     const vendorId = req.user.id;
