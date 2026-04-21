@@ -25,9 +25,11 @@ exports.Login = catchAsync(async (req, res) => {
       );
     }
     const user = await User.findOne({ email: email });
+    console.log("password:", user);
     if (!user) {
       return validationErrorResponse(res, "Invalid email", 400);
     }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return errorResponse(res, "Invalid password", 400);
@@ -1900,11 +1902,11 @@ exports.AddSubAdmin = catchAsync(async (req, res) => {
         400
       );
     }
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return errorResponse(
         res,
-        "An account with this phone number already exists.",
+        "An account with this email number already exists.",
         409
       );
     }
