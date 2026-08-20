@@ -54,6 +54,20 @@ const UserSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    area: {
+        type: String,
+        default: null,
+        trim: true,
+    },
+    alternate_phone: {
+        type: Number,
+        default: null,
+    },
+    address: {
+        type: String,
+        default: null,
+        trim: true,
+    },
     deleted_at: {
         type: Date,
         default: null
