@@ -1217,7 +1217,7 @@ exports.AssignStaff = catchAsync(async (req, res) => {
 
 exports.AddSalesPersons = catchAsync(async (req, res) => {
   try {
-    const { phone, otp, role, name, email } = req.body;
+    const { phone, otp, role, name, email, area, alternate_phone, address } = req.body;
     if (!phone || !otp || !name) {
       return validationErrorResponse(
         res,
@@ -1256,6 +1256,9 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
       phone,
       role,
       avatar,
+      area,
+      alternate_phone,
+      address,
     });
 
     const record = await newUser.save();
@@ -1272,7 +1275,7 @@ exports.AddSalesPersons = catchAsync(async (req, res) => {
 exports.EditSalesPerson = catchAsync(async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, role, status, otp } = req.body;
+    const { name, email, phone, role, status, otp, area, alternate_phone, address } = req.body;
 
     const user = await User.findById(id);
     if (phone && phone != user.phone) {
@@ -1290,6 +1293,9 @@ exports.EditSalesPerson = catchAsync(async (req, res) => {
     if (email) user.email = email;
     if (role) user.role = role;
     if (status) user.status = status;
+    if (area !== undefined) user.area = area;
+    if (alternate_phone !== undefined) user.alternate_phone = alternate_phone;
+    if (address !== undefined) user.address = address;
 
     if (req.file && req.file.filename) {
       if (user.avatar) {
@@ -1611,11 +1617,22 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
 
 
 
+    let totalEarningProfitGenerated = 0;
+
+    allPurchases.forEach((purchase) => {
+      const originalAmount =
+        purchase.offer?.flat?.amount ||
+        purchase.offer?.percentage?.amount ||
+        0;
+      totalEarningProfitGenerated += originalAmount;
+    });
+
     const offersCount = {
       activeOffers: activeOffers.length,
       totalOfferBuys: offerBuyStats.totalOfferBuys,
       redeemedOffers: offerBuyStats.vendorBilledCount,
       totalAmount: offerBuyStats.vendorBilledAmount,
+      totalEarningProfit: totalEarningProfitGenerated,
     };
 
     return successResponse(res, "Sales & vendor status details", 200, {
