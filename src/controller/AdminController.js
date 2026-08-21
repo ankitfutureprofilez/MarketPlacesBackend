@@ -1617,11 +1617,22 @@ exports.SalesAdminGetId = catchAsync(async (req, res) => {
 
 
 
+    let totalEarningProfitGenerated = 0;
+
+    allPurchases.forEach((purchase) => {
+      const originalAmount =
+        purchase.offer?.flat?.amount ||
+        purchase.offer?.percentage?.amount ||
+        0;
+      totalEarningProfitGenerated += originalAmount;
+    });
+
     const offersCount = {
       activeOffers: activeOffers.length,
       totalOfferBuys: offerBuyStats.totalOfferBuys,
       redeemedOffers: offerBuyStats.vendorBilledCount,
       totalAmount: offerBuyStats.vendorBilledAmount,
+      totalEarningProfit: totalEarningProfitGenerated,
     };
 
     return successResponse(res, "Sales & vendor status details", 200, {
